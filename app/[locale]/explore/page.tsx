@@ -74,7 +74,7 @@ export default function ExplorePage() {
             {t('title')}
           </h1>
           <p className="text-lg text-muted-foreground">
-            {t('description')}
+            {t('subtitle')}
           </p>
         </div>
 

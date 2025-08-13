@@ -121,8 +121,10 @@
     "payment_failed": "Failed"
   },
   "explore": {
-    "title": "Explore Products",
+    "title": "Explore Products", 
+    "subtitle": "Discover and search Iranian handmade products",
     "description": "Discover and search Iranian handmade products",
+    "loading": "Loading products...",
     "searchPlaceholder": "Search in names, descriptions, or tags...",
     "filters": {
       "allCategories": "All Categories",
