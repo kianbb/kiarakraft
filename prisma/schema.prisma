@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Note: SQLite doesn't support enums, using String with validation instead
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("BUYER") // BUYER, SELLER, ADMIN
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sellerProfile SellerProfile?
+  orders        Order[]
+  cart          Cart?
+  reviews       Review[]
+}
+
+model SellerProfile {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String   @unique
+  shopName    String
+  displayName String
+  bio         String?
+  region      String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+
+  products Product[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  products Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  seller      SellerProfile @relation(fields: [sellerId], references: [id])
+  sellerId    String
+  category    Category? @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  title       String
+  slug        String   @unique
+  description String
+  priceToman  Int
+  stock       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images     ListingImage[]
+  orderItems OrderItem[]
+  reviews    Review[]
+  cartItems  CartItem[]
+}
+
+model ListingImage {
+  id        String  @id @default(cuid())
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String     @unique
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cart      Cart    @relation(fields: [cartId], references: [id])
+  cartId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int     @default(1)
+
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  user       User        @relation(fields: [userId], references: [id])
+  userId     String
+  status     String      @default("PENDING") // PENDING, PAID, SHIPPED, DELIVERED, CANCELED
+  totalToman Int
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  // Shipping (simplified)
+  fullName   String
+  phone      String
+  address1   String
+  address2   String?
+  city       String
+  province   String
+  postalCode String
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  order          Order   @relation(fields: [orderId], references: [id])
+  orderId        String
+  product        Product @relation(fields: [productId], references: [id])
+  productId      String
+  unitPriceToman Int
+  quantity       Int
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
