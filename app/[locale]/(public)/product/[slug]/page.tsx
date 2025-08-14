@@ -10,6 +10,8 @@ import { AddToCartButton } from '@/components/products/AddToCartButton';
 import { formatPrice } from '@/lib/utils';
 import { ArrowLeft, Heart, Share2, Store, MapPin } from 'lucide-react';
 
+export const revalidate = 60;
+
 interface PageProps {
   params: {
     slug: string;
@@ -23,6 +25,7 @@ async function getProduct(slug: string) {
       where: { slug },
       include: {
         images: true,
+        reviews: true,
         category: true,
         seller: {
           include: {
