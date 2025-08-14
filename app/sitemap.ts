@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://kiarakraft.com';
+  const baseUrl = 'https://www.kiarakraft.com';
   
   try {
     // Get all products with their slugs and last modified dates

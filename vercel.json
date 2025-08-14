@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "destination": "https://kiarakraft.com/$1",
+      "destination": "https://www.kiarakraft.com/$1",
       "permanent": true,
       "has": [
         {
@@ -13,12 +13,29 @@
     },
     {
       "source": "/(.*)",
-      "destination": "https://kiarakraft.com/$1",
+      "destination": "https://www.kiarakraft.com/$1",
       "permanent": true,
       "has": [
         {
           "type": "host",
           "value": "www.kiarakraft.ir"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://www.kiarakraft.com/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "kiarakraft.com"
+        }
+      ],
+      "missing": [
+        {
+          "type": "host",
+          "value": "www.kiarakraft.com"
         }
       ]
     },

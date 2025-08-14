@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
@@ -245,10 +246,12 @@ export default function SellerDashboard() {
                 {recentProducts.map((product: any) => (
                   <div key={product.id} className="flex items-center gap-3 p-3 border rounded">
                     <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
-                      <img
+                      <Image
                         src={product.imageUrl}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        width={48}
+                        height={48}
+                        className="object-cover"
                       />
                     </div>
                     <div className="flex-1">

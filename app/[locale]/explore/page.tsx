@@ -104,14 +104,14 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
     description = `Explore ${categoryName} products - ${description}`;
   }
 
-  const canonicalUrl = `https://kiarakraft.com/${params.locale}/explore`;
+  const canonicalUrl = `https://www.kiarakraft.com/${params.locale}/explore`;
   const alternateUrls = {
-    'fa-IR': `https://kiarakraft.com/fa/explore`,
-    'en-US': `https://kiarakraft.com/en/explore`
+    'fa-IR': `https://www.kiarakraft.com/fa/explore`,
+    'en-US': `https://www.kiarakraft.com/en/explore`
   };
 
   return {
-    metadataBase: new URL('https://kiarakraft.com'),
+    metadataBase: new URL('https://www.kiarakraft.com'),
     title,
     description,
     alternates: {

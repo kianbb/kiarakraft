@@ -5,7 +5,7 @@ export async function GET() {
 Allow: /
 
 # Sitemaps
-Sitemap: https://kiarakraft.com/sitemap.xml
+Sitemap: https://www.kiarakraft.com/sitemap.xml
 
 # Block access to admin areas and API routes
 Disallow: /api/

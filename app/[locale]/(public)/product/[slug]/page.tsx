@@ -54,14 +54,14 @@ export async function generateMetadata({ params }: PageProps) {
     }
 
     const imageUrl = product.images?.[0]?.url || '/placeholder-product.jpg';
-    const canonicalUrl = `https://kiarakraft.com/${params.locale}/product/${params.slug}`;
+    const canonicalUrl = `https://www.kiarakraft.com/${params.locale}/product/${params.slug}`;
     const alternateUrls = {
-      'fa-IR': `https://kiarakraft.com/fa/product/${params.slug}`,
-      'en-US': `https://kiarakraft.com/en/product/${params.slug}`
+      'fa-IR': `https://www.kiarakraft.com/fa/product/${params.slug}`,
+      'en-US': `https://www.kiarakraft.com/en/product/${params.slug}`
     };
     
     return {
-      metadataBase: new URL('https://kiarakraft.com'),
+      metadataBase: new URL('https://www.kiarakraft.com'),
       title: `${product.title} - Kiara Kraft`,
       description: product.description,
       alternates: {
