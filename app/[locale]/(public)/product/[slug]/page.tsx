@@ -52,15 +52,28 @@ export async function generateMetadata({ params }: PageProps) {
     }
 
     const imageUrl = product.images?.[0]?.url || '/placeholder-product.jpg';
+    const canonicalUrl = `https://kiarakraft.com/${params.locale}/product/${params.slug}`;
+    const alternateUrls = {
+      'fa-IR': `https://kiarakraft.com/fa/product/${params.slug}`,
+      'en-US': `https://kiarakraft.com/en/product/${params.slug}`
+    };
     
     return {
+      metadataBase: new URL('https://kiarakraft.com'),
       title: `${product.title} - Kiara Kraft`,
       description: product.description,
+      alternates: {
+        canonical: canonicalUrl,
+        languages: alternateUrls
+      },
       openGraph: {
         title: product.title,
         description: product.description,
         images: [imageUrl],
-        type: 'product'
+        type: 'product',
+        url: canonicalUrl,
+        locale: params.locale === 'fa' ? 'fa_IR' : 'en_US',
+        alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR'
       },
       twitter: {
         card: 'summary_large_image',
