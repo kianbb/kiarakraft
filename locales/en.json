@@ -154,6 +154,8 @@
   "product": {
     "notFound": "Product not found",
     "backToExplore": "Back to Explore",
+    "notFoundDescription": "The product you're looking for doesn't exist or may have been removed. Please check the URL or explore our other amazing handcrafted items.",
+    "goToHomepage": "Go to Homepage",
     "inStock": "In Stock",
     "outOfStock": "Out of Stock",
     "description": "Description",
@@ -299,6 +301,17 @@
     "contact": "Contact Us",
     "help": "Help",
     "terms": "Terms of Service",
-    "privacy": "Privacy Policy"
+    "privacy": "Privacy Policy",
+    "brandDescription": "Online marketplace for authentic Iranian handcrafted products. Quality, authenticity, and traditional artistry in every piece.",
+    "categories": "Categories",
+    "legal": "Legal",
+    "madeWith": "Made with",
+    "forArtisans": "for Iranian artisans",
+    "supportMessage": "Support Iranian artists and craftspeople by shopping at Kiara Kraft",
+    "allRightsReserved": "All rights reserved",
+    "categoryTextiles": "Textiles",
+    "categoryCeramics": "Ceramics",
+    "categoryJewelry": "Jewelry",
+    "categoryWoodwork": "Woodwork"
   }
 }

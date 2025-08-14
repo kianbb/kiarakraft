@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -104,7 +103,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">
           {/* Back Button */}
-          <Link href="/explore" className="inline-flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground">
+          <Link href={`/${params.locale}/explore`} className="inline-flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
             {t('backToExplore')}
           </Link>

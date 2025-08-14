@@ -1,69 +1,140 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
+import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/products/ProductCard';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter } from 'lucide-react';
+import { ExploreFilters } from '@/components/explore/ExploreFilters';
+import { ExplorePagination } from '@/components/explore/ExplorePagination';
 
-export default function ExplorePage() {
-  const t = useTranslations('explore');
-  const searchParams = useSearchParams();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
-  const [sortBy, setSortBy] = useState('newest');
+interface PageProps {
+  params: {
+    locale: string;
+  };
+  searchParams: {
+    search?: string;
+    category?: string;
+    sort?: string;
+    page?: string;
+  };
+}
 
-  const categories = [
-    { value: 'all', label: t('filters.allCategories') },
-    { value: 'pottery', label: t('categories.pottery') },
-    { value: 'textiles', label: t('categories.textiles') },
-    { value: 'jewelry', label: t('categories.jewelry') },
-    { value: 'woodwork', label: t('categories.woodwork') },
-    { value: 'metalwork', label: t('categories.metalwork') },
-    { value: 'calligraphy', label: t('categories.calligraphy') },
-    { value: 'carpets', label: t('categories.carpets') },
-    { value: 'other', label: t('categories.other') }
-  ];
+const PRODUCTS_PER_PAGE = 12;
 
-  const sortOptions = [
-    { value: 'newest', label: t('filters.newest') },
-    { value: 'oldest', label: t('filters.oldest') },
-    { value: 'price_low', label: t('filters.priceLowToHigh') },
-    { value: 'price_high', label: t('filters.priceHighToLow') },
-    { value: 'popular', label: t('filters.popular') }
-  ];
+async function getProducts(searchParams: PageProps['searchParams']) {
+  const search = searchParams.search;
+  const category = searchParams.category;
+  const sort = searchParams.sort || 'newest';
+  const page = parseInt(searchParams.page || '1');
+  const skip = (page - 1) * PRODUCTS_PER_PAGE;
 
-  useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory, sortBy, searchTerm]);
+  const where: any = {
+    active: true,
+  };
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedCategory && selectedCategory !== 'all') params.append('category', selectedCategory);
-      if (sortBy) params.append('sort', sortBy);
+  // Add search filter
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } }
+    ];
+  }
 
-      const response = await fetch(`/api/products?${params}`);
-      const data = await response.json();
-      setProducts(data);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
+  // Add category filter
+  if (category && category !== 'all') {
+    where.category = {
+      slug: category
+    };
+  }
+
+  // Determine sort order
+  let orderBy: any = { createdAt: 'desc' }; // newest (default)
+  switch (sort) {
+    case 'oldest':
+      orderBy = { createdAt: 'asc' };
+      break;
+    case 'price_low':
+      orderBy = { priceToman: 'asc' };
+      break;
+    case 'price_high':
+      orderBy = { priceToman: 'desc' };
+      break;
+    case 'popular':
+      orderBy = { createdAt: 'desc' }; // fallback since no views field
+      break;
+  }
+
+  const [products, totalCount] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: {
+        seller: true,
+        category: true,
+        images: true
+      },
+      orderBy,
+      take: PRODUCTS_PER_PAGE,
+      skip
+    }),
+    prisma.product.count({ where })
+  ]);
+
+  return {
+    products,
+    totalCount,
+    totalPages: Math.ceil(totalCount / PRODUCTS_PER_PAGE),
+    currentPage: page
+  };
+}
+
+export async function generateMetadata({ params, searchParams }: PageProps) {
+  const t = await getTranslations('explore');
+  
+  let title = t('title');
+  let description = t('subtitle');
+  
+  if (searchParams.search) {
+    title = `${searchParams.search} - ${title}`;
+    description = `Search results for "${searchParams.search}" - ${description}`;
+  }
+  
+  if (searchParams.category && searchParams.category !== 'all') {
+    const categoryName = searchParams.category;
+    title = `${categoryName} - ${title}`;
+    description = `Explore ${categoryName} products - ${description}`;
+  }
+
+  const canonicalUrl = `https://kiarakraft.com/${params.locale}/explore`;
+  const alternateUrls = {
+    'fa-IR': `https://kiarakraft.com/fa/explore`,
+    'en-US': `https://kiarakraft.com/en/explore`
+  };
+
+  return {
+    metadataBase: new URL('https://kiarakraft.com'),
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: alternateUrls
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      url: canonicalUrl,
+      locale: params.locale === 'fa' ? 'fa_IR' : 'en_US',
+      alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR'
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description
     }
   };
+}
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchProducts();
-  };
+export default async function ExplorePage({ params, searchParams }: PageProps) {
+  const t = await getTranslations('explore');
+  const { products, totalCount, totalPages, currentPage } = await getProducts(searchParams);
 
   return (
     <div className="min-h-screen py-8">
@@ -79,93 +150,61 @@ export default function ExplorePage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="relative">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                type="text"
-                placeholder={t('searchPlaceholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2"
-              />
-            </div>
-          </form>
+        <Suspense fallback={<div className="h-32 animate-pulse bg-gray-100 rounded-lg mb-8" />}>
+          <ExploreFilters 
+            initialSearch={searchParams.search || ''}
+            initialCategory={searchParams.category || 'all'}
+            initialSort={searchParams.sort || 'newest'}
+            locale={params.locale}
+          />
+        </Suspense>
 
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('filters.selectCategory')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex-1">
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('filters.sortBy')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="mb-4">
+        {/* Results Count */}
+        <div className="mb-6">
           <p className="text-sm text-muted-foreground">
-            {loading ? t('loading') : t('resultsCount', { count: products.length })}
+            {t('resultsCount', { count: totalCount })}
           </p>
         </div>
 
         {/* Products Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="bg-gray-200 aspect-square rounded-lg mb-4"></div>
-                <div className="bg-gray-200 h-4 rounded mb-2"></div>
-                <div className="bg-gray-200 h-4 rounded w-2/3"></div>
-              </div>
-            ))}
-          </div>
-        ) : products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product: any) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+        {products.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {products.map((product) => (
+                <ProductCard 
+                  key={product.id} 
+                  product={{
+                    ...product,
+                    images: product.images.map(img => ({
+                      url: img.url,
+                      alt: img.alt || product.title
+                    })),
+                    seller: {
+                      displayName: product.seller.displayName,
+                      shopName: product.seller.shopName
+                    }
+                  }} 
+                />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <ExplorePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                searchParams={searchParams}
+                locale={params.locale}
+              />
+            )}
+          </>
         ) : (
           <div className="text-center py-12">
             <div className="text-muted-foreground mb-4">
-              <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <div className="h-12 w-12 mx-auto mb-4 opacity-50 bg-gray-200 rounded-full"></div>
               <p className="text-lg">{t('noResults')}</p>
               <p className="text-sm">{t('noResultsDescription')}</p>
             </div>
-            <Button onClick={() => {
-              setSearchTerm('');
-              setSelectedCategory('all');
-              setSortBy('newest');
-            }}>
-              {t('clearFilters')}
-            </Button>
           </div>
         )}
       </div>

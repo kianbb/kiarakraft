@@ -20,19 +20,19 @@ export default function Footer() {
       ]
     },
     {
-      title: 'Legal',
+      title: t('legal'),
       links: [
         { name: t('terms'), href: `/${locale}/terms` },
         { name: t('privacy'), href: `/${locale}/privacy` },
       ]
     },
     {
-      title: 'Categories',
+      title: t('categories'),
       links: [
-        { name: 'سرامیک', href: `/${locale}/explore?category=ceramics` },
-        { name: 'نساجی', href: `/${locale}/explore?category=textiles` },
-        { name: 'جواهرات', href: `/${locale}/explore?category=jewelry` },
-        { name: 'صنایع چوبی', href: `/${locale}/explore?category=woodwork` },
+        { name: t('categoryCeramics'), href: `/${locale}/explore?category=ceramics` },
+        { name: t('categoryTextiles'), href: `/${locale}/explore?category=textiles` },
+        { name: t('categoryJewelry'), href: `/${locale}/explore?category=jewelry` },
+        { name: t('categoryWoodwork'), href: `/${locale}/explore?category=woodwork` },
       ]
     }
   ];
@@ -52,10 +52,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-muted-foreground text-sm mb-4 max-w-xs">
-              {locale === 'fa' 
-                ? 'بازار آنلاین محصولات دستساز ایرانی. کیفیت، اصالت و هنر سنتی در هر محصول.'
-                : 'Online marketplace for authentic Iranian handcrafted products. Quality, authenticity, and traditional artistry in every piece.'
-              }
+              {t('brandDescription')}
             </p>
             
             {/* Contact Info */}
@@ -102,24 +99,21 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-sm text-muted-foreground">
               <p className="mb-2 md:mb-0">
-                © {new Date().getFullYear()} Kiara Kraft. All rights reserved.
+                © {new Date().getFullYear()} Kiara Kraft. {t('allRightsReserved')}.
               </p>
             </div>
             
             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-              <span>Made with</span>
+              <span>{t('madeWith')}</span>
               <Heart className="w-4 h-4 text-red-500 fill-current" />
-              <span>for Iranian artisans</span>
+              <span>{t('forArtisans')}</span>
             </div>
           </div>
           
           {/* Support Iranian Crafts Message */}
           <div className="mt-4 text-center">
             <p className="text-xs text-muted-foreground">
-              {locale === 'fa' 
-                ? 'با خرید از کیارا کرفت، از هنرمندان و صنعتگران ایرانی حمایت کنید'
-                : 'Support Iranian artists and craftspeople by shopping at Kiara Kraft'
-              }
+              {t('supportMessage')}
             </p>
           </div>
         </div>

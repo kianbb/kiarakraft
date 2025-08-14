@@ -154,6 +154,8 @@
   "product": {
     "notFound": "محصول یافت نشد",
     "backToExplore": "بازگشت به کاوش",
+    "notFoundDescription": "محصولی که به دنبال آن هستید وجود ندارد یا ممکن است حذف شده باشد. لطفاً آدرس را بررسی کنید یا سایر محصولات دستساز ما را مشاهده کنید.",
+    "goToHomepage": "بازگشت به صفحه اصلی",
     "inStock": "موجود",
     "outOfStock": "ناموجود",
     "description": "توضیحات",
@@ -299,6 +301,17 @@
     "contact": "تماس با ما",
     "help": "راهنما",
     "terms": "شرایط استفاده",
-    "privacy": "حریم خصوصی"
+    "privacy": "حریم خصوصی",
+    "brandDescription": "بازار آنلاین محصولات دستساز ایرانی. کیفیت، اصالت و هنر سنتی در هر محصول.",
+    "categories": "دسته‌بندی‌ها",
+    "legal": "قوانین",
+    "madeWith": "ساخته شده با",
+    "forArtisans": "برای هنرمندان ایرانی",
+    "supportMessage": "با خرید از کیارا کرفت، از هنرمندان و صنعتگران ایرانی حمایت کنید",
+    "allRightsReserved": "تمام حقوق محفوظ است",
+    "categoryTextiles": "نساجی",
+    "categoryCeramics": "سرامیک",
+    "categoryJewelry": "جواهرات",
+    "categoryWoodwork": "صنایع چوبی"
   }
 }

@@ -21,6 +21,186 @@
           "value": "www.kiarakraft.ir"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://kiarakraft.com/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "www.kiarakraft.com"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "destination": "/fa",
+      "permanent": false
+    },
+    {
+      "source": "/index.html",
+      "destination": "/fa",
+      "permanent": true
+    },
+    {
+      "source": "/home",
+      "destination": "/fa",
+      "permanent": true
+    },
+    {
+      "source": "/en/home",
+      "destination": "/en",
+      "permanent": true
+    },
+    {
+      "source": "/fa/home",
+      "destination": "/fa",
+      "permanent": true
+    },
+    {
+      "source": "/products",
+      "destination": "/fa/explore",
+      "permanent": true
+    },
+    {
+      "source": "/en/products",
+      "destination": "/en/explore",
+      "permanent": true
+    },
+    {
+      "source": "/fa/products",
+      "destination": "/fa/explore",
+      "permanent": true
+    },
+    {
+      "source": "/shop",
+      "destination": "/fa/explore",
+      "permanent": true
+    },
+    {
+      "source": "/en/shop",
+      "destination": "/en/explore",
+      "permanent": true
+    },
+    {
+      "source": "/fa/shop",
+      "destination": "/fa/explore",
+      "permanent": true
+    },
+    {
+      "source": "/product/:slug",
+      "destination": "/fa/product/:slug",
+      "permanent": true
+    },
+    {
+      "source": "/p/:slug",
+      "destination": "/fa/product/:slug",
+      "permanent": true
+    },
+    {
+      "source": "/en/p/:slug",
+      "destination": "/en/product/:slug",
+      "permanent": true
+    },
+    {
+      "source": "/fa/p/:slug",
+      "destination": "/fa/product/:slug",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, s-maxage=86400"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, s-maxage=86400"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, s-maxage=86400"
+        }
+      ]
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/_next/image/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/healthz",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
     }
   ]
 }

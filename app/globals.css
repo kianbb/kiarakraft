@@ -100,17 +100,19 @@
   text-align: left;
 }
 
-/* Font handling for different locales */
+/* Font handling for different locales using CSS variables */
 [dir="rtl"] {
-  font-family: 'Vazirmatn', 'Tahoma', 'Arial', sans-serif;
+  font-family: var(--font-vazirmatn), 'Tahoma', 'Arial', sans-serif;
 }
 
 [dir="ltr"] {
-  font-family: 'Inter', 'Arial', sans-serif;
+  font-family: var(--font-inter), 'system-ui', 'Arial', sans-serif;
 }
 
-/* Import Persian font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap');
+/* Default font fallback */
+body {
+  font-family: var(--font-inter), var(--font-vazirmatn), 'system-ui', 'Arial', sans-serif;
+}
 
 /* Enhanced focus styles for accessibility */
 *:focus-visible {

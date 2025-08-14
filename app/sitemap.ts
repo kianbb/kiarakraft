@@ -14,6 +14,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     });
 
+    // Get all active categories
+    const categories = await prisma.category.findMany({
+      select: {
+        slug: true,
+      },
+    });
+
     // Static pages
     const staticPages: MetadataRoute.Sitemap = [
       // Homepage
@@ -56,6 +63,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     ];
 
+    // Category pages
+    const categoryPages: MetadataRoute.Sitemap = categories.flatMap((category) => [
+      {
+        url: `${baseUrl}/fa/explore?category=${category.slug}`,
+        lastModified: new Date(),
+        changeFrequency: 'daily' as const,
+        priority: 0.7,
+        alternates: {
+          languages: {
+            fa: `${baseUrl}/fa/explore?category=${category.slug}`,
+            en: `${baseUrl}/en/explore?category=${category.slug}`,
+          },
+        },
+      },
+      {
+        url: `${baseUrl}/en/explore?category=${category.slug}`,
+        lastModified: new Date(),
+        changeFrequency: 'daily' as const,
+        priority: 0.7,
+      },
+    ]);
+
     // Product pages
     const productPages: MetadataRoute.Sitemap = products.flatMap((product) => [
       {
@@ -78,7 +107,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     ]);
 
-    return [...staticPages, ...productPages];
+    return [...staticPages, ...categoryPages, ...productPages];
 
   } catch (error) {
     console.error('Error generating sitemap:', error);
