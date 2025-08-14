@@ -20,15 +20,11 @@ export async function GET() {
     }
 
     const cartItems = await prisma.cartItem.findMany({
-      where: { userId: user.id },
+      where: { cart: { userId: user.id } },
       include: {
         product: {
           include: {
-            seller: {
-              include: {
-                sellerProfile: true
-              }
-            }
+            seller: true
           }
         }
       }
@@ -64,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     // Check if product exists and is active
     const product = await prisma.product.findUnique({
-      where: { id: productId, isActive: true }
+      where: { id: productId, active: true }
     });
 
     if (!product) {
@@ -78,8 +74,8 @@ export async function POST(request: NextRequest) {
     // Check if item already in cart
     const existingItem = await prisma.cartItem.findUnique({
       where: {
-        userId_productId: {
-          userId: user.id,
+        cartId_productId: {
+          cartId: user.cart?.id || '',
           productId: productId
         }
       }

@@ -147,8 +147,8 @@ export default function CartPage() {
                 <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
                     <Image
-                      src={item.product.imageUrl}
-                      alt={item.product.name}
+                      src={item.product.images[0]?.url || '/placeholder.jpg'}
+                      alt={item.product.title}
                       fill
                       className="object-cover"
                     />
@@ -161,10 +161,10 @@ export default function CartPage() {
                           href={`/product/${item.product.id}`}
                           className="font-semibold hover:text-primary"
                         >
-                          {item.product.name}
+                          {item.product.title}
                         </Link>
                         <p className="text-sm text-muted-foreground">
-                          {item.product.seller.sellerProfile?.displayName || item.product.seller.name}
+                          {item.product.seller.displayName}
                         </p>
                       </div>
                       <Button

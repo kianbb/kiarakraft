@@ -16,7 +16,7 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
-  role: z.enum(['BUYER', 'SELLER']).default('BUYER'),
+  role: z.enum(['BUYER', 'SELLER']),
   // Seller fields
   shopName: z.string().optional(),
   displayName: z.string().optional(),
