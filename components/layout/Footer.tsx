@@ -105,8 +105,6 @@ export default function Footer() {
             
             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
               <span>{t('madeWith')}</span>
-              <Heart className="w-4 h-4 text-red-500 fill-current" />
-              <span>{t('forArtisans')}</span>
             </div>
           </div>
           
