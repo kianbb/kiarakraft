@@ -17,12 +17,12 @@ A modern Iranian handmade marketplace inspired by Etsy, built with Next.js 14 an
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS + shadcn/ui components
-- **Database**: Prisma ORM with SQLite (dev) / PostgreSQL (production)
+- **Database**: Prisma ORM with PostgreSQL (Neon) 
 - **Authentication**: NextAuth.js with Credentials provider
 - **Internationalization**: next-intl with RTL/LTR support
 - **Forms**: react-hook-form + Zod validation
 - **Icons**: Lucide React
-- **Deployment**: Netlify/Vercel ready
+- **Deployment**: Vercel (production) with Neon PostgreSQL
 
 ## 🏗 Project Structure
 
@@ -70,9 +70,10 @@ kiarakraft/
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` and set your values:
+   Edit `.env` and set your values (see `.env.example`):
    ```env
-   DATABASE_URL="file:./dev.db"
+   DATABASE_URL="postgresql://user:pass@host-pooler.region.neon.tech/db?sslmode=require&pgbouncer=true&connection_limit=1"
+   DIRECT_URL="postgresql://user:pass@host.region.neon.tech/db?sslmode=require"
    NEXTAUTH_SECRET="your-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
    ```
@@ -144,31 +145,63 @@ The app supports Persian (fa) and English (en) locales:
    return <h1>{t('title')}</h1>;
    ```
 
-## 🚀 Deployment
+## 🚀 Production Deployment
 
-### Netlify (Recommended)
+### Vercel (Canonical Deployment Platform)
 
-1. **Build settings** (auto-detected via `netlify.toml`):
-   - Build command: `npm run build`
-   - Publish directory: `.next`
-
-2. **Environment variables**:
-   ```env
-   DATABASE_URL="postgresql://..."
-   NEXTAUTH_SECRET="your-production-secret"
-   NEXTAUTH_URL="https://your-domain.netlify.app"
-   ```
-
-3. **Deploy**:
-   - Connect repository to Netlify
-   - Push to main branch
-   - Automatic deployments on push
-
-### Vercel
+**Live Site:** https://www.kiarakraft.com
 
 1. **Import project** to Vercel dashboard
-2. **Set environment variables** in project settings
-3. **Deploy** automatically on git push
+2. **Configure environment variables** in project settings:
+   ```env
+   DATABASE_URL="postgresql://neondb_owner:...@ep-host-pooler.region.aws.neon.tech/neondb?sslmode=require&pgbouncer=true&connection_limit=1"
+   DIRECT_URL="postgresql://neondb_owner:...@ep-host.region.aws.neon.tech/neondb?sslmode=require"
+   NEXTAUTH_SECRET="production-secret-generated-with-openssl-rand-base64-32"
+   NEXTAUTH_URL="https://www.kiarakraft.com"
+   ```
+3. **Deploy** automatically on git push to main
+4. **Domain configuration**: Set up custom domain with redirects
+5. **SSL/TLS**: Automatic HTTPS via Vercel
+
+### Production Checklist
+
+#### ✅ Environment Variables
+- [ ] `DATABASE_URL` - Neon pooled connection string  
+- [ ] `DIRECT_URL` - Neon direct connection for migrations
+- [ ] `NEXTAUTH_SECRET` - Strong random secret (32+ chars)
+- [ ] `NEXTAUTH_URL` - Canonical production domain
+
+#### ✅ Domain & Redirects  
+- [ ] Primary domain: `www.kiarakraft.com`
+- [ ] Apex redirect: `kiarakraft.com` → `www.kiarakraft.com`
+- [ ] Geographic redirects: `kiarakraft.ir` → `www.kiarakraft.com`
+- [ ] SSL/TLS enabled with HTTPS redirects
+
+#### ✅ Database & Migrations
+- [ ] Neon PostgreSQL database provisioned
+- [ ] Connection pooling enabled (PgBouncer)
+- [ ] Production migrations deployed via GitHub Actions
+- [ ] Database backups configured
+
+#### ✅ SEO & Performance
+- [ ] Robots.txt configured for production indexing
+- [ ] XML sitemaps generated and submitted
+- [ ] Canonical URLs set correctly
+- [ ] OpenGraph/Twitter meta tags present
+- [ ] Performance monitoring enabled
+
+#### ✅ Security
+- [ ] Security headers configured
+- [ ] CORS policies set appropriately  
+- [ ] Rate limiting in place
+- [ ] Error pages don't leak sensitive info
+- [ ] All secrets rotated after git history purge
+
+#### ✅ Monitoring
+- [ ] Error tracking configured
+- [ ] Performance monitoring setup
+- [ ] Database query monitoring
+- [ ] Uptime monitoring active
 
 ### Manual Production Setup
 
@@ -260,7 +293,7 @@ npm run build
 
 ## 📄 License
 
-This project is private and proprietary.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
