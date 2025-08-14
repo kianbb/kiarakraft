@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -16,17 +16,20 @@ export default function CartPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const t = useTranslations('cart');
+  const pathname = usePathname();
+  const locale = pathname.split('/')[1] || 'fa';
+  
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
       return;
     }
     fetchCart();
-  }, [session]);
+  }, [session, locale, router]);
 
   const fetchCart = async () => {
     try {

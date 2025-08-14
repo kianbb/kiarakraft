@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,8 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split('/')[1] || 'fa';
   const t = useTranslations('auth');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,7 +49,9 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        router.push('/');
+        // Redirect to the previous page or home
+        const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
+        router.push(callbackUrl || `/${locale}`);
         router.refresh();
       }
     } catch {
@@ -124,7 +128,7 @@ export default function LoginPage() {
             <p className="text-muted-foreground">
               {t('dontHaveAccount')}{' '}
               <Link
-                href="/auth/register"
+                href={`/${locale}/auth/register`}
                 className="font-medium text-primary hover:text-primary/80"
               >
                 {t('register')}
