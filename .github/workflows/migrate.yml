@@ -46,3 +46,4 @@ jobs:
         run: npx prisma migrate deploy
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
