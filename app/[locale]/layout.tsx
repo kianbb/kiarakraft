@@ -152,12 +152,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         
-        {/* Preload critical CSS */}
-        <link 
-          rel="preload" 
-          href="/_next/static/css/app/layout.css" 
-          as="style"
-        />
         
         {/* Preload LCP image for hero section */}
         <link 
