@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useParams } from 'next/navigation';
@@ -13,6 +13,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Edit } from 'lucide-react';
+// Type for the form-compatible product data structure
+interface FormCompatibleProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  category: string;
+  imageUrl: string;
+  tags?: string;
+}
 
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
@@ -33,36 +44,19 @@ export default function EditProductPage() {
   const t = useTranslations('seller');
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<FormCompatibleProduct | null>(null);
 
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
     reset,
     formState: { errors }
   } = useForm<ProductForm>({
     resolver: zodResolver(productSchema)
   });
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-
-    if (session.user?.role !== 'SELLER') {
-      router.push('/');
-      return;
-    }
-
-    fetchProduct();
-  }, [session, status, router, params.id]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       const response = await fetch(`/api/seller/products/${params.id}`);
       if (response.ok) {
@@ -88,7 +82,23 @@ export default function EditProductPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router, reset]);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (!session) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (session.user?.role !== 'SELLER') {
+      router.push('/');
+      return;
+    }
+
+    fetchProduct();
+  }, [session, status, router, params.id, fetchProduct]);
 
   if (status === 'loading' || loading) {
     return (
@@ -218,7 +228,7 @@ export default function EditProductPage() {
 
             <div>
               <Label htmlFor="category">{t('category')}</Label>
-              <Select onValueChange={(value) => setValue('category', value as any)} defaultValue={product.category}>
+              <Select onValueChange={(value) => setValue('category', value as 'pottery' | 'textiles' | 'jewelry' | 'woodwork' | 'metalwork' | 'calligraphy' | 'carpets' | 'other')} defaultValue={product.category}>
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectCategory')} />
                 </SelectTrigger>

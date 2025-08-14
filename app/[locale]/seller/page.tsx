@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
+import { OrderWithItems, ProductWithRelations, SellerStats } from '@/types/database';
 import { 
   Package, 
   ShoppingCart, 
@@ -24,9 +25,9 @@ export default function SellerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations('seller');
-  const [stats, setStats] = useState<any>(null);
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [recentProducts, setRecentProducts] = useState([]);
+  const [stats, setStats] = useState<SellerStats | null>(null);
+  const [recentOrders, setRecentOrders] = useState<OrderWithItems[]>([]);
+  const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -202,7 +203,7 @@ export default function SellerDashboard() {
 
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
-                {recentOrders.map((order: any) => (
+                {recentOrders.map((order: OrderWithItems) => (
                   <div key={order.id} className="flex items-center justify-between p-3 border rounded">
                     <div>
                       <div className="font-medium">#{order.id.slice(-8)}</div>
@@ -211,7 +212,7 @@ export default function SellerDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">{formatPrice(order.total)}</div>
+                      <div className="font-semibold">{formatPrice(order.totalToman)}</div>
                       <Badge variant={order.status === 'PENDING' ? 'secondary' : 'default'}>
                         {t(`status_${order.status.toLowerCase()}`)}
                       </Badge>
@@ -243,21 +244,21 @@ export default function SellerDashboard() {
 
             {recentProducts.length > 0 ? (
               <div className="space-y-4">
-                {recentProducts.map((product: any) => (
+                {recentProducts.map((product: ProductWithRelations) => (
                   <div key={product.id} className="flex items-center gap-3 p-3 border rounded">
                     <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
                       <Image
-                        src={product.imageUrl}
-                        alt={product.name}
+                        src={product.images[0]?.url || '/placeholder-product.jpg'}
+                        alt={product.title}
                         width={48}
                         height={48}
                         className="object-cover"
                       />
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium">{product.name}</div>
+                      <div className="font-medium">{product.title}</div>
                       <div className="text-sm text-muted-foreground">
-                        {formatPrice(product.price)} • {product.stock} {t('inStock')}
+                        {formatPrice(product.priceToman)} • {product.stock} {t('inStock')}
                       </div>
                     </div>
                     <div className="flex gap-1">

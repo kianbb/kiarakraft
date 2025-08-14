@@ -36,7 +36,6 @@ export default function NewProductPage() {
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors }
   } = useForm<ProductForm>({
     resolver: zodResolver(productSchema)
@@ -171,7 +170,7 @@ export default function NewProductPage() {
 
             <div>
               <Label htmlFor="category">{t('category')}</Label>
-              <Select onValueChange={(value) => setValue('category', value as any)}>
+              <Select onValueChange={(value) => setValue('category', value as 'pottery' | 'textiles' | 'jewelry' | 'woodwork' | 'metalwork' | 'calligraphy' | 'carpets' | 'other')}>
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectCategory')} />
                 </SelectTrigger>

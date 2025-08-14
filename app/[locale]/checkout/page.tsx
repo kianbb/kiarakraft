@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatPrice } from '@/lib/utils';
 import { CreditCard, MapPin, Package } from 'lucide-react';
+import { CartItemWithProduct } from '@/types/database';
 
 const checkoutSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -32,7 +33,7 @@ export default function CheckoutPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const t = useTranslations('checkout');
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
 
@@ -55,7 +56,7 @@ export default function CheckoutPage() {
       return;
     }
     fetchCart();
-  }, [session]);
+  }, [session, router]);
 
   const fetchCart = async () => {
     try {
@@ -72,8 +73,8 @@ export default function CheckoutPage() {
   };
 
   const calculateSubtotal = () => {
-    return cartItems.reduce((total: number, item: any) => {
-      return total + (item.product.price * item.quantity);
+    return cartItems.reduce((total: number, item: CartItemWithProduct) => {
+      return total + (item.product.priceToman * item.quantity);
     }, 0);
   };
 
@@ -249,7 +250,7 @@ export default function CheckoutPage() {
 
                 <Select
                   value={watch('paymentMethod')}
-                  onValueChange={(value) => setValue('paymentMethod', value as any)}
+                  onValueChange={(value) => setValue('paymentMethod', value as 'cash_on_delivery' | 'bank_transfer')}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t('selectPaymentMethod')} />
@@ -268,26 +269,26 @@ export default function CheckoutPage() {
               
               {/* Items */}
               <div className="space-y-3">
-                {cartItems.map((item: any) => (
+                {cartItems.map((item: CartItemWithProduct) => (
                   <div key={item.id} className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
                         <Image
-                          src={item.product.imageUrl}
-                          alt={item.product.name}
+                          src={item.product.images[0]?.url || '/placeholder-product.jpg'}
+                          alt={item.product.title}
                           fill
                           className="object-cover"
                         />
                       </div>
                       <div>
-                        <div className="font-medium text-sm">{item.product.name}</div>
+                        <div className="font-medium text-sm">{item.product.title}</div>
                         <div className="text-xs text-muted-foreground">
                           {t('quantity')}: {item.quantity}
                         </div>
                       </div>
                     </div>
                     <div className="font-semibold">
-                      {formatPrice(item.product.price * item.quantity)}
+                      {formatPrice(item.product.priceToman * item.quantity)}
                     </div>
                   </div>
                 ))}

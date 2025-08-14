@@ -89,7 +89,7 @@ export default function CartPage() {
   };
 
   const calculateTotal = () => {
-    return cartItems.reduce((total: number, item: any) => {
+    return cartItems.reduce((total: number, item: CartItemWithProduct) => {
       return total + (item.product.priceToman * item.quantity);
     }, 0);
   };

@@ -84,7 +84,7 @@ export async function generateMetadata({ params }: PageProps) {
         images: [imageUrl]
       }
     };
-  } catch (error) {
+  } catch {
     return {
       title: 'Error - Kiara Kraft',
       description: 'An error occurred while loading the product.'

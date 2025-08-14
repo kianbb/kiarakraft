@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // Update or create seller profile
-    const updatedProfile = await prisma.sellerProfile.upsert({
+    await prisma.sellerProfile.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,

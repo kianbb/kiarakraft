@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
+import { OrderWithItems } from '@/types/database';
 import { CheckCircle, Package, MapPin, CreditCard, Home } from 'lucide-react';
 
 export default function OrderConfirmationPage() {
@@ -17,18 +18,10 @@ export default function OrderConfirmationPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const t = useTranslations('order');
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-    fetchOrder();
-  }, [params.id, session]);
-
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const response = await fetch(`/api/orders/${params.id}`);
       if (response.ok) {
@@ -43,7 +36,15 @@ export default function OrderConfirmationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
+
+  useEffect(() => {
+    if (!session) {
+      router.push('/auth/login');
+      return;
+    }
+    fetchOrder();
+  }, [session, router, fetchOrder]);
 
   if (!session || loading) {
     return (
@@ -62,7 +63,7 @@ export default function OrderConfirmationPage() {
     return null;
   }
 
-  const shippingInfo = JSON.parse(order.shippingAddress);
+  // Use individual address fields from order object directly
 
   return (
     <div className="min-h-screen py-8">
@@ -94,8 +95,8 @@ export default function OrderConfirmationPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>{t('paymentStatus')}</span>
-                  <Badge variant={order.paymentStatus === 'PENDING' ? 'secondary' : 'default'}>
-                    {t(`payment_${order.paymentStatus.toLowerCase()}`)}
+                  <Badge variant={order.status === 'PENDING' ? 'secondary' : 'default'}>
+                    {t(`payment_${order.status.toLowerCase()}`)}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
@@ -113,11 +114,11 @@ export default function OrderConfirmationPage() {
               </div>
 
               <div className="space-y-2 text-sm">
-                <div><strong>{shippingInfo.fullName}</strong></div>
-                <div>{shippingInfo.phone}</div>
-                <div>{shippingInfo.address}</div>
-                <div>{shippingInfo.city}, {shippingInfo.province}</div>
-                <div>{shippingInfo.postalCode}</div>
+                <div><strong>{order.fullName}</strong></div>
+                <div>{order.phone}</div>
+                <div>{order.address1}{order.address2 ? `, ${order.address2}` : ''}</div>
+                <div>{order.city}, {order.province}</div>
+                <div>{order.postalCode}</div>
               </div>
             </div>
 
@@ -129,7 +130,7 @@ export default function OrderConfirmationPage() {
               </div>
 
               <div className="text-sm">
-                {order.paymentMethod === 'cash_on_delivery' ? t('cashOnDelivery') : t('bankTransfer')}
+                {t('cashOnDelivery')}
               </div>
             </div>
           </div>
@@ -139,24 +140,24 @@ export default function OrderConfirmationPage() {
             <h2 className="text-xl font-semibold">{t('orderItems')}</h2>
             
             <div className="space-y-4">
-              {order.items?.map((item: any) => (
+              {order.items?.map((item: OrderWithItems['items'][0]) => (
                 <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                   <div className="relative w-16 h-16 rounded overflow-hidden bg-gray-100">
                     <Image
-                      src={item.product.imageUrl}
-                      alt={item.product.name}
+                      src={item.product.images[0]?.url || '/placeholder-product.jpg'}
+                      alt={item.product.title}
                       fill
                       className="object-cover"
                     />
                   </div>
                   
                   <div className="flex-1">
-                    <div className="font-semibold">{item.product.name}</div>
+                    <div className="font-semibold">{item.product.title}</div>
                     <div className="text-sm text-muted-foreground">
                       {t('quantity')}: {item.quantity}
                     </div>
                     <div className="font-semibold">
-                      {formatPrice(item.price * item.quantity)}
+                      {formatPrice(item.unitPriceToman * item.quantity)}
                     </div>
                   </div>
                 </div>
@@ -168,15 +169,15 @@ export default function OrderConfirmationPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>{t('subtotal')}</span>
-                  <span>{formatPrice(order.subtotal)}</span>
+                  <span>{formatPrice(order.items?.reduce((sum, item) => sum + (item.unitPriceToman * item.quantity), 0) || 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t('shipping')}</span>
-                  <span>{formatPrice(order.shippingCost)}</span>
+                  <span>{formatPrice(0)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg border-t pt-2">
                   <span>{t('total')}</span>
-                  <span>{formatPrice(order.total)}</span>
+                  <span>{formatPrice(order.totalToman)}</span>
                 </div>
               </div>
             </div>

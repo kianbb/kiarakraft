@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
-import { PaginatedProducts, ProductFilters, PrismaWhereClause, PrismaOrderBy } from '@/types/database';
+import { PaginatedProducts, PrismaWhereClause, PrismaOrderBy } from '@/types/database';
 
 export const revalidate = 300; // 5 minutes for explore page
 

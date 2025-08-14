@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { CartItemWithProduct } from '@/types/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { shippingInfo, paymentMethod } = await request.json();
+    const { shippingInfo } = await request.json();
 
     // Get cart items with proper typing
     const cart = await prisma.cart.findUnique({
@@ -117,13 +116,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Update product stock
-      for (const item of cartItems) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
-        });
-      }
 
       // Clear cart
       await tx.cartItem.deleteMany({

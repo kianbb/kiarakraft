@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
+import { ProductWithRelations } from '@/types/database';
 import { 
   Plus, 
   Search, 
@@ -24,7 +25,7 @@ export default function SellerProductsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations('seller');
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export default function SellerProductsPage() {
       });
 
       if (response.ok) {
-        setProducts(products.filter((p: any) => p.id !== productId));
+        setProducts(products.filter((p: ProductWithRelations) => p.id !== productId));
       }
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -78,8 +79,8 @@ export default function SellerProductsPage() {
     }
   };
 
-  const filteredProducts = products.filter((product: any) =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredProducts = products.filter((product: ProductWithRelations) =>
+    product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -146,12 +147,12 @@ export default function SellerProductsPage() {
         {/* Products Grid */}
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product: any) => (
+            {filteredProducts.map((product: ProductWithRelations) => (
               <div key={product.id} className="bg-white rounded-lg border overflow-hidden">
                 <div className="relative aspect-square">
                   <Image
-                    src={product.imageUrl}
-                    alt={product.name}
+                    src={product.images[0]?.url || '/placeholder-product.jpg'}
+                    alt={product.title}
                     fill
                     className="object-cover"
                   />
@@ -159,21 +160,21 @@ export default function SellerProductsPage() {
                 
                 <div className="p-4 space-y-3">
                   <div>
-                    <h3 className="font-semibold line-clamp-1">{product.name}</h3>
+                    <h3 className="font-semibold line-clamp-1">{product.title}</h3>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {product.description}
                     </p>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <div className="font-bold text-lg">{formatPrice(product.price)}</div>
+                    <div className="font-bold text-lg">{formatPrice(product.priceToman)}</div>
                     <div className="flex items-center gap-2">
                       {product.stock > 0 ? (
                         <Badge variant="secondary">{product.stock} {t('inStock')}</Badge>
                       ) : (
                         <Badge variant="destructive">{t('outOfStock')}</Badge>
                       )}
-                      {product.isActive ? (
+                      {product.active ? (
                         <Badge variant="default">{t('active')}</Badge>
                       ) : (
                         <Badge variant="outline">{t('inactive')}</Badge>

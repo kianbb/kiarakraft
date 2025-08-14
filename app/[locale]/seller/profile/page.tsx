@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, User, Save } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+
+// Type for the seller profile data structure
+interface SellerProfileData {
+  id: string;
+  email: string;
+  name?: string;
+  bio?: string;
+  phone?: string;
+  address?: string;
+  website?: string;
+  createdAt: string | Date;
+}
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -30,7 +42,7 @@ export default function SellerProfilePage() {
   const t = useTranslations('seller');
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<SellerProfileData | null>(null);
 
   const {
     register,
@@ -41,23 +53,7 @@ export default function SellerProfilePage() {
     resolver: zodResolver(profileSchema)
   });
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-
-    if (session.user?.role !== 'SELLER') {
-      router.push('/');
-      return;
-    }
-
-    fetchProfile();
-  }, [session, status, router]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const response = await fetch('/api/seller/profile');
       if (response.ok) {
@@ -78,7 +74,23 @@ export default function SellerProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [reset]);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (!session) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (session.user?.role !== 'SELLER') {
+      router.push('/');
+      return;
+    }
+
+    fetchProfile();
+  }, [session, status, router, fetchProfile]);
 
   if (status === 'loading' || loading) {
     return (

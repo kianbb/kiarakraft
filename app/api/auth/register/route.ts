@@ -36,7 +36,22 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create user with seller profile if role is SELLER
-    const userData: any = {
+    interface UserCreateData {
+      email: string;
+      password: string;
+      name: string;
+      role: string;
+      sellerProfile?: {
+        create: {
+          shopName: string;
+          displayName: string;
+          bio?: string | null;
+          region?: string | null;
+        };
+      };
+    }
+
+    const userData: UserCreateData = {
       email,
       password: hashedPassword,
       name,
@@ -62,7 +77,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = user
 
     return NextResponse.json({
       message: 'User created successfully',

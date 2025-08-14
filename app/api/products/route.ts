@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { PrismaWhereClause, PrismaOrderBy } from '@/types/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const sort = searchParams.get('sort') || 'newest';
 
-    const where: any = {
+    const where: PrismaWhereClause = {
       active: true,
     };
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine sort order
-    let orderBy: any = { createdAt: 'desc' }; // newest (default)
+    let orderBy: PrismaOrderBy = { createdAt: 'desc' }; // newest (default)
     switch (sort) {
       case 'oldest':
         orderBy = { createdAt: 'asc' };

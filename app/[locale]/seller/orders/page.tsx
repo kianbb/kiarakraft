@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatPrice, formatDate } from '@/lib/utils';
+import { OrderWithItems } from '@/types/database';
 import { 
   Search, 
   Package,
@@ -21,7 +22,7 @@ export default function SellerOrdersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations('seller');
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -72,11 +73,11 @@ export default function SellerOrdersPage() {
     }
   };
 
-  const filteredOrders = orders.filter((order: any) =>
+  const filteredOrders = orders.filter((order: OrderWithItems) =>
     order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.items.some((item: any) => 
-      item.product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    order.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.items.some((item: OrderWithItems['items'][0]) => 
+      item.product.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
@@ -136,7 +137,7 @@ export default function SellerOrdersPage() {
         {/* Orders List */}
         {filteredOrders.length > 0 ? (
           <div className="space-y-6">
-            {filteredOrders.map((order: any) => (
+            {filteredOrders.map((order: OrderWithItems) => (
               <div key={order.id} className="bg-white rounded-lg border p-6">
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
                   <div className="flex items-center gap-3">
@@ -154,10 +155,10 @@ export default function SellerOrdersPage() {
                     {getStatusBadge(order.status)}
                     <div className="text-right">
                       <div className="font-bold">
-                        {formatPrice(order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0))}
+                        {formatPrice(order.items.reduce((sum: number, item: OrderWithItems['items'][0]) => sum + item.unitPriceToman * item.quantity, 0))}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {order.items.reduce((sum: number, item: any) => sum + item.quantity, 0)} {t('items')}
+                        {order.items.reduce((sum: number, item: OrderWithItems['items'][0]) => sum + item.quantity, 0)} {t('items')}
                       </div>
                     </div>
                   </div>
@@ -167,50 +168,49 @@ export default function SellerOrdersPage() {
                 <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{t('customer')}:</span>
-                  <span className="text-sm">{order.user.name || order.user.email}</span>
+                  <span className="text-sm">{order.fullName}</span>
                 </div>
 
                 {/* Order Items */}
                 <div className="space-y-3">
                   <h4 className="font-medium">{t('orderItems')}:</h4>
-                  {order.items.map((item: any) => (
+                  {order.items.map((item: OrderWithItems['items'][0]) => (
                     <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg">
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden">
                         <Image
-                          src={item.product.imageUrl}
-                          alt={item.product.name}
+                          src={item.product.images[0]?.url || '/placeholder-product.jpg'}
+                          alt={item.product.title}
                           fill
                           className="object-cover"
                         />
                       </div>
                       
                       <div className="flex-1">
-                        <h5 className="font-medium line-clamp-1">{item.product.name}</h5>
+                        <h5 className="font-medium line-clamp-1">{item.product.title}</h5>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>{t('quantity')}: {item.quantity}</span>
-                          <span>{t('price')}: {formatPrice(item.price)}</span>
+                          <span>{t('price')}: {formatPrice(item.unitPriceToman)}</span>
                         </div>
                       </div>
                       
                       <div className="text-right">
-                        <div className="font-semibold">{formatPrice(item.price * item.quantity)}</div>
+                        <div className="font-semibold">{formatPrice(item.unitPriceToman * item.quantity)}</div>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {/* Shipping Address */}
-                {order.shippingAddress && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
-                    <div className="text-sm text-muted-foreground">
-                      <div>{order.shippingAddress.fullName}</div>
-                      <div>{order.shippingAddress.address}</div>
-                      <div>{order.shippingAddress.city}, {order.shippingAddress.postalCode}</div>
-                      {order.shippingAddress.phone && <div>{t('phone')}: {order.shippingAddress.phone}</div>}
-                    </div>
+                {/* Shipping Address */}
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
+                  <div className="text-sm text-muted-foreground">
+                    <div>{order.fullName}</div>
+                    <div>{order.address1} {order.address2 ? `, ${order.address2}` : ''}</div>
+                    <div>{order.city}, {order.province} {order.postalCode}</div>
+                    <div>{t('phone')}: {order.phone}</div>
                   </div>
-                )}
+                </div>
               </div>
             ))}
           </div>

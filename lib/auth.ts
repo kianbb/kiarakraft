@@ -64,7 +64,14 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub!
         session.user.role = token.role as string
-        session.user.sellerProfile = token.sellerProfile as any
+        session.user.sellerProfile = token.sellerProfile as {
+          id: string;
+          shopName: string;
+          displayName: string;
+          bio?: string | null;
+          region?: string | null;
+          avatarUrl?: string | null;
+        } | null
       }
       return session
     }
