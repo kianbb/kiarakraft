@@ -27,9 +27,12 @@ export async function PUT(
     const cartItem = await prisma.cartItem.findFirst({
       where: {
         id: params.id,
-        userId: user.id
+        cart: { userId: user.id }
       },
-      include: { product: true }
+      include: { 
+        product: true,
+        cart: true
+      }
     });
 
     if (!cartItem) {
@@ -51,11 +54,7 @@ export async function PUT(
       include: {
         product: {
           include: {
-            seller: {
-              include: {
-                sellerProfile: true
-              }
-            }
+            seller: true
           }
         }
       }
@@ -93,7 +92,7 @@ export async function DELETE(
     await prisma.cartItem.deleteMany({
       where: {
         id: params.id,
-        userId: user.id
+        cart: { userId: user.id }
       }
     });
 

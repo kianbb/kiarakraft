@@ -38,6 +38,9 @@ model SellerProfile {
   bio         String?
   region      String?
   avatarUrl   String?
+  phone       String?
+  address     String?
+  website     String?
   createdAt   DateTime @default(now())
 
   products Product[]

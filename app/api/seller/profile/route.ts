@@ -47,10 +47,27 @@ export async function PUT(request: NextRequest) {
 
     const data = await request.json();
 
+    // Update user name
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
-        name: data.name,
+        name: data.name
+      }
+    });
+
+    // Update or create seller profile
+    const updatedProfile = await prisma.sellerProfile.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        shopName: data.shopName || '',
+        displayName: data.displayName || data.name,
+        bio: data.bio,
+        phone: data.phone,
+        address: data.address,
+        website: data.website
+      },
+      update: {
         bio: data.bio,
         phone: data.phone,
         address: data.address,

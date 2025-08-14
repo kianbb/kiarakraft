@@ -41,7 +41,7 @@ export async function GET() {
           }
         },
         _sum: {
-          price: true
+          unitPriceToman: true
         }
       })
     ]);
@@ -49,7 +49,7 @@ export async function GET() {
     const stats = {
       totalProducts,
       totalOrders,
-      totalRevenue: revenue._sum.price || 0,
+      totalRevenue: revenue._sum?.unitPriceToman || 0,
       averageRating: '4.8' // Placeholder - would calculate from reviews
     };
 

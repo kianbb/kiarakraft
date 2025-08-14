@@ -9,14 +9,10 @@ export async function GET(
     const product = await prisma.product.findUnique({
       where: {
         id: params.id,
-        isActive: true
+        active: true
       },
       include: {
-        seller: {
-          include: {
-            sellerProfile: true
-          }
-        }
+        seller: true
       }
     });
 
@@ -26,12 +22,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    // Increment view count
-    await prisma.product.update({
-      where: { id: params.id },
-      data: { views: { increment: 1 } }
-    });
 
     return NextResponse.json(product);
   } catch (error) {

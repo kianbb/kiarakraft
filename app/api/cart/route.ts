@@ -19,6 +19,17 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Get or create cart for user
+    let cart = await prisma.cart.findUnique({
+      where: { userId: user.id }
+    });
+    
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: { userId: user.id }
+      });
+    }
+
     const cartItems = await prisma.cartItem.findMany({
       where: { cart: { userId: user.id } },
       include: {
@@ -56,6 +67,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Get or create cart for user
+    let cart = await prisma.cart.findUnique({
+      where: { userId: user.id }
+    });
+    
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: { userId: user.id }
+      });
+    }
+
     const { productId, quantity } = await request.json();
 
     // Check if product exists and is active
@@ -75,7 +97,7 @@ export async function POST(request: NextRequest) {
     const existingItem = await prisma.cartItem.findUnique({
       where: {
         cartId_productId: {
-          cartId: user.cart?.id || '',
+          cartId: cart.id,
           productId: productId
         }
       }
@@ -89,11 +111,7 @@ export async function POST(request: NextRequest) {
         include: {
           product: {
             include: {
-              seller: {
-                include: {
-                  sellerProfile: true
-                }
-              }
+              seller: true
             }
           }
         }
@@ -103,18 +121,14 @@ export async function POST(request: NextRequest) {
       // Create new cart item
       const cartItem = await prisma.cartItem.create({
         data: {
-          userId: user.id,
+          cartId: cart.id,
           productId: productId,
           quantity: quantity
         },
         include: {
           product: {
             include: {
-              seller: {
-                include: {
-                  sellerProfile: true
-                }
-              }
+              seller: true
             }
           }
         }

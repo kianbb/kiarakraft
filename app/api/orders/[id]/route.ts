@@ -32,11 +32,7 @@ export async function GET(
           include: {
             product: {
               include: {
-                seller: {
-                  include: {
-                    sellerProfile: true
-                  }
-                }
+                seller: true
               }
             }
           }
