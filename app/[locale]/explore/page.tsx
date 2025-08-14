@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
+import { PaginatedProducts, ProductFilters, PrismaWhereClause, PrismaOrderBy } from '@/types/database';
 
 export const revalidate = 300; // 5 minutes for explore page
 
@@ -21,14 +22,14 @@ interface PageProps {
 
 const PRODUCTS_PER_PAGE = 12;
 
-async function getProducts(searchParams: PageProps['searchParams']) {
+async function getProducts(searchParams: PageProps['searchParams']): Promise<PaginatedProducts> {
   const search = searchParams.search;
   const category = searchParams.category;
   const sort = searchParams.sort || 'newest';
   const page = parseInt(searchParams.page || '1');
   const skip = (page - 1) * PRODUCTS_PER_PAGE;
 
-  const where: any = {
+  const where: PrismaWhereClause = {
     active: true,
   };
 
@@ -48,7 +49,7 @@ async function getProducts(searchParams: PageProps['searchParams']) {
   }
 
   // Determine sort order
-  let orderBy: any = { createdAt: 'desc' }; // newest (default)
+  let orderBy: PrismaOrderBy = { createdAt: 'desc' }; // newest (default)
   switch (sort) {
     case 'oldest':
       orderBy = { createdAt: 'asc' };

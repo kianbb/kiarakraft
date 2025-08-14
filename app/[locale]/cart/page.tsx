@@ -10,12 +10,13 @@ import { Button } from '@/components/ui/button';
 import { QuantitySelector } from '@/components/products/QuantitySelector';
 import { formatPrice } from '@/lib/utils';
 import { Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { CartItemWithProduct } from '@/types/database';
 
 export default function CartPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const t = useTranslations('cart');
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
@@ -52,10 +53,10 @@ export default function CartPage() {
 
       if (response.ok) {
         if (newQuantity === 0) {
-          setCartItems(cartItems.filter((item: any) => item.id !== itemId));
+          setCartItems(cartItems.filter((item) => item.id !== itemId));
         } else {
           const updatedItem = await response.json();
-          setCartItems(cartItems.map((item: any) => 
+          setCartItems(cartItems.map((item) => 
             item.id === itemId ? updatedItem : item
           ));
         }
@@ -75,7 +76,7 @@ export default function CartPage() {
       });
 
       if (response.ok) {
-        setCartItems(cartItems.filter((item: any) => item.id !== itemId));
+        setCartItems(cartItems.filter((item) => item.id !== itemId));
       }
     } catch (error) {
       console.error('Error removing item:', error);
@@ -86,7 +87,7 @@ export default function CartPage() {
 
   const calculateTotal = () => {
     return cartItems.reduce((total: number, item: any) => {
-      return total + (item.product.price * item.quantity);
+      return total + (item.product.priceToman * item.quantity);
     }, 0);
   };
 
@@ -139,7 +140,7 @@ export default function CartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item: any) => (
+              {cartItems.map((item) => (
                 <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
                     <Image
@@ -187,7 +188,7 @@ export default function CartPage() {
                         </span>
                       </div>
                       <div className="font-semibold">
-                        {formatPrice(item.product.price * item.quantity)}
+                        {formatPrice(item.product.priceToman * item.quantity)}
                       </div>
                     </div>
                   </div>

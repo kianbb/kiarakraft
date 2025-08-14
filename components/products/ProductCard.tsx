@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -27,7 +28,7 @@ interface ProductCardProps {
   className?: string;
 }
 
-export function ProductCard({ product, compact = false, className }: ProductCardProps) {
+export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
   const pathname = usePathname();
   const locale = pathname.split('/')[1] || 'fa';
   
@@ -39,14 +40,14 @@ export function ProductCard({ product, compact = false, className }: ProductCard
     e.preventDefault();
     e.stopPropagation();
     // TODO: Implement add to cart functionality
-    console.log('Add to cart:', product.id);
+    // Will be implemented when AddToCartButton is integrated
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     // TODO: Implement favorite functionality
-    console.log('Toggle favorite:', product.id);
+    // Will be implemented when favorites system is added
   };
 
   return (
@@ -146,4 +147,4 @@ export function ProductCard({ product, compact = false, className }: ProductCard
       </article>
     </Link>
   );
-}
+});
