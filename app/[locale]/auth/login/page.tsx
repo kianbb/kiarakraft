@@ -24,6 +24,14 @@ export default function LoginPage() {
   const pathname = usePathname();
   const locale = pathname.split('/')[1] || 'fa';
   const t = useTranslations('auth');
+  
+  // Debug logging
+  console.log('🔍 LOGIN PAGE DEBUG:', {
+    pathname,
+    locale,
+    timestamp: new Date().toISOString(),
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'SSR'
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -61,9 +69,31 @@ export default function LoginPage() {
     }
   };
 
+  // Add visible debug indicator
+  console.log('🎨 LOGIN COMPONENT RENDERING');
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="max-w-md w-full space-y-8 p-8">
+      {/* Debug banner - remove after fixing */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#ef4444',
+        color: 'white',
+        padding: '8px',
+        textAlign: 'center',
+        fontSize: '12px',
+        zIndex: 9999
+      }}>
+        🐛 DEBUG: Login page loaded at {new Date().toLocaleTimeString()} | 
+        <a href={`/${locale}/auth/login/debug`} style={{ color: '#fbbf24', textDecoration: 'underline' }}>
+          Debug Info
+        </a>
+      </div>
+      
+      <div className="max-w-md w-full space-y-8 p-8" style={{ marginTop: '40px' }}>
         <div className="text-center">
           <h2 className="text-3xl font-bold text-foreground">
             {t('login')}

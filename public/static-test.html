@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Static Login Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .debug-banner {
+            background: #ef4444;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            margin: -2rem -2rem 2rem -2rem;
+            border-radius: 8px 8px 0 0;
+            font-size: 14px;
+        }
+        h1 { color: #1f2937; margin-bottom: 1.5rem; text-align: center; }
+        .form-group { margin-bottom: 1rem; }
+        label { 
+            display: block; 
+            margin-bottom: 0.5rem; 
+            font-weight: 500; 
+            color: #374151;
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .btn:hover { background: #2563eb; }
+        .test-info {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-size: 14px;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #6b7280;
+        }
+        .register-link a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="debug-banner">
+            🧪 STATIC HTML TEST - NO JAVASCRIPT REQUIRED
+        </div>
+        
+        <div class="test-info">
+            <strong>✅ Success!</strong> If you can see this form, your browser can render basic HTML/CSS.
+            <br><br>
+            <strong>Current URL:</strong> <span id="current-url"></span><br>
+            <strong>Time:</strong> <span id="current-time"></span><br>
+            <strong>User Agent:</strong> <span id="user-agent"></span>
+        </div>
+
+        <h1>🔐 Static Login Form Test</h1>
+        
+        <form action="/api/auth/signin" method="POST">
+            <div class="form-group">
+                <label for="email">ایمیل (Email):</label>
+                <input type="email" id="email" name="email" required 
+                       placeholder="your@email.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">رمز عبور (Password):</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Your password">
+            </div>
+            
+            <button type="submit" class="btn" onclick="return testSubmit()">
+                ورود (Login)
+            </button>
+        </form>
+        
+        <div class="register-link">
+            حساب کاربری ندارید؟ 
+            <a href="/fa/auth/register">ثبت‌نام کنید</a>
+        </div>
+
+        <div style="margin-top: 2rem; padding: 1rem; background: #fef3c7; border-radius: 4px; font-size: 14px;">
+            <strong>🔍 What this tests:</strong>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>Basic HTML rendering</li>
+                <li>CSS styling and layout</li>
+                <li>Form input functionality</li>
+                <li>Persian (RTL) text display</li>
+                <li>Basic JavaScript execution</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Simple JavaScript test
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('current-time').textContent = new Date().toLocaleString();
+        document.getElementById('user-agent').textContent = navigator.userAgent.substring(0, 50) + '...';
+        
+        function testSubmit() {
+            alert('📝 Form submission test - this would normally go to login API');
+            return false; // Prevent actual submission
+        }
+        
+        // Log to console
+        console.log('🧪 STATIC LOGIN TEST PAGE LOADED:', {
+            url: window.location.href,
+            time: new Date().toISOString(),
+            userAgent: navigator.userAgent
+        });
+    </script>
+</body>
+</html>
