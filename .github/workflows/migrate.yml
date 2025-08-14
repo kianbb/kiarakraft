@@ -36,7 +36,8 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         
       - name: Check database connection
-        run: npx prisma db execute --stdin <<< "SELECT 1;" || echo "Database connection failed"
+        run: |
+          echo "SELECT 1;" | npx prisma db execute --stdin || echo "Database connection failed"
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         continue-on-error: true
