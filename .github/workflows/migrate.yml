@@ -34,12 +34,14 @@ jobs:
         run: npx prisma generate
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
         
       - name: Check database connection
         run: |
           echo "SELECT 1;" | npx prisma db execute --stdin || echo "Database connection failed"
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
         continue-on-error: true
         
       - name: Apply database migrations
