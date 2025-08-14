@@ -1,12 +1,22 @@
-name: Apply Prisma Migrations (Prod)
+name: Deploy Database Migrations
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to migrate'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
 
 jobs:
   migrate:
+    name: Deploy Migrations
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,14 +32,16 @@ jobs:
         
       - name: Generate Prisma Client
         run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
         
       - name: Check database connection
         run: npx prisma db execute --stdin <<< "SELECT 1;" || echo "Database connection failed"
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
         continue-on-error: true
         
       - name: Apply database migrations
         run: npx prisma migrate deploy
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          # Use a dummy DATABASE_URL for generation
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
+        
+      - name: Run TypeScript type checking
+        run: npm run typecheck
+        
+      - name: Run ESLint
+        run: npm run lint
+        
+      - name: Build Next.js application
+        run: npm run build
+        env:
+          # Use dummy values for build
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
+          NEXTAUTH_SECRET: ci-build-secret
+          NEXTAUTH_URL: http://localhost:3000
