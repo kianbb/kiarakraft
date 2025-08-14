@@ -24,28 +24,6 @@
     },
     {
       "source": "/",
-      "destination": "https://kiarakraft.com/fa",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "www.kiarakraft.com"
-        }
-      ]
-    },
-    {
-      "source": "/((?!fa|en).*)",
-      "destination": "https://kiarakraft.com/$1",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "www.kiarakraft.com"
-        }
-      ]
-    },
-    {
-      "source": "/",
       "destination": "/fa",
       "permanent": false
     },
