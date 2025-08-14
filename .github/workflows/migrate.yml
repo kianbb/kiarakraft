@@ -23,6 +23,12 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
         
+      - name: Check database connection
+        run: npx prisma db execute --stdin <<< "SELECT 1;" || echo "Database connection failed"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true
+        
       - name: Apply database migrations
         run: npx prisma migrate deploy
         env:
