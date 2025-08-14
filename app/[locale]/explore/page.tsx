@@ -5,6 +5,8 @@ import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
 
+export const revalidate = 300; // 5 minutes for explore page
+
 interface PageProps {
   params: {
     locale: string;
