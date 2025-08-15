@@ -35,6 +35,18 @@
     "featured": {
       "categories": "Featured Categories",
       "products": "Featured Products"
+    },
+    "viewAllProducts": "View All Products",
+    "sampleProducts": {
+      "ceramicBowl": {
+        "title": "Handmade Ceramic Bowl",
+        "description": "Beautiful ceramic bowl made with traditional Iranian techniques"
+      },
+      "silverNecklace": {
+        "title": "Silver Necklace with Turquoise Stone",
+        "description": "Beautiful handmade silver necklace with natural Neyshabour turquoise stone"
+      },
+      "shopName": "Atelier Kiara"
     }
   },
   "products": {

@@ -35,6 +35,18 @@
     "featured": {
       "categories": "دسته‌بندی‌های ویژه",
       "products": "محصولات ویژه"
+    },
+    "viewAllProducts": "مشاهده همه محصولات",
+    "sampleProducts": {
+      "ceramicBowl": {
+        "title": "کاسه سرامیکی دست‌ساز",
+        "description": "کاسه زیبای سرامیکی ساخته شده با تکنیک‌های سنتی ایرانی"
+      },
+      "silverNecklace": {
+        "title": "گردنبند نقره با سنگ فیروزه",
+        "description": "گردنبند زیبای نقره دست‌ساز با سنگ فیروزه طبیعی نیشابوری"
+      },
+      "shopName": "کارگاه کیارا"
     }
   },
   "products": {

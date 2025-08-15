@@ -33,40 +33,42 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 }
 
 // Sample product data for demo - in real app this would come from API/database
-const sampleProducts = [
-  {
-    id: "1",
-    title: "کاسه سرامیکی دست‌ساز",
-    slug: "handmade-ceramic-bowl",
-    description: "کاسه زیبای سرامیکی ساخته شده با تکنیک‌های سنتی ایرانی",
-    priceToman: 450000,
-    stock: 12,
-    images: [{ url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=500&h=500&fit=crop", alt: "کاسه سرامیکی" }],
-    seller: {
-      displayName: "کارگاه کیارا",
-      shopName: "Atelier Kiara"
+function getSampleProducts(t: any) {
+  return [
+    {
+      id: "1",
+      title: t('sampleProducts.ceramicBowl.title'),
+      slug: "handmade-ceramic-bowl",
+      description: t('sampleProducts.ceramicBowl.description'),
+      priceToman: 450000,
+      stock: 12,
+      images: [{ url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=500&h=500&fit=crop", alt: t('sampleProducts.ceramicBowl.title') }],
+      seller: {
+        displayName: t('sampleProducts.shopName'),
+        shopName: "Atelier Kiara"
+      }
+    },
+    {
+      id: "2",
+      title: t('sampleProducts.silverNecklace.title'),
+      slug: "silver-turquoise-necklace",
+      description: t('sampleProducts.silverNecklace.description'),
+      priceToman: 1250000,
+      stock: 8,
+      images: [{ url: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=500&fit=crop", alt: t('sampleProducts.silverNecklace.title') }],
+      seller: {
+        displayName: t('sampleProducts.shopName'),
+        shopName: "Atelier Kiara"
+      }
     }
-  },
-  {
-    id: "2",
-    title: "گردنبند نقره با سنگ فیروزه",
-    slug: "silver-turquoise-necklace",
-    description: "گردنبند زیبای نقره دست‌ساز با سنگ فیروزه طبیعی نیشابوری",
-    priceToman: 1250000,
-    stock: 8,
-    images: [{ url: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=500&fit=crop", alt: "گردنبند فیروزه" }],
-    seller: {
-      displayName: "کارگاه کیارا",
-      shopName: "Atelier Kiara"
-    }
-  }
-];
+  ];
+}
 
 export default async function Home({ params }: { params: { locale: string } }) {
   const { locale } = params;
-  const isRTL = locale === 'fa';
   const t = await getTranslations('home');
   const tCategories = await getTranslations('categories');
+  const sampleProducts = getSampleProducts(t);
   
 
   return (
@@ -157,7 +159,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
             <div className="text-center mt-12">
               <Link href={`/${locale}/explore`}>
                 <Button variant="outline" size="lg">
-                  {isRTL ? 'مشاهده همه محصولات' : 'View All Products'}
+                  {t('viewAllProducts')}
                 </Button>
               </Link>
             </div>
