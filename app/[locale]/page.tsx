@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const { locale } = params;
+  setRequestLocale(locale);
   const isRTL = locale === 'fa';
   
   return {
@@ -67,6 +68,7 @@ function getSampleProducts(t: Awaited<ReturnType<typeof getTranslations<'home'>>
 
 export default async function Home({ params }: { params: { locale: string } }) {
   const { locale } = params;
+  setRequestLocale(locale);
   const t = await getTranslations('home');
   const tCategories = await getTranslations('categories');
   const sampleProducts = getSampleProducts(t);

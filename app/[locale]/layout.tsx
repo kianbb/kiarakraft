@@ -1,5 +1,4 @@
-import { getMessages } from 'next-intl/server';
-import { getTranslations } from 'next-intl/server';
+import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { Providers } from '@/components/providers/Providers';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -14,6 +13,7 @@ interface LocaleLayoutProps {
 
 export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
   const { locale } = params;
+  setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'home' });
   
   const canonicalUrl = `https://kiarakraft.com/${locale}`;
@@ -96,8 +96,9 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = params;
-  const messages = await getMessages({ locale });
-  const t = await getTranslations({ locale, namespace: 'home' });
+  setRequestLocale(locale);
+  const messages = await getMessages();
+  const t = await getTranslations('home');
 
   // Structured data for the organization
   const organizationStructuredData = {
