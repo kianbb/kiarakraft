@@ -4,6 +4,7 @@
       "source": "/(.*)",
       "destination": "https://www.kiarakraft.com/$1",
       "permanent": true,
+      "statusCode": 301,
       "has": [
         {
           "type": "host",
@@ -15,6 +16,7 @@
       "source": "/(.*)",
       "destination": "https://www.kiarakraft.com/$1",
       "permanent": true,
+      "statusCode": 301,
       "has": [
         {
           "type": "host",
@@ -26,6 +28,7 @@
       "source": "/(.*)",
       "destination": "https://www.kiarakraft.com/$1",
       "permanent": true,
+      "statusCode": 301,
       "has": [
         {
           "type": "host",
@@ -42,7 +45,7 @@
     {
       "source": "/",
       "destination": "/fa",
-      "permanent": false
+      "permanent": true
     },
     {
       "source": "/index.html",
