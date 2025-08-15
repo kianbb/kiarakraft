@@ -1,12 +1,12 @@
 import { MetadataRoute } from 'next';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.kiarakraft.com';
   
   try {
     // Get all products with their slugs and last modified dates
-    const products = await prisma.product.findMany({
+    const products = await db.product.findMany({
       where: { active: true },
       select: {
         slug: true,
@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     // Get all active categories
-    const categories = await prisma.category.findMany({
+    const categories = await db.category.findMany({
       select: {
         slug: true,
       },
