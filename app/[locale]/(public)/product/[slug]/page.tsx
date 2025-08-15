@@ -2,142 +2,76 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RatingStars } from '@/components/products/RatingStars';
 import { AddToCartButton } from '@/components/products/AddToCartButton';
 import { formatPrice } from '@/lib/utils';
 import { ArrowLeft, Heart, Share2, Store, MapPin } from 'lucide-react';
+import type { Metadata } from 'next';
 
 export const revalidate = 60;
 
-interface PageProps {
-  params: {
-    slug: string;
-    locale: string;
+type Params = { locale: "fa" | "en"; slug: string };
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const p = await db.product.findUnique({ 
+    where: { slug: params.slug }, 
+    select: { title: true, description: true, images: { select: { url: true } } } 
+  });
+  const title = p?.title ?? (params.locale === "fa" ? "محصول یافت نشد" : "Product Not Found");
+  const description = p?.description ?? (params.locale === "fa" ? "این محصول موجود نیست" : "This product does not exist.");
+  const base = "https://www.kiarakraft.com";
+  const path = `/${params.locale}/product/${params.slug}`;
+  return {
+    title, 
+    description,
+    alternates: {
+      canonical: `${base}${path}`,
+      languages: { "fa-IR": `${base}/fa/product/${params.slug}`, "en-US": `${base}/en/product/${params.slug}` }
+    },
+    openGraph: { 
+      title, 
+      description, 
+      type: "website", 
+      images: p?.images?.[0]?.url ? [p.images[0].url] : [] 
+    }
   };
 }
 
-async function getProduct(slug: string) {
-  try {
-    const product = await prisma.product.findUnique({
-      where: { slug },
-      include: {
-        images: true,
-        category: true,
-        seller: true
-      }
-    });
-    
-    return product;
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    // Return sample product as fallback for any database errors
-    return {
-      id: "sample",
-      title: "کاسه سرامیکی دست‌ساز",
-      slug: "handmade-ceramic-bowl", 
-      description: "کاسه زیبای سرامیکی ساخته شده با تکنیک‌های سنتی ایرانی. مناسب برای سرو میوه و آجیل.",
-      priceToman: 450000,
-      stock: 12,
-      active: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      sellerId: "sample",
-      categoryId: "ceramics",
-      images: [{ 
-        id: "1", 
-        productId: "sample", 
-        url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=500&h=500&fit=crop", 
-        alt: "کاسه سرامیکی",
-        sortOrder: 1
-      }],
-      seller: {
-        id: "sample",
-        userId: "sample", 
-        shopName: "Atelier Kiara",
-        displayName: "کارگاه کیارا",
-        bio: "فروشگاه متخصص در صنایع دستی سنتی اصفهان",
-        region: "اصفهان",
-        avatarUrl: null,
-        phone: null,
-        address: null,
-        website: null,
-        createdAt: new Date()
-      },
-      category: {
-        id: "ceramics",
-        slug: "ceramics", 
-        name: "سرامیک"
-      }
-    };
-  }
-}
+export default async function Page({ params }: { params: Params }) {
+  const product = await db.product.findUnique({
+    where: { slug: params.slug },
+    include: { images: true, seller: true, category: true, reviews: true }
+  });
+  if (!product) return notFound();
 
-export async function generateMetadata({ params }: PageProps) {
-  try {
-    const product = await getProduct(params.slug);
-    
-    if (!product) {
-      return {
-        title: 'Product Not Found - Kiara Kraft',
-        description: 'The product you are looking for was not found.'
-      };
+  // Convert Toman to IRR for schema (1 Toman = 10 IRR)
+  const tomanToIrr = (t: number) => t * 10;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.description,
+    image: product.images.map(i => i.url),
+    brand: "Kiara Kraft",
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "IRR",
+      price: String(tomanToIrr(product.priceToman)),
+      availability: product.stock > 0 ? "http://schema.org/InStock" : "http://schema.org/OutOfStock"
     }
+  };
 
-    const imageUrl = product.images?.[0]?.url || '/placeholder-product.jpg';
-    const canonicalUrl = `https://www.kiarakraft.com/${params.locale}/product/${params.slug}`;
-    const alternateUrls = {
-      'fa-IR': `https://www.kiarakraft.com/fa/product/${params.slug}`,
-      'en-US': `https://www.kiarakraft.com/en/product/${params.slug}`
-    };
-    
-    return {
-      metadataBase: new URL('https://www.kiarakraft.com'),
-      title: `${product.title} - Kiara Kraft`,
-      description: product.description,
-      alternates: {
-        canonical: canonicalUrl,
-        languages: alternateUrls
-      },
-      openGraph: {
-        title: product.title,
-        description: product.description,
-        images: [imageUrl],
-  // 'product' is not a supported OpenGraph type in Next's metadata API in this runtime;
-  // use 'website' to avoid runtime validation errors that cause a 500 in production.
-  type: 'website',
-        url: canonicalUrl,
-        locale: params.locale === 'fa' ? 'fa_IR' : 'en_US',
-        alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR'
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title: product.title,
-        description: product.description,
-        images: [imageUrl]
-      }
-    };
-  } catch {
-    return {
-      title: 'Error - Kiara Kraft',
-      description: 'An error occurred while loading the product.'
-    };
-  }
-}
-
-export default async function ProductDetailPage({ params }: PageProps) {
   const t = await getTranslations('product');
-  
-  try {
-    const product = await getProduct(params.slug);
-    
-    if (!product) {
-      notFound();
-    }
 
-    return (
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <main>
+        <h1>{product.title}</h1>
+        {/* render gallery + details */}
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">
           {/* Back Button */}
@@ -246,15 +180,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
-    );
-  } catch (error) {
-  // Log full error (stack when available) so it appears in server logs
-  console.error('Server error in product page:', error, (error instanceof Error && error.stack) || 'no-stack');
-
-  // Avoid returning a 500 to end users while we diagnose the root cause.
-  // Use `notFound()` which returns the product not-found page (404) and
-  // prevents exposing an internal server error page. This keeps the site
-  // user-facing, while we collect logs from Vercel to investigate the root cause.
-  notFound();
-  }
+      </main>
+    </>
+  );
 }
