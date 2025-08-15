@@ -23,69 +23,80 @@ interface PageProps {
 const PRODUCTS_PER_PAGE = 12;
 
 async function getProducts(searchParams: PageProps['searchParams']): Promise<PaginatedProducts> {
-  const search = searchParams.search;
-  const category = searchParams.category;
-  const sort = searchParams.sort || 'newest';
-  const page = parseInt(searchParams.page || '1');
-  const skip = (page - 1) * PRODUCTS_PER_PAGE;
+  try {
+    const search = searchParams.search;
+    const category = searchParams.category;
+    const sort = searchParams.sort || 'newest';
+    const page = parseInt(searchParams.page || '1');
+    const skip = (page - 1) * PRODUCTS_PER_PAGE;
 
-  const where: PrismaWhereClause = {
-    active: true,
-  };
+    const where: PrismaWhereClause = {
+      active: true,
+    };
 
-  // Add search filter
-  if (search) {
-    where.OR = [
-      { title: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } }
-    ];
-  }
+    // Add search filter
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
 
-  // Add category filter
-  if (category && category !== 'all') {
-    where.category = {
-      slug: category
+    // Add category filter
+    if (category && category !== 'all') {
+      where.category = {
+        slug: category
+      };
+    }
+
+    // Determine sort order
+    let orderBy: PrismaOrderBy = { createdAt: 'desc' }; // newest (default)
+    switch (sort) {
+      case 'oldest':
+        orderBy = { createdAt: 'asc' };
+        break;
+      case 'price_low':
+        orderBy = { priceToman: 'asc' };
+        break;
+      case 'price_high':
+        orderBy = { priceToman: 'desc' };
+        break;
+      case 'popular':
+        orderBy = { createdAt: 'desc' }; // fallback since no views field
+        break;
+    }
+
+    const [products, totalCount] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          seller: true,
+          category: true,
+          images: true
+        },
+        orderBy,
+        take: PRODUCTS_PER_PAGE,
+        skip
+      }),
+      prisma.product.count({ where })
+    ]);
+
+    return {
+      products,
+      totalCount,
+      totalPages: Math.ceil(totalCount / PRODUCTS_PER_PAGE),
+      currentPage: page
+    };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    // Return empty results for database errors to allow graceful degradation
+    return {
+      products: [],
+      totalCount: 0,
+      totalPages: 0,
+      currentPage: 1
     };
   }
-
-  // Determine sort order
-  let orderBy: PrismaOrderBy = { createdAt: 'desc' }; // newest (default)
-  switch (sort) {
-    case 'oldest':
-      orderBy = { createdAt: 'asc' };
-      break;
-    case 'price_low':
-      orderBy = { priceToman: 'asc' };
-      break;
-    case 'price_high':
-      orderBy = { priceToman: 'desc' };
-      break;
-    case 'popular':
-      orderBy = { createdAt: 'desc' }; // fallback since no views field
-      break;
-  }
-
-  const [products, totalCount] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        seller: true,
-        category: true,
-        images: true
-      },
-      orderBy,
-      take: PRODUCTS_PER_PAGE,
-      skip
-    }),
-    prisma.product.count({ where })
-  ]);
-
-  return {
-    products,
-    totalCount,
-    totalPages: Math.ceil(totalCount / PRODUCTS_PER_PAGE),
-    currentPage: page
-  };
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps) {
