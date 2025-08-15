@@ -96,7 +96,7 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = params;
-  const messages = await getMessages();
+  const messages = await getMessages({ locale });
   const t = await getTranslations({ locale, namespace: 'home' });
 
   // Structured data for the organization

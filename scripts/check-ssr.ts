@@ -35,4 +35,24 @@ async function check(url: string, mustContain: string, shouldExist: boolean = tr
   } else {
     console.log("UNKNOWN STATE:", shirazUrl, "- Neither loading, content, nor 404");
   }
+  
+  // Test English locale for translation issue
+  console.log("\n--- English Locale Translation Test ---");
+  const enRes = await fetch("https://www.kiarakraft.com/en");
+  const enHtml = (await enRes.text()).slice(0, 8000);
+  
+  if (enHtml.includes('lang="en"')) {
+    console.log("✅ HTML lang correctly set to English");
+  } else {
+    console.log("❌ HTML lang not set to English");
+  }
+  
+  if (enHtml.includes("خانه") || enHtml.includes("کاوش")) {
+    console.log("❌ ISSUE: English page contains Farsi text in navigation");
+    console.log("   Found Farsi navigation elements - translation system failing");
+  } else if (enHtml.includes("Home") && enHtml.includes("Explore")) {
+    console.log("✅ English navigation working correctly");
+  } else {
+    console.log("❓ Unknown navigation state");
+  }
 })();
