@@ -45,7 +45,10 @@ export default async function Page({ params }: { params: Params }) {
     where: { slug: params.slug },
     include: { images: true, seller: true, category: true, reviews: true }
   });
-  if (!product) return notFound();
+  
+  if (!product) {
+    return notFound();
+  }
 
   // Convert Toman to IRR for schema (1 Toman = 10 IRR)
   const tomanToIrr = (t: number) => t * 10;
