@@ -105,7 +105,9 @@ export async function generateMetadata({ params }: PageProps) {
         title: product.title,
         description: product.description,
         images: [imageUrl],
-        type: 'product',
+  // 'product' is not a supported OpenGraph type in Next's metadata API in this runtime;
+  // use 'website' to avoid runtime validation errors that cause a 500 in production.
+  type: 'website',
         url: canonicalUrl,
         locale: params.locale === 'fa' ? 'fa_IR' : 'en_US',
         alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR'
@@ -246,7 +248,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
       </div>
     );
   } catch (error) {
-    console.error('Server error in product page:', error);
-    throw error; // This will trigger error.tsx
+  // Log full error (stack when available) so it appears in server logs
+  console.error('Server error in product page:', error, (error instanceof Error && error.stack) || 'no-stack');
+
+  // Avoid returning a 500 to end users while we diagnose the root cause.
+  // Use `notFound()` which returns the product not-found page (404) and
+  // prevents exposing an internal server error page. This keeps the site
+  // user-facing, while we collect logs from Vercel to investigate the root cause.
+  notFound();
   }
 }
