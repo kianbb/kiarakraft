@@ -79,7 +79,7 @@ async function checkProductSSR(productSlug: string, locale: string = 'en'): Prom
     
     return {
       url,
-      success,
+      success: Boolean(success),
       hasTitle: Boolean(isValidProductPage),
       hasMeta: Boolean(hasMeta),
       hasStructuredData: Boolean(hasStructuredData),

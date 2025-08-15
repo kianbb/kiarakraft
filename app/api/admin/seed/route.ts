@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      message: 'Production database seeded successfully',
+      apiMessage: 'Production database seeded successfully',
       ...result
     });
     
