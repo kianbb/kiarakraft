@@ -168,7 +168,7 @@ export default function NewProductPage() {
 
             <div>
               <Label htmlFor="category">{t('category')}</Label>
-              <Select onValueChange={(value) => setValue('category', value as 'pottery' | 'textiles' | 'jewelry' | 'woodwork' | 'metalwork' | 'calligraphy' | 'carpets' | 'other')}>
+              <Select onValueChange={(value) => setValue('category', value as 'ceramics' | 'textiles' | 'jewelry' | 'woodwork' | 'painting')}>
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectCategory')} />
                 </SelectTrigger>
