@@ -1,48 +1,6 @@
 {
   "redirects": [
     {
-      "source": "/(.*)",
-      "destination": "https://www.kiarakraft.com/$1",
-      "permanent": true,
-      "statusCode": 301,
-      "has": [
-        {
-          "type": "host",
-          "value": "kiarakraft.ir"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "destination": "https://www.kiarakraft.com/$1",
-      "permanent": true,
-      "statusCode": 301,
-      "has": [
-        {
-          "type": "host",
-          "value": "www.kiarakraft.ir"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "destination": "https://www.kiarakraft.com/$1",
-      "permanent": true,
-      "statusCode": 301,
-      "has": [
-        {
-          "type": "host",
-          "value": "kiarakraft.com"
-        }
-      ],
-      "missing": [
-        {
-          "type": "host",
-          "value": "www.kiarakraft.com"
-        }
-      ]
-    },
-    {
       "source": "/",
       "destination": "/fa",
       "permanent": true
