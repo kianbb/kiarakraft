@@ -1,17 +1,21 @@
 import { getRequestConfig } from 'next-intl/server';
+import en from '../locales/en.json';
+import fa from '../locales/fa.json';
 
 const locales = ['fa', 'en'];
 
-export default getRequestConfig(async ({ locale }) => {
+const messagesMap: Record<string, any> = {
+  en,
+  fa,
+};
+
+export default getRequestConfig(({ locale }) => {
   // Validate that the incoming `locale` parameter is valid
-  if (!locale || !locales.includes(locale)) {
-    // Default to 'fa' if locale is undefined or invalid
-    locale = 'fa';
-  }
+  const chosen = locale && locales.includes(locale) ? locale : 'fa';
 
   return {
-    locale,
-    messages: (await import(`../locales/${locale}.json`)).default,
+    locale: chosen,
+    messages: messagesMap[chosen],
     timeZone: 'Asia/Tehran'
   };
 });
