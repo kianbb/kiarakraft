@@ -141,14 +141,11 @@
     "noResultsDescription": "Try adjusting your search filters",
     "clearFilters": "Clear Filters",
     "categories": {
-      "pottery": "Pottery",
+      "ceramics": "Ceramics",
       "textiles": "Textiles",
       "jewelry": "Jewelry",
       "woodwork": "Woodwork",
-      "metalwork": "Metalwork",
-      "calligraphy": "Calligraphy",
-      "carpets": "Carpets",
-      "other": "Other"
+      "painting": "Painting"
     }
   },
   "product": {
@@ -282,14 +279,11 @@
     "errorUpdatingProfile": "Error updating profile"
   },
   "categories": {
-    "pottery": "Pottery",
+    "ceramics": "Ceramics",
     "textiles": "Textiles",
     "jewelry": "Jewelry",
     "woodwork": "Woodwork",
-    "metalwork": "Metalwork",
-    "calligraphy": "Calligraphy",
-    "carpets": "Carpets",
-    "other": "Other"
+    "painting": "Painting"
   },
   "footer": {
     "about": "About Kiara Kraft",

@@ -141,14 +141,11 @@
     "noResultsDescription": "فیلترهای جستجو را تغییر دهید",
     "clearFilters": "پاک کردن فیلترها",
     "categories": {
-      "pottery": "سفالگری",
-      "textiles": "منسوجات",
+      "ceramics": "سرامیک",
+      "textiles": "نساجی",
       "jewelry": "جواهرات",
-      "woodwork": "کار چوب",
-      "metalwork": "فلزکاری",
-      "calligraphy": "خوشنویسی",
-      "carpets": "فرش",
-      "other": "سایر"
+      "woodwork": "صنایع چوبی",
+      "painting": "نقاشی"
     }
   },
   "product": {
@@ -282,14 +279,11 @@
     "errorUpdatingProfile": "خطا در به‌روزرسانی پروفایل"
   },
   "categories": {
-    "pottery": "سفالگری",
-    "textiles": "منسوجات",
+    "ceramics": "سرامیک",
+    "textiles": "نساجی",
     "jewelry": "جواهرات",
-    "woodwork": "کار چوب",
-    "metalwork": "فلزکاری",
-    "calligraphy": "خوشنویسی",
-    "carpets": "فرش",
-    "other": "سایر"
+    "woodwork": "صنایع چوبی",
+    "painting": "نقاشی"
   },
   "footer": {
     "about": "درباره کیارا کرفت",

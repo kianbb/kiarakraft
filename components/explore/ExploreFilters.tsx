@@ -27,14 +27,11 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
 
   const categories = [
     { value: 'all', label: t('filters.allCategories') },
-    { value: 'pottery', label: tCategories('pottery') },
+    { value: 'ceramics', label: tCategories('ceramics') },
     { value: 'textiles', label: tCategories('textiles') },
     { value: 'jewelry', label: tCategories('jewelry') },
     { value: 'woodwork', label: tCategories('woodwork') },
-    { value: 'metalwork', label: tCategories('metalwork') },
-    { value: 'calligraphy', label: tCategories('calligraphy') },
-    { value: 'carpets', label: tCategories('carpets') },
-    { value: 'other', label: tCategories('other') }
+    { value: 'painting', label: tCategories('painting') }
   ];
 
   const sortOptions = [

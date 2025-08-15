@@ -19,7 +19,7 @@ const productSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters'),
   price: z.number().min(1, 'Price must be greater than 0'),
   stock: z.number().min(0, 'Stock cannot be negative'),
-  category: z.enum(['pottery', 'textiles', 'jewelry', 'woodwork', 'metalwork', 'calligraphy', 'carpets', 'other']),
+  category: z.enum(['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting']),
   imageUrl: z.string().url('Must be a valid URL'),
   tags: z.string().optional()
 });
@@ -83,14 +83,11 @@ export default function NewProductPage() {
   };
 
   const categories = [
-    { value: 'pottery', label: tCategories('pottery') },
+    { value: 'ceramics', label: tCategories('ceramics') },
     { value: 'textiles', label: tCategories('textiles') },
     { value: 'jewelry', label: tCategories('jewelry') },
     { value: 'woodwork', label: tCategories('woodwork') },
-    { value: 'metalwork', label: tCategories('metalwork') },
-    { value: 'calligraphy', label: tCategories('calligraphy') },
-    { value: 'carpets', label: tCategories('carpets') },
-    { value: 'other', label: tCategories('other') }
+    { value: 'painting', label: tCategories('painting') }
   ];
 
   return (
