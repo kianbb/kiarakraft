@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useLocale } from 'next-intl';
 import { Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RatingStars } from '@/components/products/RatingStars';
@@ -29,8 +29,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
-  const pathname = usePathname();
-  const locale = pathname.split('/')[1] || 'fa';
+  const locale = useLocale();
   
   const productUrl = `/${locale}/product/${product.slug}`;
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';

@@ -1,11 +1,10 @@
 'use client';
 
 import { Toaster } from 'sonner';
-import { usePathname } from 'next/navigation';
+import { useLocale } from 'next-intl';
 
 export function ToastProvider() {
-  const pathname = usePathname();
-  const locale = pathname.split('/')[1] || 'fa';
+  const locale = useLocale();
   const isRTL = locale === 'fa';
 
   return (

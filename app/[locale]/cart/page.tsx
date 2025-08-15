@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
-import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,7 @@ export default function CartPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const t = useTranslations('cart');
-  const pathname = usePathname();
-  const locale = pathname.split('/')[1] || 'fa';
+  const locale = useLocale();
   
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
