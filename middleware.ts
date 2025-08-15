@@ -6,7 +6,7 @@ const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
   defaultLocale: 'fa',
   localePrefix: 'always',
-  localeDetection: false
+  localeDetection: true
 });
 
 const authMiddleware = withAuth(
@@ -44,9 +44,6 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/',
-    '/(fa|en)/:path*',
-    '/seller/:path*'
-  ]
+  // exclude static assets and APIs from locale handling
+  matcher: ['/((?!_next|.*\\..*|api/diag).*)']
 };
