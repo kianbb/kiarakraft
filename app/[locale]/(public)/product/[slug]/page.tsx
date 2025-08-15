@@ -38,7 +38,8 @@ async function getProduct(slug: string) {
     return product;
   } catch (error) {
     console.error('Error fetching product:', error);
-    throw error;
+    // Return null for database errors to trigger 404 instead of server error
+    return null;
   }
 }
 
