@@ -123,7 +123,7 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
         category: {
           id: "ceramics",
           slug: "ceramics", 
-          name: "سرامیک"
+          name: "Ceramics"
         }
       },
       {
@@ -158,7 +158,7 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
         category: {
           id: "jewelry",
           slug: "jewelry",
-          name: "جواهرات"
+          name: "Jewelry"
         }
       }
     ];

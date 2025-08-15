@@ -112,11 +112,11 @@ export default async function Home({ params }: { params: { locale: string } }) {
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
               {[
-                { name: 'سرامیک', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=128&h=128&fit=crop&q=80' },
-                { name: 'نساجی', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=128&h=128&fit=crop&q=80' },
-                { name: 'جواهرات', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=128&h=128&fit=crop&q=80' },
-                { name: 'صنایع چوبی', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=128&h=128&fit=crop&q=80' },
-                { name: 'نقاشی', slug: 'painting', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=128&h=128&fit=crop&q=80' }
+                { nameKey: 'categories.ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=128&h=128&fit=crop&q=80' },
+                { nameKey: 'categories.textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=128&h=128&fit=crop&q=80' },
+                { nameKey: 'categories.jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=128&h=128&fit=crop&q=80' },
+                { nameKey: 'categories.woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=128&h=128&fit=crop&q=80' },
+                { nameKey: 'categories.painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=128&h=128&fit=crop&q=80' }
               ].map((category) => (
                 <Link
                   key={category.slug}
@@ -127,14 +127,14 @@ export default async function Home({ params }: { params: { locale: string } }) {
                     <div className="relative w-16 h-16 mx-auto mb-4 rounded-full overflow-hidden group-hover:scale-105 transition-transform">
                       <Image
                         src={category.image}
-                        alt={category.name}
+                        alt={t(category.nameKey)}
                         fill
                         className="object-cover"
                         sizes="64px"
                         quality={80}
                       />
                     </div>
-                    <p className="font-medium text-foreground">{category.name}</p>
+                    <p className="font-medium text-foreground">{t(category.nameKey)}</p>
                   </div>
                 </Link>
               ))}
