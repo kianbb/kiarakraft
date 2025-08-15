@@ -1,0 +1,77 @@
+name: Seed Production Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to seed'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+      confirm:
+        description: 'Type "SEED" to confirm seeding production database'
+        required: true
+        type: string
+
+jobs:
+  seed:
+    name: Seed Production Database
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "SEED" ]; then
+            echo "❌ Confirmation required: Type 'SEED' to proceed"
+            exit 1
+          fi
+          echo "✅ Confirmation validated"
+        
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+        
+      - name: Check database connection
+        run: |
+          echo "SELECT 1;" | npx prisma db execute --stdin || echo "Database connection failed"
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+        continue-on-error: true
+        
+      - name: Run production seed
+        run: npm run db:seed:production
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          
+      - name: Verify seeded data
+        run: |
+          echo "📊 Checking seeded data..."
+          echo "Categories:"
+          npx prisma db execute --stdin <<< "SELECT slug, name FROM \"Category\";"
+          echo "Products count by category:"
+          npx prisma db execute --stdin <<< "SELECT c.name, COUNT(p.id) as product_count FROM \"Category\" c LEFT JOIN \"Product\" p ON c.id = p.\"categoryId\" GROUP BY c.name ORDER BY c.name;"
+          echo "Total products:"
+          npx prisma db execute --stdin <<< "SELECT COUNT(*) as total_products FROM \"Product\";"
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+        continue-on-error: true

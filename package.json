@@ -12,6 +12,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:production": "tsx prisma/seed-production.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
     "check:ssr": "tsx scripts/check-ssr.ts"
   },
