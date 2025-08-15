@@ -25,13 +25,8 @@ async function getProduct(slug: string) {
       where: { slug },
       include: {
         images: true,
-        reviews: true,
         category: true,
-        seller: {
-          include: {
-            user: true
-          }
-        }
+        seller: true
       }
     });
     
@@ -158,7 +153,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   <Store className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <div className="font-semibold">
-                      {product.seller.displayName || product.seller.user.name}
+                      {product.seller.displayName || product.seller.shopName}
                     </div>
                     {product.seller.region && (
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
