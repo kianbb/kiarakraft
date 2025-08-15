@@ -35,28 +35,4 @@ async function check(url: string, mustContain: string, shouldExist: boolean = tr
   } else {
     console.log("UNKNOWN STATE:", shirazUrl, "- Neither loading, content, nor 404");
   }
-  
-  // Test English locale for translation issue
-  console.log("\n--- English Locale Translation Test ---");
-  const enRes = await fetch("https://www.kiarakraft.com/en?v=" + Date.now());
-  const enHtml = (await enRes.text()).slice(0, 8000);
-  
-  if (enHtml.includes('lang="en"')) {
-    console.log("✅ HTML lang correctly set to English");
-  } else {
-    console.log("❌ HTML lang not set to English");
-  }
-  
-  const farsiMatches = (enHtml.match(/خانه|کاوش|ورود|ثبت‌نام/g) || []).length;
-  const englishMatches = (enHtml.match(/Home|Explore|Login|Register/g) || []).length;
-  
-  console.log(`📊 Translation analysis: ${englishMatches} English vs ${farsiMatches} Farsi navigation elements`);
-  
-  if (farsiMatches === 0 && englishMatches > 0) {
-    console.log("✅ English navigation working correctly");
-  } else if (farsiMatches > englishMatches) {
-    console.log("❌ ISSUE: More Farsi than English navigation elements");
-  } else {
-    console.log("⚠️  Mixed state: Both English and Farsi elements present");
-  }
 })();
