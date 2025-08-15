@@ -21,7 +21,7 @@
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.539.0",
@@ -40,7 +40,6 @@
     "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^20",
     "@types/react": "^18",
