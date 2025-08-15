@@ -232,14 +232,6 @@
     "productTitlePlaceholder": "Enter product name",
     "productDescriptionPlaceholder": "Provide a detailed description of your product",
     "selectCategory": "Select category",
-    "categoryPottery": "Pottery",
-    "categoryTextiles": "Textiles", 
-    "categoryJewelry": "Jewelry",
-    "categoryWoodwork": "Woodwork",
-    "categoryMetalwork": "Metalwork",
-    "categoryCalligraphy": "Calligraphy",
-    "categoryCarpets": "Carpets",
-    "categoryOther": "Other",
     "productImageUrl": "Product Image URL",
     "productTags": "Product Tags",
     "productTagsPlaceholder": "handmade, traditional, unique",
@@ -290,11 +282,14 @@
     "errorUpdatingProfile": "Error updating profile"
   },
   "categories": {
-    "ceramics": "Ceramics",
+    "pottery": "Pottery",
     "textiles": "Textiles",
     "jewelry": "Jewelry",
     "woodwork": "Woodwork",
-    "painting": "Painting"
+    "metalwork": "Metalwork",
+    "calligraphy": "Calligraphy",
+    "carpets": "Carpets",
+    "other": "Other"
   },
   "footer": {
     "about": "About Kiara Kraft",
@@ -307,10 +302,6 @@
     "legal": "Legal",
     "madeWith": "Made with ❤️ for Iranian artisans",
     "supportMessage": "Support Iranian artists and craftspeople by shopping at Kiara Kraft",
-    "allRightsReserved": "All rights reserved",
-    "categoryTextiles": "Textiles",
-    "categoryCeramics": "Ceramics",
-    "categoryJewelry": "Jewelry",
-    "categoryWoodwork": "Woodwork"
+    "allRightsReserved": "All rights reserved"
   }
 }

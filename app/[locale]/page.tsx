@@ -113,11 +113,11 @@ export default async function Home({ params }: { params: { locale: string } }) {
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
               {[
-                { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=128&h=128&fit=crop&q=80' },
+                { nameKey: 'pottery', slug: 'pottery', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=128&h=128&fit=crop&q=80' },
                 { nameKey: 'textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=128&h=128&fit=crop&q=80' },
                 { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=128&h=128&fit=crop&q=80' },
                 { nameKey: 'woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=128&h=128&fit=crop&q=80' },
-                { nameKey: 'painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=128&h=128&fit=crop&q=80' }
+                { nameKey: 'metalwork', slug: 'metalwork', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=128&h=128&fit=crop&q=80' }
               ].map((category) => (
                 <Link
                   key={category.slug}

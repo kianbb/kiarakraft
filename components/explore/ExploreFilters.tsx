@@ -17,6 +17,7 @@ interface ExploreFiltersProps {
 
 export function ExploreFilters({ initialSearch, initialCategory, initialSort, locale }: ExploreFiltersProps) {
   const t = useTranslations('explore');
+  const tCategories = useTranslations('categories');
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -26,14 +27,14 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
 
   const categories = [
     { value: 'all', label: t('filters.allCategories') },
-    { value: 'pottery', label: t('categories.pottery') },
-    { value: 'textiles', label: t('categories.textiles') },
-    { value: 'jewelry', label: t('categories.jewelry') },
-    { value: 'woodwork', label: t('categories.woodwork') },
-    { value: 'metalwork', label: t('categories.metalwork') },
-    { value: 'calligraphy', label: t('categories.calligraphy') },
-    { value: 'carpets', label: t('categories.carpets') },
-    { value: 'other', label: t('categories.other') }
+    { value: 'pottery', label: tCategories('pottery') },
+    { value: 'textiles', label: tCategories('textiles') },
+    { value: 'jewelry', label: tCategories('jewelry') },
+    { value: 'woodwork', label: tCategories('woodwork') },
+    { value: 'metalwork', label: tCategories('metalwork') },
+    { value: 'calligraphy', label: tCategories('calligraphy') },
+    { value: 'carpets', label: tCategories('carpets') },
+    { value: 'other', label: tCategories('other') }
   ];
 
   const sortOptions = [

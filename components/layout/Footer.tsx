@@ -7,6 +7,7 @@ import { Mail, Phone, MapPin } from 'lucide-react';
 
 export default function Footer() {
   const t = useTranslations('footer');
+  const tCategories = useTranslations('categories');
   const locale = useLocale();
 
   const footerLinks = [
@@ -28,10 +29,10 @@ export default function Footer() {
     {
       title: t('categories'),
       links: [
-        { name: t('categoryCeramics'), href: `/${locale}/explore?category=ceramics` },
-        { name: t('categoryTextiles'), href: `/${locale}/explore?category=textiles` },
-        { name: t('categoryJewelry'), href: `/${locale}/explore?category=jewelry` },
-        { name: t('categoryWoodwork'), href: `/${locale}/explore?category=woodwork` },
+        { name: tCategories('pottery'), href: `/${locale}/explore?category=pottery` },
+        { name: tCategories('textiles'), href: `/${locale}/explore?category=textiles` },
+        { name: tCategories('jewelry'), href: `/${locale}/explore?category=jewelry` },
+        { name: tCategories('woodwork'), href: `/${locale}/explore?category=woodwork` },
       ]
     }
   ];

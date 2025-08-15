@@ -232,14 +232,6 @@
     "productTitlePlaceholder": "نام محصول را وارد کنید",
     "productDescriptionPlaceholder": "توضیحات کاملی از محصول ارائه دهید",
     "selectCategory": "دسته‌بندی را انتخاب کنید",
-    "categoryPottery": "سفالگری",
-    "categoryTextiles": "منسوجات",
-    "categoryJewelry": "جواهرات",
-    "categoryWoodwork": "کار چوب",
-    "categoryMetalwork": "فلزکاری",
-    "categoryCalligraphy": "خوشنویسی",
-    "categoryCarpets": "فرش",
-    "categoryOther": "سایر",
     "productImageUrl": "آدرس تصویر محصول",
     "productTags": "برچسب‌های محصول",
     "productTagsPlaceholder": "دستساز، سنتی، منحصربه‌فرد",
@@ -290,11 +282,14 @@
     "errorUpdatingProfile": "خطا در به‌روزرسانی پروفایل"
   },
   "categories": {
-    "ceramics": "سرامیک",
-    "textiles": "نساجی",
+    "pottery": "سفالگری",
+    "textiles": "منسوجات",
     "jewelry": "جواهرات",
-    "woodwork": "صنایع چوبی",
-    "painting": "نقاشی"
+    "woodwork": "کار چوب",
+    "metalwork": "فلزکاری",
+    "calligraphy": "خوشنویسی",
+    "carpets": "فرش",
+    "other": "سایر"
   },
   "footer": {
     "about": "درباره کیارا کرفت",
@@ -307,10 +302,6 @@
     "legal": "قوانین",
     "madeWith": "ساخته‌شده با ❤️ برای هنرمندان ایرانی",
     "supportMessage": "با خرید از کیارا کرفت، از هنرمندان و صنعتگران ایرانی حمایت کنید",
-    "allRightsReserved": "تمام حقوق محفوظ است",
-    "categoryTextiles": "نساجی",
-    "categoryCeramics": "سرامیک",
-    "categoryJewelry": "جواهرات",
-    "categoryWoodwork": "صنایع چوبی"
+    "allRightsReserved": "تمام حقوق محفوظ است"
   }
 }

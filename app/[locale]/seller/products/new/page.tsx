@@ -30,6 +30,7 @@ export default function NewProductPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations('seller');
+  const tCategories = useTranslations('categories');
   const [creating, setCreating] = useState(false);
 
   const {
@@ -82,14 +83,14 @@ export default function NewProductPage() {
   };
 
   const categories = [
-    { value: 'pottery', label: t('categoryPottery') },
-    { value: 'textiles', label: t('categoryTextiles') },
-    { value: 'jewelry', label: t('categoryJewelry') },
-    { value: 'woodwork', label: t('categoryWoodwork') },
-    { value: 'metalwork', label: t('categoryMetalwork') },
-    { value: 'calligraphy', label: t('categoryCalligraphy') },
-    { value: 'carpets', label: t('categoryCarpets') },
-    { value: 'other', label: t('categoryOther') }
+    { value: 'pottery', label: tCategories('pottery') },
+    { value: 'textiles', label: tCategories('textiles') },
+    { value: 'jewelry', label: tCategories('jewelry') },
+    { value: 'woodwork', label: tCategories('woodwork') },
+    { value: 'metalwork', label: tCategories('metalwork') },
+    { value: 'calligraphy', label: tCategories('calligraphy') },
+    { value: 'carpets', label: tCategories('carpets') },
+    { value: 'other', label: tCategories('other') }
   ];
 
   return (
