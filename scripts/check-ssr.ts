@@ -1,8 +1,6 @@
-import { request } from "undici";
-
 async function check(url: string, mustContain: string, shouldExist: boolean = true) {
-  const res = await request(url);
-  const html = (await res.body.text()).slice(0, 4000);
+  const res = await fetch(url);
+  const html = (await res.text()).slice(0, 4000);
   
   if (shouldExist) {
     if (!html.includes(mustContain)) {
@@ -25,8 +23,8 @@ async function check(url: string, mustContain: string, shouldExist: boolean = tr
   
   // Test shiraz-gabbeh-blanket - check if it shows loading state or works
   const shirazUrl = `https://www.kiarakraft.com/fa/product/shiraz-gabbeh-blanket`;
-  const res = await request(shirazUrl);
-  const html = (await res.body.text()).slice(0, 4000);
+  const res = await fetch(shirazUrl);
+  const html = (await res.text()).slice(0, 4000);
   
   if (html.includes("Loading...")) {
     console.log("WARNING:", shirazUrl, "- Shows loading state instead of content");
