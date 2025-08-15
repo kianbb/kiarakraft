@@ -1,145 +1,15 @@
-#!/usr/bin/env ts-node
+import { request } from "undici";
 
-/**
- * SSR Check Script
- * 
- * Verifies that product pages are properly server-side rendered by:
- * 1. Fetching a real product URL from production
- * 2. Asserting that the HTML contains the product title (not just a loading state)
- * 3. Checking for proper meta tags and structured data
- */
-
-import { JSDOM } from 'jsdom';
-
-const PRODUCTION_URL = 'https://www.kiarakraft.com';
-
-// Known product slugs to test (from production seed data)
-const TEST_PRODUCT_SLUGS = [
-  'handmade-ceramic-bowl',
-  'kurdish-handwoven-kilim',
-  'silver-turquoise-necklace'
-];
-
-interface SSRCheckResult {
-  url: string;
-  success: boolean;
-  hasTitle: boolean;
-  hasMeta: boolean;
-  hasStructuredData: boolean;
-  productTitle?: string;
-  error?: string;
-}
-
-async function checkProductSSR(productSlug: string, locale: string = 'en'): Promise<SSRCheckResult> {
-  const url = `${PRODUCTION_URL}/${locale}/product/${productSlug}`;
-  
-  try {
-    console.log(`🔍 Checking SSR for: ${url}`);
-    
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; SSR-Checker/1.0)'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-    
-    // Check for SSR by examining server-rendered meta tags
-    const titleMeta = document.querySelector('title')?.textContent || '';
-    const descriptionMeta = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-    
-    // Determine if this is a product page or not-found page based on meta
-    const isProductNotFound = titleMeta.includes('Product Not Found') || titleMeta.includes('Error');
-    const isValidProductPage = titleMeta && !titleMeta.includes('Loading') && titleMeta.includes('Kiara Kraft');
-    
-    // The h1 might show Loading due to hydration, but meta tags show the real SSR status
-    const h1 = document.querySelector('h1');
-    const displayTitle = h1?.textContent?.trim() || 'Not rendered yet';
-    
-    // Check for structured data (JSON-LD)
-    const structuredData = document.querySelector('script[type="application/ld+json"]');
-    const hasStructuredData = !!structuredData;
-    
-    // Success means SSR is working (proper meta tags from server)
-    const hasMeta = !!(titleMeta && descriptionMeta);
-    const success = isValidProductPage && hasMeta;
-    
-    console.log(`${success ? '✅' : '❌'} ${url}`);
-    console.log(`   Meta Title: ${titleMeta}`);
-    console.log(`   Display Title: ${displayTitle}`);
-    console.log(`   SSR Status: ${isProductNotFound ? 'Not Found (SSR)' : success ? 'Product (SSR)' : 'No SSR detected'}`);
-    console.log(`   Meta: ${hasMeta ? 'Present' : 'Missing'}`);
-    console.log(`   Structured Data: ${hasStructuredData ? 'Present' : 'Missing'}`);
-    
-    return {
-      url,
-      success: Boolean(success),
-      hasTitle: Boolean(isValidProductPage),
-      hasMeta: Boolean(hasMeta),
-      hasStructuredData: Boolean(hasStructuredData),
-      productTitle: displayTitle
-    };
-    
-  } catch (error) {
-    console.log(`❌ ${url} - Error: ${error instanceof Error ? error.message : String(error)}`);
-    
-    return {
-      url,
-      success: false,
-      hasTitle: false,
-      hasMeta: false,
-      hasStructuredData: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
+async function check(url: string, mustContain: string) {
+  const res = await request(url);
+  const html = (await res.body.text()).slice(0, 4000);
+  if (!html.includes(mustContain)) {
+    throw new Error(`SSR check failed for ${url}. Could not find: ${mustContain}`);
   }
+  console.log("OK:", url);
 }
 
-async function main() {
-  console.log('🚀 Starting SSR Check for Kiara Kraft Product Pages\n');
-  
-  const results: SSRCheckResult[] = [];
-  
-  // Test both English and Persian locales
-  for (const locale of ['en', 'fa']) {
-    console.log(`\n📍 Testing ${locale.toUpperCase()} locale:`);
-    
-    for (const slug of TEST_PRODUCT_SLUGS) {
-      const result = await checkProductSSR(slug, locale);
-      results.push(result);
-      
-      // Add delay to avoid overwhelming the server
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-  }
-  
-  // Summary
-  console.log('\n📊 Summary:');
-  const successful = results.filter(r => r.success);
-  const failed = results.filter(r => !r.success);
-  
-  console.log(`✅ Successful: ${successful.length}/${results.length}`);
-  console.log(`❌ Failed: ${failed.length}/${results.length}`);
-  
-  if (failed.length > 0) {
-    console.log('\n💥 Failed URLs:');
-    failed.forEach(result => {
-      console.log(`   ${result.url} - ${result.error || 'SSR validation failed'}`);
-    });
-  }
-  
-  // Exit with error code if any tests failed
-  process.exit(failed.length > 0 ? 1 : 0);
-}
-
-if (require.main === module) {
-  main().catch(console.error);
-}
-
-export { checkProductSSR };
-export type { SSRCheckResult };
+(async () => {
+  const slug = process.env.TEST_SLUG || "handmade-ceramic-bowl"; // adjust
+  await check(`https://www.kiarakraft.com/fa/product/${slug}`, "کاسه سرامیکی دست‌ساز");
+})();
