@@ -33,6 +33,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 }
 
 // Sample product data for demo - in real app this would come from API/database
+// Updated to use proper translations instead of hardcoded text
 function getSampleProducts(t: Awaited<ReturnType<typeof getTranslations<'home'>>>) {
   return [
     {
