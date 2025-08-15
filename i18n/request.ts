@@ -8,10 +8,15 @@ const messagesMap: Record<string, any> = {
   en,
   fa,
 };
+// Export a small helper so we can unit-test the locale normalization logic.
+export function chooseLocale(locale?: string) {
+  // Normalize incoming locale (handle region variants like `en-US` or `fa-IR`)
+  const baseLocale = locale ? locale.split('-')[0] : undefined;
+  return baseLocale && locales.includes(baseLocale) ? baseLocale : 'fa';
+}
 
 export default getRequestConfig(({ locale }) => {
-  // Validate that the incoming `locale` parameter is valid
-  const chosen = locale && locales.includes(locale) ? locale : 'fa';
+  const chosen = chooseLocale(locale);
 
   return {
     locale: chosen,
