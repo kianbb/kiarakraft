@@ -1,12 +1,14 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
+import { translateProductFields } from '@/lib/translator';
 import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
 import { PaginatedProducts, PrismaWhereClause, PrismaOrderBy } from '@/types/database';
 
-export const revalidate = 60; // refresh explore every 1 minute
+// Disable caching temporarily to ensure locale fixes take effect immediately
+export const revalidate = 0;
 
 interface PageProps {
   params: {
@@ -86,13 +88,52 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
     translations?: Array<{ locale: string; title: string; description: string }>;
     eligibilityStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVIEW';
   };
-  let localized = (products as WithTranslations[]).map((p) => {
-    if (locale === 'en' && Array.isArray(p.translations)) {
-      const en = p.translations.find((t) => t.locale === 'en');
-      if (en) return { ...p, title: en.title, description: en.description } as typeof p;
-    }
-    return p;
-  });
+  let localized = (products as WithTranslations[]);
+
+  if (locale === 'en') {
+    const tHome = await getTranslations({ locale, namespace: 'home' });
+    const needsTranslation = (txt?: string) => /[\u0600-\u06FF]/.test(txt || '');
+
+    localized = await Promise.all(
+      (products as WithTranslations[]).map(async (p) => {
+        // 1) Prefer stored translation if present
+        const enTr = Array.isArray(p.translations)
+          ? p.translations.find((t) => t.locale === 'en')
+          : undefined;
+
+        let title = enTr?.title ?? p.title;
+        let description = enTr?.description ?? p.description;
+
+        // 2) Demo slugs hard-coded EN strings
+        if (p.slug === 'handmade-ceramic-bowl') {
+          title = tHome('sampleProducts.ceramicBowl.title');
+          description = tHome('sampleProducts.ceramicBowl.description');
+        } else if (p.slug === 'silver-turquoise-necklace') {
+          title = tHome('sampleProducts.silverNecklace.title');
+          description = tHome('sampleProducts.silverNecklace.description');
+        } else if (!enTr && (needsTranslation(title) || needsTranslation(description))) {
+          // 3) Best-effort on-the-fly translation if text appears Persian
+          try {
+            const en = await translateProductFields({ title, description }, 'fa', 'en');
+            title = en.title;
+            description = en.description;
+          } catch {}
+        }
+
+        // Seller name: provide demo EN name if Persian-looking
+        const sellerDisplayName = needsTranslation(p.seller.displayName)
+          ? tHome('sampleProducts.shopName')
+          : p.seller.displayName;
+
+        return {
+          ...p,
+          title,
+          description,
+          seller: { ...p.seller, displayName: sellerDisplayName }
+        } as typeof p;
+      })
+    );
+  }
   // Soft-filter non-handcrafted items if eligibility flag exists
   localized = localized.filter((p) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
 
