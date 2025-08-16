@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -22,11 +22,36 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function Navbar() {
   const { data: session } = useSession();
-  const t = useTranslations('navigation');
   const pathname = usePathname();
   const locale = useLocale();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Prevent SSR/hydration mismatch by only rendering after client-side hydration
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Don't render until hydrated to prevent locale context issues
+  if (!isHydrated) {
+    return (
+      <nav className="bg-background border-b border-border sticky top-0 z-50" role="navigation" aria-label="Main navigation">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-lg">K</span>
+              </div>
+              <span className="text-xl font-bold text-foreground hidden sm:block ml-2">Kiara Kraft</span>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  const t = useTranslations('navigation');
   const isRTL = locale === 'fa';
 
   const navigation = [

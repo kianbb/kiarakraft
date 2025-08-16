@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 
 const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
-  defaultLocale: 'fa',
+  defaultLocale: 'fa', // Back to Persian as default
   localePrefix: 'always',
   localeDetection: true
 });

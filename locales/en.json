@@ -26,7 +26,8 @@
     "submit": "Submit",
     "currency": "TMN",
     "outOfStock": "Out of Stock",
-    "leftInStock": "left"
+    "leftInStock": "left",
+    "skipToContent": "Skip to main content"
   },
   "home": {
     "hero": {

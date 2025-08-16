@@ -26,7 +26,8 @@
     "submit": "ارسال",
     "currency": "تومان",
     "outOfStock": "ناموجود",
-    "leftInStock": "عدد باقی‌مانده"
+    "leftInStock": "عدد باقی‌مانده",
+    "skipToContent": "پرش به محتوای اصلی"
   },
   "home": {
     "hero": {

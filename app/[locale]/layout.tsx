@@ -99,6 +99,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   setRequestLocale(locale);
   const messages = await getMessages();
   const t = await getTranslations('home');
+  const tCommon = await getTranslations('common');
 
   // Structured data for the organization
   const organizationStructuredData = {
@@ -168,7 +169,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           <StructuredData data={websiteStructuredData} />
           <div className="min-h-screen bg-background">
             <a href="#main-content" className="skip-link">
-              {locale === 'fa' ? 'پرش به محتوای اصلی' : 'Skip to main content'}
+{tCommon('skipToContent')}
             </a>
             <Navbar />
             <main id="main-content" className="flex-1">
