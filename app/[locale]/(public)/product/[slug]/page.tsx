@@ -12,7 +12,8 @@ import { formatPrice } from '@/lib/utils';
 import { ArrowLeft, Heart, Share2, Store, MapPin } from 'lucide-react';
 import type { Metadata } from 'next';
 
-export const revalidate = 60;
+// Disable caching temporarily to ensure locale fixes take effect immediately
+export const revalidate = 0;
 
 type Params = { locale: "fa" | "en"; slug: string };
 
