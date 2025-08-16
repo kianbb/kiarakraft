@@ -75,8 +75,9 @@ function getSampleProducts(t: Awaited<ReturnType<typeof getTranslations<'home'>>
 export default async function Home({ params }: { params: { locale: string } }) {
   const { locale } = params;
   setRequestLocale(locale);
-  const t = await getTranslations('home');
-  const tCategories = await getTranslations('categories');
+  // Use explicit locale to avoid default-locale bleed during SSG/ISR
+  const t = await getTranslations({ locale, namespace: 'home' });
+  const tCategories = await getTranslations({ locale, namespace: 'categories' });
   const sampleProducts = getSampleProducts(t);
   
 
