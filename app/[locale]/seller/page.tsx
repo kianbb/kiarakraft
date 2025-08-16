@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ import {
 export default function SellerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const locale = useLocale();
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
@@ -37,12 +39,12 @@ export default function SellerDashboard() {
     if (status === 'loading') return;
     
     if (!session) {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
       return;
     }
 
     if (session.user?.role !== 'SELLER') {
-      router.push('/');
+      router.push(`/${locale}`);
       return;
     }
 
@@ -154,7 +156,7 @@ export default function SellerDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Link href="/seller/products">
+          <Link href={`/${locale}/seller/products`}>
             <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center gap-3 mb-3">
                 <Package className="h-6 w-6 text-blue-600" />
@@ -167,7 +169,7 @@ export default function SellerDashboard() {
             </div>
           </Link>
           
-          <Link href="/seller/orders">
+          <Link href={`/${locale}/seller/orders`}>
             <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center gap-3 mb-3">
                 <ShoppingCart className="h-6 w-6 text-green-600" />
@@ -180,7 +182,7 @@ export default function SellerDashboard() {
             </div>
           </Link>
           
-          <Link href="/seller/profile">
+          <Link href={`/${locale}/seller/profile`}>
             <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center gap-3 mb-3">
                 <Users className="h-6 w-6 text-purple-600" />
@@ -199,7 +201,7 @@ export default function SellerDashboard() {
           <div className="bg-white p-6 rounded-lg border">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">{t('recentOrders')}</h2>
-              <Link href="/seller/orders">
+              <Link href={`/${locale}/seller/orders`}>
                 <Button variant="outline" size="sm">{t('viewAll')}</Button>
               </Link>
             </div>
@@ -233,13 +235,13 @@ export default function SellerDashboard() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">{t('recentProducts')}</h2>
               <div className="flex gap-2">
-                <Link href="/seller/products/new">
+                <Link href={`/${locale}/seller/products/new`}>
                   <Button size="sm">
                     <Plus className="h-4 w-4 mr-1" />
                     {t('addProduct')}
                   </Button>
                 </Link>
-                <Link href="/seller/products">
+                <Link href={`/${locale}/seller/products`}>
                   <Button variant="outline" size="sm">{t('viewAll')}</Button>
                 </Link>
               </div>
@@ -265,7 +267,7 @@ export default function SellerDashboard() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Link href={`/product/${product.id}`}>
+                      <Link href={`/${locale}/product/${product.slug}`}>
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -283,7 +285,7 @@ export default function SellerDashboard() {
               <div className="text-center py-8">
                 <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <p className="text-muted-foreground mb-4">{t('noProducts')}</p>
-                <Link href="/seller/products/new">
+                <Link href={`/${locale}/seller/products/new`}>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
                     {t('addFirstProduct')}

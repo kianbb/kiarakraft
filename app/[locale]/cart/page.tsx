@@ -125,7 +125,7 @@ export default function CartPage() {
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4">
         <div className="mb-6">
-          <Link href="/explore" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
+          <Link href={`/${locale}/explore`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
             {t('continueShopping')}
           </Link>
@@ -138,7 +138,7 @@ export default function CartPage() {
             <ShoppingBag className="h-16 w-16 mx-auto mb-6 text-muted-foreground opacity-50" />
             <h2 className="text-xl font-semibold mb-4">{t('empty')}</h2>
             <p className="text-muted-foreground mb-6">{t('emptyDescription')}</p>
-            <Link href="/explore">
+            <Link href={`/${locale}/explore`}>
               <Button size="lg">{t('startShopping')}</Button>
             </Link>
           </div>
@@ -161,7 +161,7 @@ export default function CartPage() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <Link 
-                          href={`/product/${item.product.id}`}
+                          href={`/${locale}/product/${item.product.slug}`}
                           className="font-semibold hover:text-primary"
                         >
                           {item.product.title}
@@ -224,7 +224,7 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <Link href="/checkout">
+                <Link href={`/${locale}/checkout`}>
                   <Button size="lg" className="w-full">
                     {t('proceedToCheckout')}
                   </Button>

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/db';
+import { translateProductFields } from '@/lib/translator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RatingStars } from '@/components/products/RatingStars';
@@ -72,20 +73,6 @@ export default async function Page({ params }: { params: Params }) {
 
   // Convert Toman to IRR for schema (1 Toman = 10 IRR)
   const tomanToIrr = (t: number) => t * 10;
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.title,
-    description: product.description,
-  image: product.images.map((i) => i.url),
-    brand: "Kiara Kraft",
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "IRR",
-      price: String(tomanToIrr(product.priceToman)),
-      availability: product.stock > 0 ? "http://schema.org/InStock" : "http://schema.org/OutOfStock"
-    }
-  };
 
   const [t, tCategories, tHome] = await Promise.all([
     getTranslations('product'),
@@ -112,6 +99,20 @@ export default async function Page({ params }: { params: Params }) {
         translatedDescription = tr.description;
       }
     } catch {}
+
+    // If no persisted EN translation exists, attempt on-the-fly translation as a graceful fallback
+    if (!translatedTitle || !translatedDescription) {
+      const hasPersian = /[\u0600-\u06FF]/.test(product.title) || /[\u0600-\u06FF]/.test(product.description);
+      if (hasPersian) {
+        try {
+          const en = await translateProductFields({ title: product.title, description: product.description }, 'fa', 'en');
+          translatedTitle = translatedTitle || en.title;
+          translatedDescription = translatedDescription || en.description;
+        } catch {
+          // Ignore translation errors and keep Persian as last resort
+        }
+      }
+    }
   }
 
   const localized = {
@@ -147,6 +148,22 @@ export default async function Page({ params }: { params: Params }) {
       localized.categoryName = tCategories(product.category.slug as unknown as string);
     }
   }
+
+  // Build localized JSON-LD after computing localized fields
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: localized.title,
+    description: localized.description,
+    image: product.images.map((i) => i.url),
+    brand: "Kiara Kraft",
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "IRR",
+      price: String(tomanToIrr(product.priceToman)),
+      availability: product.stock > 0 ? "http://schema.org/InStock" : "http://schema.org/OutOfStock"
+    }
+  };
 
   return (
     <>
