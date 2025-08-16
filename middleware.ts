@@ -6,7 +6,7 @@ const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
   defaultLocale: 'fa', // Persian remains the default
   localePrefix: 'always',
-  localeDetection: true
+  localeDetection: false
 });
 
 const authMiddleware = withAuth(
