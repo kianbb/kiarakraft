@@ -45,6 +45,6 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // exclude static assets and APIs from locale handling
-  matcher: ['/((?!_next|.*\\..*|api/diag).*)']
+  // exclude static assets and ALL APIs from locale handling
+  matcher: ['/((?!_next|.*\\..*|api).*)']
 };
