@@ -1,6 +1,6 @@
 'use client';
 
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface PriceProps {
   amount: number;
@@ -9,6 +9,7 @@ interface PriceProps {
 
 export function Price({ amount, className = '' }: PriceProps) {
   const locale = useLocale();
+  const t = useTranslations('common');
   const isRTL = locale === 'fa';
   
   const formatted = new Intl.NumberFormat(isRTL ? 'fa-IR' : 'en-US', {
@@ -16,7 +17,7 @@ export function Price({ amount, className = '' }: PriceProps) {
     maximumFractionDigits: 0,
   }).format(amount);
   
-  const currency = isRTL ? 'تومان' : 'TMN';
+  const currency = t('currency');
   
   return (
     <span className={`${className} ${isRTL ? 'font-vazir' : ''}`} dir={isRTL ? 'rtl' : 'ltr'}>

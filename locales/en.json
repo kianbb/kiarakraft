@@ -23,7 +23,10 @@
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
-    "submit": "Submit"
+    "submit": "Submit",
+    "currency": "TMN",
+    "outOfStock": "Out of Stock",
+    "leftInStock": "left"
   },
   "home": {
     "hero": {

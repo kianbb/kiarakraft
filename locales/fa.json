@@ -23,7 +23,10 @@
     "back": "بازگشت",
     "next": "بعدی",
     "previous": "قبلی",
-    "submit": "ارسال"
+    "submit": "ارسال",
+    "currency": "تومان",
+    "outOfStock": "ناموجود",
+    "leftInStock": "عدد باقی‌مانده"
   },
   "home": {
     "hero": {

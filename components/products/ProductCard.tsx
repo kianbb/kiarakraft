@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RatingStars } from '@/components/products/RatingStars';
@@ -30,6 +30,7 @@ interface ProductCardProps {
 
 export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
   const locale = useLocale();
+  const t = useTranslations('common');
   
   const productUrl = `/${locale}/product/${product.slug}`;
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
@@ -87,7 +88,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
               <span className="text-white font-medium bg-destructive px-3 py-1 rounded-full text-sm">
-                {locale === 'fa' ? 'ناموجود' : 'Out of Stock'}
+                {t('outOfStock')}
               </span>
             </div>
           )}
@@ -96,7 +97,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           {!isOutOfStock && product.stock <= 3 && (
             <div className="absolute top-2 left-2">
               <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                {locale === 'fa' ? `${product.stock} عدد باقی‌مانده` : `${product.stock} left`}
+                {`${product.stock} ${t('leftInStock')}`}
               </span>
             </div>
           )}
