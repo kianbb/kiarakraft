@@ -11,6 +11,11 @@ interface LocaleLayoutProps {
   params: { locale: string };
 }
 
+// Ensure both locales are statically generated so SSR uses the right messages
+export function generateStaticParams() {
+  return [{ locale: 'fa' }, { locale: 'en' }];
+}
+
 export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
   const { locale } = params;
   setRequestLocale(locale);
