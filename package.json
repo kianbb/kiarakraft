@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-  "test": "tsx test/chooseLocale.test.ts",
+    "test": "tsx test/chooseLocale.test.ts",
     "test:i18n": "tsx test/i18n.smoke.test.ts",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -16,7 +16,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:production": "tsx prisma/seed-production.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
-    "check:ssr": "tsx scripts/check-ssr.ts"
+    "check:ssr": "tsx scripts/check-ssr.ts",
+    "verify:i18n": "node scripts/verify-i18n-complete.js",
+    "verify:i18n:quick": "node scripts/quick-i18n-check.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

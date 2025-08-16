@@ -17,6 +17,18 @@ export function chooseLocale(locale?: string): Locale {
   return baseLocale && locales.includes(baseLocale as Locale) ? (baseLocale as Locale) : 'fa';
 }
 
+function getTimeZoneForLocale(locale: Locale): string {
+  // Return appropriate timezone based on locale
+  switch (locale) {
+    case 'fa':
+      return 'Asia/Tehran';
+    case 'en':
+      return 'UTC'; // Or 'America/New_York' depending on target audience
+    default:
+      return 'Asia/Tehran'; // Default to Tehran time
+  }
+}
+
 export default getRequestConfig(({ locale }) => {
   // If no locale provided, this indicates a configuration issue
   if (!locale) {
@@ -27,7 +39,15 @@ export default getRequestConfig(({ locale }) => {
     return {
       locale: chosen,
       messages: messagesMap[chosen],
-      timeZone: 'Asia/Tehran'
+      timeZone: getTimeZoneForLocale(chosen),
+      onError: (error) => {
+        console.error('[i18n/request.ts] Translation error for locale', chosen, ':', error);
+      },
+      getMessageFallback: ({ namespace, key }) => {
+        console.warn('[i18n/request.ts] Missing translation key:', `${namespace}.${key}`, 'for locale:', chosen);
+        // Return key name instead of falling back to other locale
+        return `[Missing: ${namespace}.${key}]`;
+      }
     };
   }
   
@@ -39,6 +59,14 @@ export default getRequestConfig(({ locale }) => {
   return {
     locale: chosen,
     messages: messagesMap[chosen],
-    timeZone: 'Asia/Tehran'
+    timeZone: getTimeZoneForLocale(chosen),
+    onError: (error) => {
+      console.error('[i18n/request.ts] Translation error for locale', chosen, ':', error);
+    },
+    getMessageFallback: ({ namespace, key }) => {
+      console.warn('[i18n/request.ts] Missing translation key:', `${namespace}.${key}`, 'for locale:', chosen);
+      // Return key name instead of falling back to other locale
+      return `[Missing: ${namespace}.${key}]`;
+    }
   };
 });
