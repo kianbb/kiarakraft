@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
   "test": "tsx test/chooseLocale.test.ts",
+    "test:i18n": "tsx test/i18n.smoke.test.ts",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",

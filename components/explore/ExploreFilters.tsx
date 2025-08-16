@@ -13,14 +13,23 @@ interface ExploreFiltersProps {
   initialCategory: string;
   initialSort: string;
   locale: string;
+  // Optional precomputed texts/options from the server for SSR-friendly output
+  precomputed?: {
+    searchPlaceholder: string;
+    clearFilters: string;
+    selectCategory: string;
+    categories: { value: string; label: string }[];
+    sortOptions: { value: string; label: string }[];
+  };
 }
 
-export function ExploreFilters({ initialSearch, initialCategory, initialSort, locale }: ExploreFiltersProps) {
+export function ExploreFilters({ initialSearch, initialCategory, initialSort, locale, precomputed }: ExploreFiltersProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
 
   const _t = useTranslations('explore');
   const _tCategories = useTranslations('categories');
+  // When not hydrated, prefer server-provided texts to avoid showing translation keys in SSR
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const tCategories = isHydrated ? _tCategories : ((k: string) => k) as (k: string) => string;
   const router = useRouter();
@@ -30,22 +39,28 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState(initialSort);
 
-  const categories = [
-    { value: 'all', label: t('filters.allCategories') },
-    { value: 'ceramics', label: tCategories('ceramics') },
-    { value: 'textiles', label: tCategories('textiles') },
-    { value: 'jewelry', label: tCategories('jewelry') },
-    { value: 'woodwork', label: tCategories('woodwork') },
-    { value: 'painting', label: tCategories('painting') }
-  ];
+  // Build categories and sort options.
+  // Use precomputed values on the server (before hydration), and live translations after hydration.
+  const categories = isHydrated || !precomputed
+    ? [
+        { value: 'all', label: t('filters.allCategories') },
+        { value: 'ceramics', label: tCategories('ceramics') },
+        { value: 'textiles', label: tCategories('textiles') },
+        { value: 'jewelry', label: tCategories('jewelry') },
+        { value: 'woodwork', label: tCategories('woodwork') },
+        { value: 'painting', label: tCategories('painting') }
+      ]
+    : precomputed.categories;
 
-  const sortOptions = [
-    { value: 'newest', label: t('filters.newest') },
-    { value: 'oldest', label: t('filters.oldest') },
-    { value: 'price_low', label: t('filters.priceLowToHigh') },
-    { value: 'price_high', label: t('filters.priceHighToLow') },
-    { value: 'popular', label: t('filters.popular') }
-  ];
+  const sortOptions = isHydrated || !precomputed
+    ? [
+        { value: 'newest', label: t('filters.newest') },
+        { value: 'oldest', label: t('filters.oldest') },
+        { value: 'price_low', label: t('filters.priceLowToHigh') },
+        { value: 'price_high', label: t('filters.priceHighToLow') },
+        { value: 'popular', label: t('filters.popular') }
+      ]
+    : precomputed.sortOptions;
 
   const updateFilters = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -100,7 +115,7 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             type="text"
-            placeholder={t('searchPlaceholder')}
+            placeholder={isHydrated || !precomputed ? t('searchPlaceholder') : precomputed.searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2"
@@ -127,7 +142,7 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
         <div className="flex-1">
           <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger>
-              <SelectValue placeholder={t('filters.selectCategory')} />
+              <SelectValue placeholder={isHydrated || !precomputed ? t('filters.selectCategory') : precomputed.selectCategory} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
@@ -157,7 +172,7 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
         {hasActiveFilters && (
           <Button variant="outline" onClick={clearAllFilters} className="shrink-0">
             <X className="h-4 w-4 mr-2" />
-            {t('clearFilters')}
+            {isHydrated || !precomputed ? t('clearFilters') : precomputed.clearFilters}
           </Button>
         )}
       </div>

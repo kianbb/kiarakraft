@@ -224,6 +224,7 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
 
 export default async function ExplorePage({ params, searchParams }: PageProps) {
   const t = await getTranslations({ locale: params.locale, namespace: 'explore' });
+  const tCategories = await getTranslations({ locale: params.locale, namespace: 'categories' });
   const { products, totalCount, totalPages, currentPage } = await getProducts(params.locale, searchParams);
 
   return (
@@ -246,6 +247,26 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
             initialCategory={searchParams.category || 'all'}
             initialSort={searchParams.sort || 'newest'}
             locale={params.locale}
+            precomputed={{
+              searchPlaceholder: t('searchPlaceholder'),
+              clearFilters: t('clearFilters'),
+              selectCategory: t('filters.selectCategory'),
+              categories: [
+                { value: 'all', label: t('filters.allCategories') },
+                { value: 'ceramics', label: tCategories('ceramics') },
+                { value: 'textiles', label: tCategories('textiles') },
+                { value: 'jewelry', label: tCategories('jewelry') },
+                { value: 'woodwork', label: tCategories('woodwork') },
+                { value: 'painting', label: tCategories('painting') }
+              ],
+              sortOptions: [
+                { value: 'newest', label: t('filters.newest') },
+                { value: 'oldest', label: t('filters.oldest') },
+                { value: 'price_low', label: t('filters.priceLowToHigh') },
+                { value: 'price_high', label: t('filters.priceHighToLow') },
+                { value: 'popular', label: t('filters.popular') }
+              ]
+            }}
           />
         </Suspense>
 

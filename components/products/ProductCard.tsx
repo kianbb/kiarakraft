@@ -90,19 +90,19 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           </div>
 
           {/* Stock Status */}
-          {isOutOfStock && (
+      {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
               <span className="text-white font-medium bg-destructive px-3 py-1 rounded-full text-sm">
-                {t('outOfStock')}
+        {isHydrated ? t('outOfStock') : ''}
               </span>
             </div>
           )}
 
           {/* Low Stock Warning */}
-          {!isOutOfStock && product.stock <= 3 && (
+      {!isOutOfStock && product.stock <= 3 && (
             <div className="absolute top-2 left-2">
               <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                {`${product.stock} ${t('leftInStock')}`}
+        {isHydrated ? `${product.stock} ${t('leftInStock')}` : `${product.stock}`}
               </span>
             </div>
           )}
