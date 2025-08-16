@@ -24,9 +24,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       where: { slug: params.slug }, 
       select: { title: true, description: true, images: { select: { url: true } } } 
     }),
-    getTranslations('product'),
+    getTranslations({ locale: params.locale, namespace: 'product' }),
     // For demo products, use homepage translations to localize name/description in EN
-    getTranslations('home')
+    getTranslations({ locale: params.locale, namespace: 'home' })
   ]);
 
   // Localize demo products that were seeded in Persian-only
@@ -75,9 +75,9 @@ export default async function Page({ params }: { params: Params }) {
   const tomanToIrr = (t: number) => t * 10;
 
   const [t, tCategories, tHome] = await Promise.all([
-    getTranslations('product'),
-    getTranslations('categories'),
-    getTranslations('home')
+    getTranslations({ locale: params.locale, namespace: 'product' }),
+    getTranslations({ locale: params.locale, namespace: 'categories' }),
+    getTranslations({ locale: params.locale, namespace: 'home' })
   ]);
 
   // Localized fields for demo products (DB currently Persian).
@@ -131,6 +131,7 @@ export default async function Page({ params }: { params: Params }) {
       localized.title = tHome('sampleProducts.silverNecklace.title');
       localized.description = tHome('sampleProducts.silverNecklace.description');
     }
+  // Ensure category is localized even if DB name is Persian
     // Category label should be localized regardless of seed data
     if (product.category?.slug) {
       localized.categoryName = tCategories(product.category.slug as unknown as string);
