@@ -17,7 +17,7 @@ export default function NotFound() {
     return (
       <main className="container py-10">
         <h1 className="text-xl font-semibold">Product not found</h1>
-        <p className="mt-2">The product you're looking for doesn't exist.</p>
+  <p className="mt-2">The product you&apos;re looking for doesn&apos;t exist.</p>
         <a href="/en/explore" className="underline mt-4 inline-block">
           Back to Explore
         </a>

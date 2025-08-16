@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         seller: true,
         category: true,
         images: true,
-        // @ts-ignore Prisma will have this after migration
+  // @ts-expect-error: field exists after migration
         translations: true
       },
       orderBy,
@@ -59,16 +59,17 @@ export async function GET(request: NextRequest) {
     });
 
     const locale = (new URL(request.url)).searchParams.get('locale') || 'fa';
-  let mapped = products.map((p: any) => {
-      if (locale === 'en' && Array.isArray(p.translations)) {
-        const en = p.translations.find((t: any) => t.locale === 'en');
-        if (en) return { ...p, title: en.title, description: en.description };
-      }
-      return p;
-    });
+  type WithTranslations = typeof products[number] & { translations?: Array<{ locale: string; title: string; description: string }>; eligibilityStatus?: string };
+  let mapped = (products as WithTranslations[]).map((p) => {
+    if (locale === 'en' && Array.isArray(p.translations)) {
+      const en = p.translations.find((t) => t.locale === 'en');
+      if (en) return { ...p, title: en.title, description: en.description } as typeof p;
+    }
+    return p;
+  });
 
   // Soft-filter: hide non-handcrafted items if eligibilityStatus is present and REJECTED
-  mapped = mapped.filter((p: any) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
+  mapped = mapped.filter((p) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
 
     return NextResponse.json(mapped);
   } catch (error) {

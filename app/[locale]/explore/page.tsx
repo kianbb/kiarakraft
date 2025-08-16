@@ -73,7 +73,7 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
           seller: true,
           category: true,
           images: true,
-          // @ts-ignore after migration
+          // @ts-expect-error: field exists after migration
           translations: true
         },
         orderBy,
@@ -83,18 +83,22 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
       prisma.product.count({ where })
     ]);
 
-  let localized = products.map((p: any) => {
-      if (locale === 'en' && Array.isArray(p.translations)) {
-        const en = p.translations.find((t: any) => t.locale === 'en');
-        if (en) return { ...p, title: en.title, description: en.description };
-      }
-      return p;
-    });
+  type WithTranslations = typeof products[number] & {
+    translations?: Array<{ locale: string; title: string; description: string }>;
+    eligibilityStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVIEW';
+  };
+  let localized = (products as WithTranslations[]).map((p) => {
+    if (locale === 'en' && Array.isArray(p.translations)) {
+      const en = p.translations.find((t) => t.locale === 'en');
+      if (en) return { ...p, title: en.title, description: en.description } as typeof p;
+    }
+    return p;
+  });
   // Soft-filter non-handcrafted items if eligibility flag exists
-  localized = localized.filter((p: any) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
+  localized = localized.filter((p) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
 
     return {
-      products: localized,
+      products: localized as unknown as PaginatedProducts['products'],
       totalCount,
       totalPages: Math.ceil(totalCount / PRODUCTS_PER_PAGE),
       currentPage: page

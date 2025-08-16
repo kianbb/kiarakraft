@@ -107,7 +107,16 @@ export async function POST(request: NextRequest) {
       )
       .then(async (en) => {
         try {
-          const client: any = prisma as any;
+          type PTClient = {
+            productTranslation: {
+              upsert: (args: {
+                where: { productId_locale: { productId: string; locale: string } };
+                create: { productId: string; locale: string; title: string; description: string; sourceHash: string };
+                update: { title: string; description: string; sourceHash: string };
+              }) => Promise<void>;
+            };
+          };
+          const client = prisma as unknown as PTClient;
           await client.productTranslation.upsert({
             where: { productId_locale: { productId: product.id, locale: 'en' } },
             create: { productId: product.id, locale: 'en', title: en.title, description: en.description, sourceHash: hash },
@@ -127,13 +136,14 @@ export async function POST(request: NextRequest) {
       categorySlug: data.category || undefined
     }).then(async (res) => {
       try {
-    const client: any = prisma as any;
-    await client.product.update({
+    await prisma.product.update({
           where: { id: product.id },
           data: {
-            eligibilityStatus: res.status,
-            eligibilityConfidence: res.confidence ?? null,
-            eligibilityReasons: res.reasons?.join('; ').slice(0, 1000) || null
+            ...( {
+              eligibilityStatus: res.status,
+              eligibilityConfidence: res.confidence ?? null,
+              eligibilityReasons: res.reasons?.join('; ').slice(0, 1000) || null
+            } as Record<string, unknown>)
           }
         });
       } catch (e) {

@@ -77,7 +77,7 @@ export default async function Page({ params }: { params: Params }) {
     "@type": "Product",
     name: product.title,
     description: product.description,
-  image: product.images.map((i: any) => i.url),
+  image: product.images.map((i) => i.url),
     brand: "Kiara Kraft",
     offers: {
       "@type": "Offer",
@@ -99,8 +99,12 @@ export default async function Page({ params }: { params: Params }) {
   let translatedDescription: string | undefined;
   if (params.locale === 'en') {
     try {
-      const client: any = db as any;
-      const tr = await client.productTranslation.findUnique({
+      type ProductTranslationClient = {
+        productTranslation: {
+          findUnique: (args: { where: { productId_locale: { productId: string; locale: string } } }) => Promise<{ title: string; description: string } | null>
+        }
+      };
+      const tr = await (db as unknown as ProductTranslationClient).productTranslation.findUnique({
         where: { productId_locale: { productId: product.id, locale: 'en' } }
       });
       if (tr) {

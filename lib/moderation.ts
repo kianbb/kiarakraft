@@ -68,7 +68,7 @@ export async function assessProductForHandcrafted(
 
   // Map score to status
   let status: EligibilityResult['status'] = 'REVIEW';
-  let confidence = Math.max(0, Math.min(100, 50 + score));
+  const confidence = Math.max(0, Math.min(100, 50 + score));
   if (score >= 20) status = 'APPROVED';
   else if (score <= -20) status = 'REJECTED';
   else status = 'REVIEW';
