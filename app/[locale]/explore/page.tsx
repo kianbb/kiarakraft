@@ -22,7 +22,7 @@ interface PageProps {
 
 const PRODUCTS_PER_PAGE = 12;
 
-async function getProducts(searchParams: PageProps['searchParams']): Promise<PaginatedProducts> {
+async function getProducts(locale: string, searchParams: PageProps['searchParams']): Promise<PaginatedProducts> {
   try {
     const search = searchParams.search;
     const category = searchParams.category;
@@ -89,13 +89,16 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
     };
   } catch (error) {
     console.error('Error fetching products:', error);
-    // Return sample products as fallback when database is unavailable
+    // Localized fallback products when database is unavailable
+    const tHome = await getTranslations({ locale, namespace: 'home' });
+    const tCategories = await getTranslations({ locale, namespace: 'categories' });
+
     const sampleProducts = [
       {
         id: "1",
-        title: "کاسه سرامیکی دست‌ساز", 
+        title: tHome('sampleProducts.ceramicBowl.title'),
         slug: "handmade-ceramic-bowl",
-        description: "کاسه زیبای سرامیکی ساخته شده با تکنیک‌های سنتی ایرانی",
+        description: tHome('sampleProducts.ceramicBowl.description'),
         priceToman: 450000,
         stock: 12,
         active: true,
@@ -103,18 +106,18 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
         updatedAt: new Date(),
         sellerId: "sample",
         categoryId: "ceramics",
-        images: [{ 
-          id: "1", 
-          productId: "1", 
-          url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=500&h=500&fit=crop", 
-          alt: "کاسه سرامیکی",
+        images: [{
+          id: "1",
+          productId: "1",
+          url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=500&h=500&fit=crop",
+          alt: tHome('sampleProducts.ceramicBowl.title'),
           sortOrder: 1
         }],
         seller: {
           id: "sample",
-          userId: "sample", 
+          userId: "sample",
           shopName: "Atelier Kiara",
-          displayName: "کارگاه کیارا",
+          displayName: tHome('sampleProducts.shopName'),
           bio: null,
           region: null,
           avatarUrl: null,
@@ -122,34 +125,34 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
         },
         category: {
           id: "ceramics",
-          slug: "ceramics", 
-          name: "Ceramics"
+          slug: "ceramics",
+          name: tCategories('ceramics')
         }
       },
       {
         id: "2",
-        title: "گردنبند نقره با سنگ فیروزه",
-        slug: "silver-turquoise-necklace", 
-        description: "گردنبند زیبای نقره دست‌ساز با سنگ فیروزه طبیعی نیشابوری",
+        title: tHome('sampleProducts.silverNecklace.title'),
+        slug: "silver-turquoise-necklace",
+        description: tHome('sampleProducts.silverNecklace.description'),
         priceToman: 1250000,
         stock: 8,
         active: true,
         createdAt: new Date(),
-        updatedAt: new Date(), 
+        updatedAt: new Date(),
         sellerId: "sample",
         categoryId: "jewelry",
         images: [{
           id: "2",
           productId: "2",
           url: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=500&fit=crop",
-          alt: "گردنبند فیروزه",
+          alt: tHome('sampleProducts.silverNecklace.title'),
           sortOrder: 1
         }],
         seller: {
           id: "sample",
           userId: "sample",
-          shopName: "Atelier Kiara", 
-          displayName: "کارگاه کیارا",
+          shopName: "Atelier Kiara",
+          displayName: tHome('sampleProducts.shopName'),
           bio: null,
           region: null,
           avatarUrl: null,
@@ -158,7 +161,7 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
         category: {
           id: "jewelry",
           slug: "jewelry",
-          name: "Jewelry"
+          name: tCategories('jewelry')
         }
       }
     ];
@@ -173,7 +176,7 @@ async function getProducts(searchParams: PageProps['searchParams']): Promise<Pag
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps) {
-  const t = await getTranslations('explore');
+  const t = await getTranslations({ locale: params.locale, namespace: 'explore' });
   
   let title = t('title');
   let description = t('subtitle');
@@ -220,8 +223,8 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
 }
 
 export default async function ExplorePage({ params, searchParams }: PageProps) {
-  const t = await getTranslations('explore');
-  const { products, totalCount, totalPages, currentPage } = await getProducts(searchParams);
+  const t = await getTranslations({ locale: params.locale, namespace: 'explore' });
+  const { products, totalCount, totalPages, currentPage } = await getProducts(params.locale, searchParams);
 
   return (
     <div className="min-h-screen py-8">
