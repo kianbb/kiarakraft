@@ -65,6 +65,10 @@ model Product {
   priceToman  Int
   stock       Int      @default(0)
   active      Boolean  @default(true)
+  // Handcrafted eligibility moderation
+  eligibilityStatus    String   @default("PENDING") // PENDING, APPROVED, REJECTED, REVIEW
+  eligibilityConfidence Int?
+  eligibilityReasons    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -72,6 +76,22 @@ model Product {
   orderItems OrderItem[]
   reviews    Review[]
   cartItems  CartItem[]
+  translations ProductTranslation[]
+}
+
+// Stores localized fields for products (e.g., English versions of Persian originals)
+model ProductTranslation {
+  id          String   @id @default(cuid())
+  product     Product  @relation(fields: [productId], references: [id])
+  productId   String
+  locale      String
+  title       String
+  description String
+  sourceHash  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([productId, locale])
 }
 
 model ListingImage {

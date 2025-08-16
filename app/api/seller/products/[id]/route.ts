@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { translateProductFields } from '@/lib/translator';
+import { assessProductForHandcrafted } from '@/lib/moderation';
+import crypto from 'crypto';
 
 export async function GET(
   request: NextRequest,
@@ -63,6 +66,13 @@ export async function PUT(
     }
 
     const data = await request.json();
+    if ((data.title?.length || 0) > 200 || (data.description?.length || 0) > 5000) {
+      return NextResponse.json({ error: 'Input too long' }, { status: 400 });
+    }
+    const suspicious = /<script|https?:\/\//i.test(data.description || '') || /(?:viagra|casino|bet)/i.test(data.description || '');
+    if (suspicious) {
+      return NextResponse.json({ error: 'Content not allowed' }, { status: 400 });
+    }
 
     const product = await prisma.product.findFirst({
       where: {
@@ -84,6 +94,43 @@ export async function PUT(
         stock: data.stock
       }
     });
+
+    // Re-translate EN if source appears Persian
+    const hasPersian = /[\u0600-\u06FF]/.test(updatedProduct.title) || /[\u0600-\u06FF]/.test(updatedProduct.description);
+    if (hasPersian) {
+      const hash = crypto.createHash('sha1').update(updatedProduct.title + '|' + updatedProduct.description).digest('hex');
+      translateProductFields({ title: updatedProduct.title, description: updatedProduct.description }, 'fa', 'en')
+        .then(async (en) => {
+          const client: any = prisma as any;
+          await client.productTranslation.upsert({
+            where: { productId_locale: { productId: updatedProduct.id, locale: 'en' } },
+            create: { productId: updatedProduct.id, locale: 'en', title: en.title, description: en.description, sourceHash: hash },
+            update: { title: en.title, description: en.description, sourceHash: hash }
+          });
+        })
+        .catch((e) => console.error('Translation error (update)', e));
+    }
+
+    // Update handcrafted eligibility in background (best-effort)
+    assessProductForHandcrafted({
+      title: updatedProduct.title,
+      description: updatedProduct.description,
+      categorySlug: undefined
+    }).then(async (res) => {
+      try {
+        const client: any = prisma as any;
+        await client.product.update({
+          where: { id: updatedProduct.id },
+          data: {
+            eligibilityStatus: res.status,
+            eligibilityConfidence: res.confidence ?? null,
+            eligibilityReasons: res.reasons?.join('; ').slice(0, 1000) || null
+          }
+        });
+      } catch (e) {
+        console.error('Failed to update eligibility', e);
+      }
+    }).catch((e) => console.error('Eligibility error (update)', e));
 
     return NextResponse.json(updatedProduct);
   } catch (error) {

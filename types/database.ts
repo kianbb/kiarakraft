@@ -38,6 +38,10 @@ export interface Product {
   priceToman: number;
   stock: number;
   active: boolean;
+  // Handcrafted eligibility moderation
+  eligibilityStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVIEW';
+  eligibilityConfidence?: number | null;
+  eligibilityReasons?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

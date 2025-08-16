@@ -108,6 +108,29 @@ After seeding, you can use these accounts:
 
 ## 🗄 Database Scripts
 
+## Automatic Translations (fa → en)
+
+This app can automatically translate product title/description from Persian to English and store them:
+
+- Prisma model: `ProductTranslation` with unique `(productId, locale)`.
+- On product create, if the text contains Persian characters, a background task translates to English and upserts `ProductTranslation`.
+- Explore and product pages prefer the `en` translation when locale is `en`, falling back to the original.
+
+Configure a provider via env vars (Azure Translator recommended):
+
+```
+TRANSLATOR_PROVIDER=azure
+AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com
+AZURE_TRANSLATOR_KEY=your-key
+AZURE_TRANSLATOR_REGION=your-region
+```
+
+Backfill existing products:
+
+```
+npm run translate:backfill
+```
+
 ```bash
 # Seed the database with demo data
 npm run db:seed

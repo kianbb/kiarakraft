@@ -18,7 +18,9 @@
     "db:reset": "prisma migrate reset --force && npm run db:seed",
     "check:ssr": "tsx scripts/check-ssr.ts",
     "verify:i18n": "node scripts/verify-i18n-complete.js",
-    "verify:i18n:quick": "node scripts/quick-i18n-check.js"
+  "verify:i18n:quick": "node scripts/quick-i18n-check.js",
+    "translate:backfill": "tsx scripts/backfill-translations.ts",
+    "eligibility:backfill": "tsx scripts/backfill-eligibility.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

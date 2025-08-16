@@ -72,7 +72,9 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
         include: {
           seller: true,
           category: true,
-          images: true
+          images: true,
+          // @ts-ignore after migration
+          translations: true
         },
         orderBy,
         take: PRODUCTS_PER_PAGE,
@@ -81,8 +83,18 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
       prisma.product.count({ where })
     ]);
 
+  let localized = products.map((p: any) => {
+      if (locale === 'en' && Array.isArray(p.translations)) {
+        const en = p.translations.find((t: any) => t.locale === 'en');
+        if (en) return { ...p, title: en.title, description: en.description };
+      }
+      return p;
+    });
+  // Soft-filter non-handcrafted items if eligibility flag exists
+  localized = localized.filter((p: any) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
+
     return {
-      products,
+      products: localized,
       totalCount,
       totalPages: Math.ceil(totalCount / PRODUCTS_PER_PAGE),
       currentPage: page

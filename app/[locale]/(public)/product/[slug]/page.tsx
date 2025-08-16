@@ -18,16 +18,28 @@ type Params = { locale: "fa" | "en"; slug: string };
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   setRequestLocale(params.locale);
   
-  const [p, t] = await Promise.all([
+  const [p, tProduct, tHome] = await Promise.all([
     db.product.findUnique({ 
       where: { slug: params.slug }, 
       select: { title: true, description: true, images: { select: { url: true } } } 
     }),
-    getTranslations('product')
+    getTranslations('product'),
+    // For demo products, use homepage translations to localize name/description in EN
+    getTranslations('home')
   ]);
-  
-  const title = p?.title ?? t('notFound');
-  const description = p?.description ?? t('notFoundDescription');
+
+  // Localize demo products that were seeded in Persian-only
+  let title = p?.title ?? tProduct('notFound');
+  let description = p?.description ?? tProduct('notFoundDescription');
+  if (params.locale === 'en') {
+    if (params.slug === 'handmade-ceramic-bowl') {
+      title = tHome('sampleProducts.ceramicBowl.title');
+      description = tHome('sampleProducts.ceramicBowl.description');
+    } else if (params.slug === 'silver-turquoise-necklace') {
+      title = tHome('sampleProducts.silverNecklace.title');
+      description = tHome('sampleProducts.silverNecklace.description');
+    }
+  }
   const base = "https://www.kiarakraft.com";
   const path = `/${params.locale}/product/${params.slug}`;
   return {
@@ -65,7 +77,7 @@ export default async function Page({ params }: { params: Params }) {
     "@type": "Product",
     name: product.title,
     description: product.description,
-    image: product.images.map(i => i.url),
+  image: product.images.map((i: any) => i.url),
     brand: "Kiara Kraft",
     offers: {
       "@type": "Offer",
@@ -75,13 +87,68 @@ export default async function Page({ params }: { params: Params }) {
     }
   };
 
-  const t = await getTranslations('product');
+  const [t, tCategories, tHome] = await Promise.all([
+    getTranslations('product'),
+    getTranslations('categories'),
+    getTranslations('home')
+  ]);
+
+  // Localized fields for demo products (DB currently Persian).
+  // Try to load persisted EN translation if available (works after migration)
+  let translatedTitle: string | undefined;
+  let translatedDescription: string | undefined;
+  if (params.locale === 'en') {
+    try {
+      const client: any = db as any;
+      const tr = await client.productTranslation.findUnique({
+        where: { productId_locale: { productId: product.id, locale: 'en' } }
+      });
+      if (tr) {
+        translatedTitle = tr.title;
+        translatedDescription = tr.description;
+      }
+    } catch {}
+  }
+
+  const localized = {
+    title: translatedTitle ?? product.title,
+    description: translatedDescription ?? product.description,
+  categoryName: product.category?.name ?? '',
+  sellerDisplayName: product.seller.displayName || product.seller.shopName,
+  sellerRegion: product.seller.region ?? undefined,
+  sellerBio: product.seller.bio ?? undefined
+  };
+  if (params.locale === 'en') {
+    if (product.slug === 'handmade-ceramic-bowl') {
+      localized.title = tHome('sampleProducts.ceramicBowl.title');
+      localized.description = tHome('sampleProducts.ceramicBowl.description');
+    } else if (product.slug === 'silver-turquoise-necklace') {
+      localized.title = tHome('sampleProducts.silverNecklace.title');
+      localized.description = tHome('sampleProducts.silverNecklace.description');
+    }
+    // Category label should be localized regardless of seed data
+    if (product.category?.slug) {
+      localized.categoryName = tCategories(product.category.slug as unknown as string);
+    }
+    // Seller fields: use English display name for demo, transliterate simple region, hide Persian bio
+    localized.sellerDisplayName = tHome('sampleProducts.shopName');
+    if (product.seller.region === 'تهران') localized.sellerRegion = 'Tehran';
+    // If bio contains Persian characters, omit it on EN
+    if (/[\u0600-\u06FF]/.test(product.seller.bio || '')) {
+      localized.sellerBio = undefined;
+    }
+  } else {
+    if (product.category?.slug) {
+      // Always prefer i18n category labels over DB mixed-language names
+      localized.categoryName = tCategories(product.category.slug as unknown as string);
+    }
+  }
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <main>
-        <h1>{product.title}</h1>
+  <h1>{localized.title}</h1>
         {/* render gallery + details */}
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">
@@ -109,12 +176,12 @@ export default async function Page({ params }: { params: Params }) {
             <div className="space-y-6">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                  {product.title}
+                  {localized.title}
                 </h1>
                 
                 <div className="flex items-center gap-4 mb-4">
                   <div className="text-3xl font-bold text-primary">
-                    {formatPrice(product.priceToman)}
+                    {formatPrice(product.priceToman, params.locale)}
                   </div>
                   {product.stock > 0 ? (
                     <Badge variant="secondary">{t('inStock')}</Badge>
@@ -137,19 +204,19 @@ export default async function Page({ params }: { params: Params }) {
                   <Store className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <div className="font-semibold">
-                      {product.seller.displayName || product.seller.shopName}
+                      {localized.sellerDisplayName}
                     </div>
-                    {product.seller.region && (
+                    {localized.sellerRegion && (
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <MapPin className="h-3 w-3" />
-                        {product.seller.region}
+                        {localized.sellerRegion}
                       </div>
                     )}
                   </div>
                 </div>
-                {product.seller.bio && (
+                {localized.sellerBio && (
                   <p className="text-sm text-muted-foreground">
-                    {product.seller.bio}
+                    {localized.sellerBio}
                   </p>
                 )}
               </div>
@@ -158,7 +225,7 @@ export default async function Page({ params }: { params: Params }) {
               <div>
                 <h3 className="text-lg font-semibold mb-3">{t('description')}</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  {product.description}
+                  {localized.description}
                 </p>
               </div>
 
@@ -166,7 +233,7 @@ export default async function Page({ params }: { params: Params }) {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-medium">{t('category')}:</span>
-                  <Badge variant="outline">{product.category?.name}</Badge>
+                  <Badge variant="outline">{localized.categoryName}</Badge>
                 </div>
               </div>
 

@@ -50,13 +50,27 @@ export async function GET(request: NextRequest) {
       include: {
         seller: true,
         category: true,
-        images: true
+        images: true,
+        // @ts-ignore Prisma will have this after migration
+        translations: true
       },
       orderBy,
       take: 50 // Limit to 50 products
     });
 
-    return NextResponse.json(products);
+    const locale = (new URL(request.url)).searchParams.get('locale') || 'fa';
+  let mapped = products.map((p: any) => {
+      if (locale === 'en' && Array.isArray(p.translations)) {
+        const en = p.translations.find((t: any) => t.locale === 'en');
+        if (en) return { ...p, title: en.title, description: en.description };
+      }
+      return p;
+    });
+
+  // Soft-filter: hide non-handcrafted items if eligibilityStatus is present and REJECTED
+  mapped = mapped.filter((p: any) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
+
+    return NextResponse.json(mapped);
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json(
