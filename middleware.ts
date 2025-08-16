@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 
 const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
-  defaultLocale: 'fa', // Back to Persian as default
+  defaultLocale: 'fa', // Persian remains the default
   localePrefix: 'always',
   localeDetection: true
 });
@@ -24,7 +24,8 @@ const authMiddleware = withAuth(
       },
     },
     pages: {
-      signIn: '/fa/auth/login',
+      // Use locale-aware signIn path; next-intl middleware will prefix
+      signIn: '/auth/login',
     },
   }
 );
