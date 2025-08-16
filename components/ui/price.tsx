@@ -16,7 +16,11 @@ export function Price({ amount, className = '' }: PriceProps) {
     setIsHydrated(true);
   }, []);
 
-  // Render a neutral server-side placeholder to avoid calling i18n hooks
+  // Call hooks unconditionally (keeps hook order stable); use safe fallbacks until hydrated
+  const _locale = useLocale();
+  const _t = useTranslations('common');
+
+  // Render a neutral server-side placeholder to avoid calling i18n hooks values before hydration
   if (!isHydrated) {
     const formatted = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
@@ -28,9 +32,8 @@ export function Price({ amount, className = '' }: PriceProps) {
       </span>
     );
   }
-  // useLocale/useTranslations should only be called on client after hydration
-  const locale = isHydrated ? useLocale() : 'en';
-  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
+  const locale = isHydrated ? _locale : 'en';
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const isRTL = locale === 'fa';
 
   const formatted = new Intl.NumberFormat(isRTL ? 'fa-IR' : 'en-US', {

@@ -24,7 +24,10 @@ import {
 export default function SellerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const t = useTranslations('seller');
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+  const _t = useTranslations('seller');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<OrderWithItems[]>([]);
   const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>([]);

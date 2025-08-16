@@ -1,6 +1,6 @@
-'use client';
+ 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
@@ -29,12 +29,13 @@ interface ProductCardProps {
 }
 
 export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
-  // Hydration guard: avoid calling next-intl hooks during SSR
+  // Keep hook order stable: call hooks unconditionally and use safe fallback until hydrated
   const [isHydrated, setIsHydrated] = React.useState(false);
   React.useEffect(() => setIsHydrated(true), []);
-
-  const locale = isHydrated ? useLocale() : 'en';
-  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
+  const _locale = useLocale();
+  const _t = useTranslations('common');
+  const locale = isHydrated ? _locale : 'en';
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   
   const productUrl = `/${locale}/product/${product.slug}`;
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';

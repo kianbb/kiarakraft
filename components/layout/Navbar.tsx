@@ -27,7 +27,10 @@ export default function Navbar() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const locale = isHydrated ? useLocale() : 'en';
+    // Keep hook order stable by calling hooks unconditionally
+    const _locale = useLocale();
+    const _t = useTranslations('navigation');
+    const locale = isHydrated ? _locale : 'en';
   
   // Prevent SSR/hydration mismatch by only rendering after client-side hydration
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function Navbar() {
     );
   }
 
-  const t = isHydrated ? useTranslations('navigation') : ((k: string) => k) as any;
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const isRTL = locale === 'fa';
 
   const navigation = [

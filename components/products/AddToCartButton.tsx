@@ -17,10 +17,11 @@ interface AddToCartButtonProps {
 
 export function AddToCartButton({ product }: AddToCartButtonProps) {
   const { data: session } = useSession();
-  // Guard translations to avoid SSR context errors
+  // Keep hook order stable
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
-  const t = isHydrated ? useTranslations('product') : ((k: string) => k) as any;
+  const _t = useTranslations('product');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);

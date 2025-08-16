@@ -16,7 +16,8 @@ interface ExplorePaginationProps {
 export function ExplorePagination({ currentPage, totalPages, searchParams, locale }: ExplorePaginationProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
-  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
+  const _t = useTranslations('common');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
 
   const createPageUrl = (page: number) => {
     const params = new URLSearchParams();

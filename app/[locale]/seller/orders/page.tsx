@@ -24,8 +24,8 @@ export default function SellerOrdersPage() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
-
-  const t = isHydrated ? useTranslations('seller') : ((k: string) => k) as any;
+  const _t = useTranslations('seller');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

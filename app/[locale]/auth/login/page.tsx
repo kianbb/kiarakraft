@@ -24,9 +24,10 @@ export default function LoginPage() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
-
-  const locale = isHydrated ? useLocale() : 'en';
-  const t = isHydrated ? useTranslations('auth') : ((k: string) => k) as any;
+  const _locale = useLocale();
+  const _t = useTranslations('auth');
+  const locale = isHydrated ? _locale : 'en';
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');

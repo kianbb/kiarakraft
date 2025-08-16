@@ -17,7 +17,10 @@ export default function OrderConfirmationPage() {
   const params = useParams();
   const { data: session } = useSession();
   const router = useRouter();
-  const t = useTranslations('order');
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+  const _t = useTranslations('order');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [loading, setLoading] = useState(true);
 

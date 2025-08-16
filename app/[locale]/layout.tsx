@@ -97,9 +97,36 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = params;
   setRequestLocale(locale);
-  const messages = await getMessages();
-  const t = await getTranslations('home');
-  const tCommon = await getTranslations('common');
+  // Ensure messages are loaded for the current locale explicitly
+  const messages = await getMessages({ locale });
+  const t = await getTranslations({ locale, namespace: 'home' });
+  const tCommon = await getTranslations({ locale, namespace: 'common' });
+  const tFooter = await getTranslations({ locale, namespace: 'footer' });
+  const tCategories = await getTranslations({ locale, namespace: 'categories' });
+
+  // Server-side pre-rendered strings for the Footer so the client Footer can render
+  // localized text during SSR without waiting for hydration.
+  const serverFooter = {
+    about: tFooter('about'),
+    contact: tFooter('contact'),
+    help: tFooter('help'),
+    terms: tFooter('terms'),
+    privacy: tFooter('privacy'),
+    brandDescription: tFooter('brandDescription'),
+    categories: tFooter('categories'),
+    legal: tFooter('legal'),
+    madeWith: tFooter('madeWith'),
+    supportMessage: tFooter('supportMessage'),
+    allRightsReserved: tFooter('allRightsReserved'),
+  };
+
+  const serverCategories = {
+    ceramics: tCategories('ceramics'),
+    textiles: tCategories('textiles'),
+    jewelry: tCategories('jewelry'),
+    woodwork: tCategories('woodwork'),
+    painting: tCategories('painting'),
+  };
 
   // Structured data for the organization
   const organizationStructuredData = {
@@ -175,7 +202,9 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             <main id="main-content" className="flex-1">
               {children}
             </main>
-            <Footer />
+      {/* Pass server locale and pre-rendered footer/category strings so Footer
+        can render localized text during SSR without showing translation keys. */}
+      <Footer serverLocale={locale} serverFooter={serverFooter} serverCategories={serverCategories} />
           </div>
         </Providers>
       </body>

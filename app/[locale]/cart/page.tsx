@@ -15,8 +15,12 @@ import { CartItemWithProduct } from '@/types/database';
 export default function CartPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const t = useTranslations('cart');
-  const locale = useLocale();
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+  const _t = useTranslations('cart');
+  const _locale = useLocale();
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const locale = isHydrated ? _locale : 'en';
   
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);

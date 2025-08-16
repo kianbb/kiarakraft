@@ -32,7 +32,10 @@ type CheckoutForm = z.infer<typeof checkoutSchema>;
 export default function CheckoutPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const t = useTranslations('checkout');
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+  const _t = useTranslations('checkout');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);

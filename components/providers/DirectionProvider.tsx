@@ -1,20 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale } from 'next-intl';
 
 export function DirectionProvider() {
-  // Hydration guard: only use locale after client-side hydration
-  const [isHydrated, setIsHydrated] = require('react').useState(false);
-  require('react').useEffect(() => setIsHydrated(true), []);
+  // Keep hook order stable: call hooks and use safe fallback until hydrated
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
 
-  const locale = isHydrated ? useLocale() : 'en';
+  const _locale = useLocale();
+  const locale = isHydrated ? _locale : 'en';
 
   useEffect(() => {
     if (!isHydrated) return;
     const html = document.documentElement;
     const isRTL = locale === 'fa';
-    
+
     html.setAttribute('lang', locale);
     html.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
   }, [isHydrated, locale]);

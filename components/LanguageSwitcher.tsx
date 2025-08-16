@@ -10,8 +10,11 @@ export default function LanguageSwitcher() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
 
-  const locale = isHydrated ? useLocale() : 'en';
-  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
+  // Call hooks unconditionally to preserve hook order
+  const _locale = useLocale();
+  const _t = useTranslations('common');
+  const locale = isHydrated ? _locale : 'en';
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

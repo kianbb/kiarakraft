@@ -26,7 +26,8 @@ export default function SellerProductsPage() {
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
-  const t = isHydrated ? useTranslations('seller') : ((k: string) => k) as any;
+  const _t = useTranslations('seller');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

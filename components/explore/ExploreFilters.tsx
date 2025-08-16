@@ -19,8 +19,10 @@ export function ExploreFilters({ initialSearch, initialCategory, initialSort, lo
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
 
-  const t = isHydrated ? useTranslations('explore') : ((k: string) => k) as any;
-  const tCategories = isHydrated ? useTranslations('categories') : ((k: string) => k) as any;
+  const _t = useTranslations('explore');
+  const _tCategories = useTranslations('categories');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const tCategories = isHydrated ? _tCategories : ((k: string) => k) as (k: string) => string;
   const router = useRouter();
   const searchParams = useSearchParams();
   

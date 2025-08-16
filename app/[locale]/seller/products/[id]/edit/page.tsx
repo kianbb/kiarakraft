@@ -44,9 +44,10 @@ export default function EditProductPage() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
-
-  const t = isHydrated ? useTranslations('seller') : ((k: string) => k) as any;
-  const tCategories = isHydrated ? useTranslations('categories') : ((k: string) => k) as any;
+  const _t = useTranslations('seller');
+  const _tCategories = useTranslations('categories');
+  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const tCategories = isHydrated ? _tCategories : ((k: string) => k) as (k: string) => string;
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<FormCompatibleProduct | null>(null);
