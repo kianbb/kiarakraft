@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/db';
@@ -16,12 +16,18 @@ export const revalidate = 60;
 type Params = { locale: "fa" | "en"; slug: string };
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const p = await db.product.findUnique({ 
-    where: { slug: params.slug }, 
-    select: { title: true, description: true, images: { select: { url: true } } } 
-  });
-  const title = p?.title ?? (params.locale === "fa" ? "محصول یافت نشد" : "Product Not Found");
-  const description = p?.description ?? (params.locale === "fa" ? "این محصول موجود نیست" : "This product does not exist.");
+  setRequestLocale(params.locale);
+  
+  const [p, t] = await Promise.all([
+    db.product.findUnique({ 
+      where: { slug: params.slug }, 
+      select: { title: true, description: true, images: { select: { url: true } } } 
+    }),
+    getTranslations('product')
+  ]);
+  
+  const title = p?.title ?? t('notFound');
+  const description = p?.description ?? t('notFoundDescription');
   const base = "https://www.kiarakraft.com";
   const path = `/${params.locale}/product/${params.slug}`;
   return {
@@ -41,6 +47,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function Page({ params }: { params: Params }) {
+  setRequestLocale(params.locale);
+  
   const product = await db.product.findUnique({
     where: { slug: params.slug },
     include: { images: true, seller: true, category: true, reviews: true }
@@ -170,7 +178,7 @@ export default async function Page({ params }: { params: Params }) {
                   <div className="flex gap-3">
                     <Button variant="outline" size="lg" className="flex-1">
                       <Heart className="h-4 w-4 mr-2" />
-                      Add to Wishlist
+                      {t('addToWishlist')}
                     </Button>
                     
                     <Button variant="outline" size="lg">
