@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -29,8 +29,11 @@ type ProductForm = z.infer<typeof productSchema>;
 export default function NewProductPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const t = useTranslations('seller');
-  const tCategories = useTranslations('categories');
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  const t = isHydrated ? useTranslations('seller') : ((k: string) => k) as any;
+  const tCategories = isHydrated ? useTranslations('categories') : ((k: string) => k) as any;
   const [creating, setCreating] = useState(false);
 
   const {

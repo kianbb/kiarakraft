@@ -1,12 +1,17 @@
-'use client';
+"use client";
 
+import { useState, useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Languages } from 'lucide-react';
 
 export default function LanguageSwitcher() {
-  const locale = useLocale();
-  const t = useTranslations('common');
+  // Hydration guard: avoid calling next-intl hooks during SSR to prevent locale mismatch
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  const locale = isHydrated ? useLocale() : 'en';
+  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

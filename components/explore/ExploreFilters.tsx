@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,11 @@ interface ExploreFiltersProps {
 }
 
 export function ExploreFilters({ initialSearch, initialCategory, initialSort, locale }: ExploreFiltersProps) {
-  const t = useTranslations('explore');
-  const tCategories = useTranslations('categories');
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  const t = isHydrated ? useTranslations('explore') : ((k: string) => k) as any;
+  const tCategories = isHydrated ? useTranslations('categories') : ((k: string) => k) as any;
   const router = useRouter();
   const searchParams = useSearchParams();
   

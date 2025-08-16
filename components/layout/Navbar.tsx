@@ -23,10 +23,11 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const locale = useLocale();
+  // Hydration state needs to be declared before calling next-intl hooks
+  const [isHydrated, setIsHydrated] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const locale = isHydrated ? useLocale() : 'en';
   
   // Prevent SSR/hydration mismatch by only rendering after client-side hydration
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function Navbar() {
     );
   }
 
-  const t = useTranslations('navigation');
+  const t = isHydrated ? useTranslations('navigation') : ((k: string) => k) as any;
   const isRTL = locale === 'fa';
 
   const navigation = [

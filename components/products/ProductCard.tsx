@@ -29,8 +29,12 @@ interface ProductCardProps {
 }
 
 export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
-  const locale = useLocale();
-  const t = useTranslations('common');
+  // Hydration guard: avoid calling next-intl hooks during SSR
+  const [isHydrated, setIsHydrated] = React.useState(false);
+  React.useEffect(() => setIsHydrated(true), []);
+
+  const locale = isHydrated ? useLocale() : 'en';
+  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
   
   const productUrl = `/${locale}/product/${product.slug}`;
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';

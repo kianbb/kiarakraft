@@ -39,7 +39,11 @@ type ProfileForm = z.infer<typeof profileSchema>;
 export default function SellerProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const t = useTranslations('seller');
+
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  const t = isHydrated ? useTranslations('seller') : ((k: string) => k) as any;
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<SellerProfileData | null>(null);

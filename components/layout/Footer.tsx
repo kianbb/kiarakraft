@@ -1,14 +1,19 @@
-'use client';
+"use client";
 
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 
 export default function Footer() {
-  const t = useTranslations('footer');
-  const tCategories = useTranslations('categories');
-  const locale = useLocale();
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  // Avoid calling translations during SSR
+  const t = isHydrated ? useTranslations('footer') : ((k: string) => k) as any;
+  const tCategories = isHydrated ? useTranslations('categories') : ((k: string) => k) as any;
+  const locale = isHydrated ? useLocale() : 'en';
 
   const footerLinks = [
     {

@@ -1,10 +1,15 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Toaster } from 'sonner';
 import { useLocale } from 'next-intl';
 
 export function ToastProvider() {
-  const locale = useLocale();
+  // Hydration guard: avoid calling next-intl hooks on server render
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  const locale = isHydrated ? useLocale() : 'en';
   const isRTL = locale === 'fa';
 
   return (

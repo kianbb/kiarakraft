@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -21,8 +21,12 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const locale = useLocale();
-  const t = useTranslations('auth');
+
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+
+  const locale = isHydrated ? useLocale() : 'en';
+  const t = isHydrated ? useTranslations('auth') : ((k: string) => k) as any;
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');

@@ -1,5 +1,6 @@
-'use client';
+"use client";
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,9 @@ interface ExplorePaginationProps {
 }
 
 export function ExplorePagination({ currentPage, totalPages, searchParams, locale }: ExplorePaginationProps) {
-  const t = useTranslations('common');
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => setIsHydrated(true), []);
+  const t = isHydrated ? useTranslations('common') : ((k: string) => k) as any;
 
   const createPageUrl = (page: number) => {
     const params = new URLSearchParams();
