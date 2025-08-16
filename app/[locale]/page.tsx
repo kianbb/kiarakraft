@@ -5,6 +5,12 @@ import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Metadata } from 'next';
 
+// Pre-render both locales for the dynamic [locale] segment to ensure correct SSG per-locale
+export const dynamicParams = false;
+export function generateStaticParams() {
+  return [{ locale: 'fa' }, { locale: 'en' }];
+}
+
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const { locale } = params;
   setRequestLocale(locale);
