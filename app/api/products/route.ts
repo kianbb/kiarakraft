@@ -51,8 +51,7 @@ export async function GET(request: NextRequest) {
         seller: true,
         category: true,
         images: true,
-  // @ts-expect-error: field exists after migration
-        translations: true
+        ...( { translations: true } as Record<string, true> )
       },
       orderBy,
       take: 50 // Limit to 50 products

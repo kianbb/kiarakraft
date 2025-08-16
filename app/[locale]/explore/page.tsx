@@ -73,8 +73,7 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
           seller: true,
           category: true,
           images: true,
-          // @ts-expect-error: field exists after migration
-          translations: true
+          ...( { translations: true } as Record<string, true> )
         },
         orderBy,
         take: PRODUCTS_PER_PAGE,
