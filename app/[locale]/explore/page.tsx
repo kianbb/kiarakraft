@@ -6,7 +6,7 @@ import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
 import { PaginatedProducts, PrismaWhereClause, PrismaOrderBy } from '@/types/database';
 
-export const revalidate = 300; // 5 minutes for explore page
+export const revalidate = 60; // refresh explore every 1 minute
 
 interface PageProps {
   params: {
