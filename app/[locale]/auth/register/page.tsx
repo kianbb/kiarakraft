@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,33 +11,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const registerSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string(),
-  role: z.enum(['BUYER', 'SELLER']),
-  // Seller fields
-  shopName: z.string().optional(),
-  displayName: z.string().optional(),
-  bio: z.string().optional(),
-  region: z.string().optional()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterForm = z.infer<typeof registerSchema>;
+// Defined after schema within component
 
 export default function RegisterPage() {
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('auth');
+  const _locale = useLocale();
+  const locale = isHydrated ? _locale : 'en';
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Build localized schema after translations are available
+  const registerSchema = z.object({
+    name: z.string().min(1, t('nameRequired')),
+    email: z.string().email(t('invalidEmail')),
+    password: z.string().min(6, t('passwordMin')),
+    confirmPassword: z.string(),
+    role: z.enum(['BUYER', 'SELLER']),
+    // Seller fields
+    shopName: z.string().optional(),
+    displayName: z.string().optional(),
+    bio: z.string().optional(),
+    region: z.string().optional()
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: t('passwordsNotMatch'),
+    path: ["confirmPassword"],
+  });
+  type RegisterForm = z.infer<typeof registerSchema>;
 
   const {
     register,
@@ -66,19 +70,19 @@ export default function RegisterPage() {
         body: JSON.stringify(data),
       });
 
-      const result = await response.json();
+  const result = await response.json();
 
       if (!response.ok) {
-        setError(result.error || 'Registration failed');
+        setError(result.error || t('registrationFailed'));
         return;
       }
 
       setSuccess(true);
       setTimeout(() => {
-        router.push('/auth/login');
+        router.push(`/${locale}/auth/login`);
       }, 2000);
     } catch {
-      setError('An error occurred. Please try again.');
+      setError(t('registrationFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +93,7 @@ export default function RegisterPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="max-w-md w-full space-y-8 p-8 text-center">
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            Registration successful! Redirecting to login...
+            {t('registrationSuccess')}
           </div>
         </div>
       </div>
@@ -104,7 +108,7 @@ export default function RegisterPage() {
             {t('register')}
           </h2>
           <p className="mt-2 text-muted-foreground">
-            Create your account
+            {t('registerSubtitle')}
           </p>
         </div>
 
@@ -246,7 +250,7 @@ export default function RegisterPage() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? 'Creating account...' : t('register')}
+              {isLoading ? t('creating') : t('register')}
             </Button>
           </div>
 
@@ -254,7 +258,7 @@ export default function RegisterPage() {
             <p className="text-muted-foreground">
               {t('alreadyHaveAccount')}{' '}
               <Link
-                href="/auth/login"
+                href={`/${locale}/auth/login`}
                 className="font-medium text-primary hover:text-primary/80"
               >
                 {t('login')}

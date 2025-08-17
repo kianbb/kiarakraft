@@ -12,12 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required')
-});
+// Schema will be constructed inside the component to allow localized messages
 
-type LoginForm = z.infer<typeof loginSchema>;
+// Type is defined after schema within component
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,6 +25,11 @@ export default function LoginPage() {
   const _t = useTranslations('auth');
   const locale = isHydrated ? _locale : 'en';
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const loginSchema = z.object({
+    email: z.string().email(t('invalidEmail')),
+    password: z.string().min(1, t('passwordRequired'))
+  });
+  type LoginForm = z.infer<typeof loginSchema>;
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +54,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
+        setError(t('loginFailed'));
       } else {
         // Redirect to the previous page or home
         const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
@@ -60,7 +62,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch {
-      setError('An error occurred. Please try again.');
+      setError(t('loginFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +76,7 @@ export default function LoginPage() {
             {t('login')}
           </h2>
           <p className="mt-2 text-muted-foreground">
-            Sign in to your account
+            {t('loginSubtitle')}
           </p>
         </div>
 
@@ -125,7 +127,7 @@ export default function LoginPage() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : t('login')}
+              {isLoading ? t('signingIn') : t('login')}
             </Button>
           </div>
 

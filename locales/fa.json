@@ -205,7 +205,15 @@
     "passwordsNotMatch": "رمزهای عبور مطابقت ندارند",
     "emailTaken": "این ایمیل قبلاً ثبت شده است",
     "registrationFailed": "خطا در ثبت‌نام",
-    "loginFailed": "خطا در ورود"
+  "loginFailed": "خطا در ورود",
+  "registerSubtitle": "حساب کاربری خود را ایجاد کنید",
+  "loginSubtitle": "به حساب کاربری خود وارد شوید",
+  "signingIn": "در حال ورود...",
+  "invalidEmail": "ایمیل نامعتبر است",
+  "passwordRequired": "رمز عبور الزامی است",
+  "passwordMin": "رمز عبور باید حداقل ۶ کاراکتر باشد",
+  "nameRequired": "نام الزامی است",
+  "registrationSuccess": "ثبت‌نام با موفقیت انجام شد! در حال انتقال به صفحه ورود..."
   },
   "seller": {
     "dashboard": "داشبورد فروشنده",
@@ -264,8 +272,7 @@
     "noOrdersFound": "سفارشی یافت نشد",
     "tryDifferentSearch": "جستجوی دیگری امتحان کنید",
     "addFirstProductDescription": "اولین محصول خود را اضافه کنید",
-    "noOrdersDescription": "هنوز سفارشی دریافت نکرده‌اید",
-    "addFirstProduct": "افزودن اولین محصول",
+  "noOrdersDescription": "هنوز سفارشی دریافت نکرده‌اید",
     "view": "مشاهده",
     "edit": "ویرایش",
     "active": "فعال",
