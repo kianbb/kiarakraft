@@ -49,7 +49,7 @@ export default function SellerDashboard() {
     }
 
     fetchDashboardData();
-  }, [session, status, router]);
+  }, [session, status, router, locale]);
 
   const fetchDashboardData = async () => {
     try {

@@ -49,7 +49,7 @@ export default function SellerProductsPage() {
     }
 
     fetchProducts();
-  }, [session, status, router]);
+  }, [session, status, router, locale]);
 
   const fetchProducts = async () => {
     try {
