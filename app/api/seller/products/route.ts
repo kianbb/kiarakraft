@@ -88,9 +88,17 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    if (data.imageUrl) {
-      await prisma.listingImage.create({
-        data: { productId: product.id, url: data.imageUrl, alt: data.name, sortOrder: 0 }
+    // Create listing images from the uploaded images
+    if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+      const imageCreations = data.images.map((img: { url: string; alt?: string; sortOrder?: number }, index: number) => ({
+        productId: product.id,
+        url: img.url,
+        alt: img.alt || data.name,
+        sortOrder: img.sortOrder ?? index
+      }));
+      
+      await prisma.listingImage.createMany({
+        data: imageCreations
       });
     }
 

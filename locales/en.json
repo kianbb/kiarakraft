@@ -255,6 +255,7 @@
     "productDescriptionPlaceholder": "Provide a detailed description of your product",
     "selectCategory": "Select category",
     "productImageUrl": "Product Image URL",
+    "productImages": "Product Images",
     "productTags": "Product Tags",
     "productTagsPlaceholder": "handmade, traditional, unique",
     "tagsHelpText": "Separate tags with commas",

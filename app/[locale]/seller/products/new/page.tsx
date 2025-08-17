@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ImageUpload, type UploadedImage } from '@/components/ui/image-upload';
 import { ArrowLeft, Package } from 'lucide-react';
 
 const productSchema = z.object({
@@ -20,8 +21,12 @@ const productSchema = z.object({
   price: z.number().min(1, 'Price must be greater than 0'),
   stock: z.number().min(0, 'Stock cannot be negative'),
   category: z.enum(['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting']),
-  imageUrl: z.string().url('Must be a valid URL'),
-  tags: z.string().optional()
+  tags: z.string().optional(),
+  images: z.array(z.object({
+    url: z.string().url(),
+    alt: z.string().optional(),
+    sortOrder: z.number()
+  })).min(1, 'At least one image is required')
 });
 
 type ProductForm = z.infer<typeof productSchema>;
@@ -36,6 +41,7 @@ export default function NewProductPage() {
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
   const tCategories = isHydrated ? _tCategories : ((k: string) => k) as (k: string) => string;
   const [creating, setCreating] = useState(false);
+  const [images, setImages] = useState<UploadedImage[]>([]);
 
   const {
     register,
@@ -43,8 +49,20 @@ export default function NewProductPage() {
     setValue,
     formState: { errors }
   } = useForm<ProductForm>({
-    resolver: zodResolver(productSchema)
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      images: []
+    }
   });
+
+  // Update form when images change
+  useEffect(() => {
+    setValue('images', images.map(img => ({
+      url: img.url,
+      alt: img.alt,
+      sortOrder: img.sortOrder
+    })));
+  }, [images, setValue]);
 
   if (status === 'loading') {
     return (
@@ -190,14 +208,15 @@ export default function NewProductPage() {
             </div>
 
             <div>
-              <Label htmlFor="imageUrl">{t('productImageUrl')}</Label>
-              <Input
-                id="imageUrl"
-                {...register('imageUrl')}
-                placeholder="https://images.unsplash.com/photo-..."
+              <Label>{t('productImages')}</Label>
+              <ImageUpload
+                images={images}
+                onImagesChange={setImages}
+                maxImages={8}
+                disabled={creating}
               />
-              {errors.imageUrl && (
-                <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>
+              {errors.images && (
+                <p className="text-sm text-destructive mt-1">{errors.images.message}</p>
               )}
             </div>
 
