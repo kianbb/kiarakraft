@@ -19,6 +19,9 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
   const _t = useTranslations('common');
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
 
+  const isFa = locale === 'fa';
+  const toFaDigits = (val: number | string) => String(val).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+
   const createPageUrl = (page: number) => {
     const params = new URLSearchParams();
     
@@ -70,24 +73,33 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center space-x-2">
+    <div className="flex items-center justify-center space-x-2" dir={isFa ? 'rtl' : undefined}>
       {/* Previous Button */}
       {currentPage > 1 ? (
         <Link href={createPageUrl(currentPage - 1)}>
           <Button variant="outline" size="sm">
-            <ChevronLeft className="h-4 w-4 mr-1" />
+            {isFa ? (
+              <ChevronRight className="h-4 w-4 ml-1" />
+            ) : (
+              <ChevronLeft className="h-4 w-4 mr-1" />
+            )}
             {t('previous')}
           </Button>
         </Link>
       ) : (
         <Button variant="outline" size="sm" disabled>
-          <ChevronLeft className="h-4 w-4 mr-1" />
+          {isFa ? (
+            <ChevronRight className="h-4 w-4 ml-1" />
+          ) : (
+            <ChevronLeft className="h-4 w-4 mr-1" />
+          )}
           {t('previous')}
         </Button>
       )}
 
       {/* Page Numbers */}
-      <div className="flex items-center space-x-1">
+      {/* Force LTR flow for numerals in Persian to keep increasing order visually */}
+      <div className="flex items-center space-x-1" dir={isFa ? 'ltr' : undefined}>
         {visiblePages.map((page, index) => (
           <div key={index}>
             {page === '...' ? (
@@ -99,7 +111,7 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
                   size="sm"
                   className="min-w-[2.5rem]"
                 >
-                  {page}
+                  {isFa ? toFaDigits(page as number) : (page as number)}
                 </Button>
               </Link>
             )}
@@ -112,13 +124,21 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
         <Link href={createPageUrl(currentPage + 1)}>
           <Button variant="outline" size="sm">
             {t('next')}
-            <ChevronRight className="h-4 w-4 ml-1" />
+            {isFa ? (
+              <ChevronLeft className="h-4 w-4 mr-1" />
+            ) : (
+              <ChevronRight className="h-4 w-4 ml-1" />
+            )}
           </Button>
         </Link>
       ) : (
         <Button variant="outline" size="sm" disabled>
           {t('next')}
-          <ChevronRight className="h-4 w-4 ml-1" />
+          {isFa ? (
+            <ChevronLeft className="h-4 w-4 mr-1" />
+          ) : (
+            <ChevronRight className="h-4 w-4 ml-1" />
+          )}
         </Button>
       )}
     </div>
