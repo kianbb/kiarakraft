@@ -94,6 +94,11 @@ export const orderRateLimit = createRateLimiter({
   maxRequests: 3 // 3 orders per 5 minutes
 });
 
+export const uploadRateLimit = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 10 // 10 uploads per minute
+});
+
 /**
  * Middleware helper to add rate limiting to API routes
  */

@@ -56,6 +56,16 @@ model SellerProfile {
   website     String?
   createdAt   DateTime @default(now())
 
+  // Trust & Safety fields
+  verified           Boolean  @default(false)
+  province          String?
+  city              String?
+  nationalIdHash    String?  // SHA-256 hash of national ID for verification
+  docsFolder        String?  // Cloudinary folder path for uploaded documents
+  verificationNotes String?  // Admin notes about verification process
+  verifiedAt        DateTime?
+  verifiedBy        String?  // Admin user ID who verified
+
   products Product[]
 }
 

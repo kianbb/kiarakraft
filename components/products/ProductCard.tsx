@@ -8,6 +8,7 @@ import { Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RatingStars } from '@/components/products/RatingStars';
 import { Price } from '@/components/ui/price';
+import { VerifiedBadge } from '@/components/ui/verified-badge';
 import { cn } from '@/lib/utils';
 
 interface ProductCardProps {
@@ -22,6 +23,7 @@ interface ProductCardProps {
     seller: {
       displayName: string;
       shopName: string;
+      verified?: boolean;
     };
   };
   compact?: boolean;
@@ -116,8 +118,15 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
         {/* Content Section */}
         <div className="p-4">
           {/* Seller Info */}
-          <div className="text-xs text-muted-foreground mb-1">
-            {product.seller.displayName}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs text-muted-foreground">
+              {product.seller.displayName}
+            </span>
+            <VerifiedBadge 
+              verified={product.seller.verified || false} 
+              size="sm" 
+              variant="compact" 
+            />
           </div>
 
           {/* Title */}
