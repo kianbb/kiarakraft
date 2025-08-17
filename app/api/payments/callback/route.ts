@@ -146,6 +146,24 @@ export async function GET(request: NextRequest) {
             where: { id: payment.orderId },
             data: { status: 'PAID' }
           });
+
+          // Decrement stock atomically for all ordered items
+          const orderItems = await tx.orderItem.findMany({
+            where: { orderId: payment.orderId },
+            include: { product: true }
+          });
+
+          for (const item of orderItems) {
+            await tx.product.update({
+              where: { 
+                id: item.productId,
+                stock: { gte: item.quantity } // Prevent negative stock
+              },
+              data: {
+                stock: { decrement: item.quantity }
+              }
+            });
+          }
         }, {
           isolationLevel: 'Serializable' // Highest isolation level
         });

@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Edit } from 'lucide-react';
+import ImageUploadManager from '@/components/seller/ImageUploadManager';
+
 // Type for the form-compatible product data structure
 interface FormCompatibleProduct {
   id: string;
@@ -23,6 +25,12 @@ interface FormCompatibleProduct {
   category: string;
   imageUrl: string;
   tags?: string;
+  images?: Array<{
+    id: string;
+    url: string;
+    alt: string | null;
+    sortOrder: number;
+  }>;
 }
 
 const productSchema = z.object({
@@ -31,7 +39,7 @@ const productSchema = z.object({
   price: z.number().min(1, 'Price must be greater than 0'),
   stock: z.number().min(0, 'Stock cannot be negative'),
   category: z.enum(['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting']),
-  imageUrl: z.string().url('Must be a valid URL'),
+  imageUrl: z.string().min(1).optional(),
   tags: z.string().optional()
 });
 
@@ -248,8 +256,18 @@ export default function EditProductPage() {
               )}
             </div>
 
+            {/* Image Upload Manager */}
+            <div className="space-y-4">
+              <ImageUploadManager
+                productId={product.id}
+                initialImages={product.images || []}
+                maxImages={5}
+              />
+            </div>
+
+            {/* Legacy Image URL field - keep for backward compatibility */}
             <div>
-              <Label htmlFor="imageUrl">{t('productImageUrl')}</Label>
+              <Label htmlFor="imageUrl">{t('productImageUrl')} (Legacy)</Label>
               <Input
                 id="imageUrl"
                 {...register('imageUrl')}
@@ -258,6 +276,9 @@ export default function EditProductPage() {
               {errors.imageUrl && (
                 <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Legacy field - use image uploader above for new images
+              </p>
             </div>
 
             <div>
