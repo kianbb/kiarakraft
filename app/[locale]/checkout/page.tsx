@@ -92,7 +92,8 @@ export default function CheckoutPage() {
   const onSubmit = async (data: CheckoutForm) => {
     setPlacing(true);
     try {
-      const response = await fetch('/api/orders', {
+      // Create order first
+      const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,11 +102,31 @@ export default function CheckoutPage() {
         })
       });
 
-      if (response.ok) {
-        const order = await response.json();
-        router.push(`/order/${order.id}`);
-      } else {
+      if (!orderResponse.ok) {
         alert(t('orderFailed'));
+        return;
+      }
+
+      const order = await orderResponse.json();
+
+      // Create payment and get redirect URL
+      const paymentResponse = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id
+        })
+      });
+
+      if (paymentResponse.ok) {
+        const { redirectUrl } = await paymentResponse.json();
+        // Redirect to payment gateway or confirmation page
+        window.location.href = redirectUrl;
+      } else {
+        const error = await paymentResponse.json();
+        alert(error.error || t('paymentFailed'));
+        // Fallback to order page if payment creation fails
+        router.push(`/order/${order.id}`);
       }
     } catch (error) {
       console.error('Error placing order:', error);

@@ -16,9 +16,19 @@ const authMiddleware = withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname.toLowerCase();
+        
+        // Exact path matching to prevent traversal attacks
+        const isSellerPath = pathname.startsWith('/fa/seller') || pathname.startsWith('/en/seller');
+        const isAdminPath = pathname.startsWith('/fa/admin') || pathname.startsWith('/en/admin');
+        
         // Check if the route requires seller role
-        if (req.nextUrl.pathname.includes('/seller')) {
+        if (isSellerPath) {
           return token?.role === 'SELLER';
+        }
+        // Check if the route requires admin role  
+        if (isAdminPath) {
+          return token?.role === 'ADMIN';
         }
         return !!token;
       },
@@ -31,11 +41,12 @@ const authMiddleware = withAuth(
 );
 
 export default function middleware(req: NextRequest) {
-  // Apply auth middleware only to protected routes
-  const protectedPaths = ['/seller'];
-  const isProtectedPath = protectedPaths.some(path => 
-    req.nextUrl.pathname.includes(path)
-  );
+  // Apply auth middleware only to protected routes - exact matching to prevent traversal
+  const pathname = req.nextUrl.pathname.toLowerCase();
+  const isProtectedPath = pathname.startsWith('/fa/seller') || 
+                         pathname.startsWith('/en/seller') ||
+                         pathname.startsWith('/fa/admin') || 
+                         pathname.startsWith('/en/admin');
 
   if (isProtectedPath) {
     return (authMiddleware as any)(req);

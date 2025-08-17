@@ -11,7 +11,20 @@ datasource db {
   directUrl = env("DIRECT_URL")     // Neon direct URL
 }
 
-// Note: SQLite doesn't support enums, using String with validation instead
+// Payment enums for gateway integration
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentGateway {
+  OFFLINE
+  ZARINPAL
+  IDPAY
+}
 
 model User {
   id        String   @id @default(cuid())
@@ -141,7 +154,22 @@ model Order {
   province   String
   postalCode String
 
-  items OrderItem[]
+  items   OrderItem[]
+  payment Payment?
+}
+
+model Payment {
+  id          String         @id @default(cuid())
+  order       Order          @relation(fields: [orderId], references: [id])
+  orderId     String         @unique
+  gateway     PaymentGateway
+  status      PaymentStatus  @default(INITIATED)
+  amountToman Int
+  authority   String?        // gateway token/authority
+  refId       String?        // gateway reference code
+  raw         Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model OrderItem {

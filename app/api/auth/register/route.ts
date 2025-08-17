@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { withRateLimit, authRateLimit } from '@/lib/rateLimit'
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string()
+    .min(12, 'Password must be at least 12 characters long')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
+           'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character'),
   name: z.string().min(1),
   role: z.enum(['BUYER', 'SELLER']).default('BUYER'),
   // Seller-specific fields
@@ -15,7 +19,7 @@ const registerSchema = z.object({
   region: z.string().optional()
 })
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(authRateLimit, async function(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, password, name, role, shopName, displayName, bio, region } = registerSchema.parse(body)
@@ -99,4 +103,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+});

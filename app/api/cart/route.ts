@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withCSRF } from '@/lib/csrf';
 
 export async function GET() {
   try {
@@ -51,7 +52,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -79,6 +80,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { productId, quantity } = await request.json();
+
+    // Input validation and bounds checking
+    if (!productId || typeof productId !== 'string' || productId.length > 50) {
+      return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 });
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 1000) {
+      return NextResponse.json({ error: 'Invalid quantity. Must be between 1 and 1000.' }, { status: 400 });
+    }
 
     // Check if product exists and is active
     const product = await prisma.product.findUnique({
@@ -142,4 +152,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

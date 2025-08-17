@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(orderRateLimit, async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -59,21 +60,21 @@ export async function POST(request: NextRequest) {
     const shippingCost = 50000; // Fixed shipping
     const total = subtotal + shippingCost;
 
-    // Create order in transaction with stock reduction
+    // Create order in transaction with atomic stock reduction
     const order = await prisma.$transaction(async (tx) => {
-      // Double-check stock in transaction to prevent race conditions
+      // Atomic stock check and reservation using SELECT FOR UPDATE
       for (const item of cartItems) {
-        const currentProduct = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { stock: true, active: true, title: true }
-        });
+        const currentProduct = await tx.$queryRaw`
+          SELECT stock, active, title FROM "Product" 
+          WHERE id = ${item.productId} FOR UPDATE
+        ` as Array<{ stock: number; active: boolean; title: string }>;
         
-        if (!currentProduct || currentProduct.stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${currentProduct?.title || 'product'}`);
+        if (!currentProduct[0] || currentProduct[0].stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${currentProduct[0]?.title || 'product'}`);
         }
         
-        if (!currentProduct.active) {
-          throw new Error(`Product ${currentProduct.title} is no longer available`);
+        if (!currentProduct[0].active) {
+          throw new Error(`Product ${currentProduct[0].title} is no longer available`);
         }
       }
 
@@ -133,4 +134,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
