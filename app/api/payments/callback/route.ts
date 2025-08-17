@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { adapter } from '@/lib/payments';
 import { headers } from 'next/headers';
+import { sendEmail } from '@/lib/email';
+import OrderReceiptEmail from '@/lib/email-templates/OrderReceiptEmail';
 
 // Rate limiting map (in production, use Redis or external service)
 const attemptMap = new Map<string, { count: number; lastAttempt: number }>();
@@ -176,6 +178,77 @@ export async function GET(request: NextRequest) {
       }
 
       console.log(`Payment verified successfully: ${payment.id}`);
+      
+      // Send order receipt email asynchronously (don't block the redirect)
+      setImmediate(async () => {
+        try {
+          // Fetch complete order details for email
+          const completeOrder = await prisma.order.findUnique({
+            where: { id: payment.orderId },
+            include: {
+              user: {
+                select: { email: true, name: true }
+              },
+              items: {
+                include: {
+                  product: {
+                    select: { title: true }
+                  }
+                }
+              }
+            }
+          });
+
+          if (completeOrder && completeOrder.user.email) {
+            const orderItems = completeOrder.items.map(item => ({
+              productTitle: item.product.title,
+              quantity: item.quantity,
+              unitPriceToman: item.unitPriceToman
+            }));
+
+            const shippingAddress = {
+              fullName: completeOrder.fullName,
+              address1: completeOrder.address1,
+              address2: completeOrder.address2 || undefined,
+              city: completeOrder.city,
+              province: completeOrder.province,
+              postalCode: completeOrder.postalCode,
+              phone: completeOrder.phone
+            };
+
+            // Determine payment method name
+            const paymentMethodName = payment.gateway === 'OFFLINE' 
+              ? 'پرداخت آفلاین / Offline Payment'
+              : payment.gateway === 'ZARINPAL'
+              ? 'درگاه زرین‌پال / Zarinpal Gateway'
+              : 'پرداخت آنلاین / Online Payment';
+
+            // Send email receipt (try both locales if needed)
+            const emailResult = await sendEmail({
+              to: completeOrder.user.email,
+              subject: `رسید سفارش ${payment.orderId} - کیارا کرافت / Order Receipt ${payment.orderId} - Kiara Kraft`,
+              react: OrderReceiptEmail({
+                userName: completeOrder.user.name || completeOrder.user.email.split('@')[0],
+                orderId: payment.orderId,
+                items: orderItems,
+                totalToman: completeOrder.totalToman,
+                shippingAddress,
+                paymentMethod: paymentMethodName,
+                locale: 'fa' // Default to Persian, could be enhanced to detect user's preferred locale
+              })
+            });
+
+            if (emailResult.success) {
+              console.log(`Order receipt email sent to ${completeOrder.user.email} via ${emailResult.provider}`);
+            } else {
+              console.error(`Failed to send order receipt email: ${emailResult.error}`);
+            }
+          }
+        } catch (emailError) {
+          console.error('Error sending order receipt email:', emailError);
+        }
+      });
+      
       return NextResponse.redirect(new URL(`/order/success?orderId=${payment.orderId}`, request.url));
     } else {
       // Payment failed

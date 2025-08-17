@@ -36,10 +36,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sellerProfile SellerProfile?
-  orders        Order[]
-  cart          Cart?
-  reviews       Review[]
+  sellerProfile    SellerProfile?
+  orders           Order[]
+  cart             Cart?
+  reviews          Review[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model SellerProfile {
@@ -203,4 +204,14 @@ model Review {
   createdAt DateTime @default(now())
 
   @@unique([userId, productId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
 }
