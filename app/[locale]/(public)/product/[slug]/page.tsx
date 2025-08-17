@@ -40,6 +40,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     } else if (params.slug === 'silver-turquoise-necklace') {
       title = tHome('sampleProducts.silverNecklace.title');
       description = tHome('sampleProducts.silverNecklace.description');
+    } else {
+      // Final guard: if text still appears Persian, provide safe EN fallbacks
+      const hasFa = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
+      if (hasFa(title)) {
+        title = params.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+      if (hasFa(description)) {
+        description = tHome('hero.description');
+      }
     }
   }
   const base = "https://www.kiarakraft.com";
@@ -131,6 +140,14 @@ export default async function Page({ params }: { params: Params }) {
     } else if (product.slug === 'silver-turquoise-necklace') {
       localized.title = tHome('sampleProducts.silverNecklace.title');
       localized.description = tHome('sampleProducts.silverNecklace.description');
+    }
+    // Final guard: hide Persian-only description/title if translation still not available
+    const hasFa = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
+    if (hasFa(localized.description)) {
+      localized.description = '';
+    }
+    if (hasFa(localized.title)) {
+      localized.title = product.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
   // Ensure category is localized even if DB name is Persian
     // Category label should be localized regardless of seed data
