@@ -101,8 +101,8 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
           ? p.translations.find((t) => t.locale === 'en')
           : undefined;
 
-        let title = enTr?.title ?? p.title;
-        let description = enTr?.description ?? p.description;
+  let title = enTr?.title ?? p.title;
+  let description = enTr?.description ?? p.description;
 
         // 2) Demo slugs hard-coded EN strings
         if (p.slug === 'handmade-ceramic-bowl') {
@@ -118,6 +118,15 @@ async function getProducts(locale: string, searchParams: PageProps['searchParams
             title = en.title;
             description = en.description;
           } catch {}
+        }
+
+        // 4) Final guard: if still Persian-looking on EN, hide description and keep a readable title
+        if (needsTranslation(description)) {
+          description = '';
+        }
+        if (needsTranslation(title)) {
+          // Fall back to a basic English-friendly title using slug words
+          title = p.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         }
 
         // Seller name: provide demo EN name if Persian-looking

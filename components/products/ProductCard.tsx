@@ -36,6 +36,11 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   const _t = useTranslations('common');
   const locale = isHydrated ? _locale : 'en';
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  // If we're on EN and the description is Persian, suppress it until translation exists
+  const isPersian = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
+  const displayDescription = locale === 'en' && isPersian(product.description)
+    ? ''
+    : product.description;
   
   const productUrl = `/${locale}/product/${product.slug}`;
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
@@ -121,9 +126,9 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           </h3>
 
           {/* Description */}
-          {!compact && (
+          {!compact && displayDescription && (
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-              {product.description}
+              {displayDescription}
             </p>
           )}
 
