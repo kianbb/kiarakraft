@@ -188,8 +188,7 @@ export default async function Page({ params }: { params: Params }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <main>
-  <h1>{localized.title}</h1>
-        {/* render gallery + details */}
+  {/* render gallery + details */}
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">
           {/* Back Button */}
