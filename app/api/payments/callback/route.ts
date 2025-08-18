@@ -1,38 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { adapter } from '@/lib/payments';
-import { headers } from 'next/headers';
 import { sendEmail } from '@/lib/email';
+import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
+import * as Sentry from '@sentry/nextjs';
 import OrderReceiptEmail from '@/lib/email-templates/OrderReceiptEmail';
 
-// Rate limiting map (in production, use Redis or external service)
-const attemptMap = new Map<string, { count: number; lastAttempt: number }>();
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const attempts = attemptMap.get(ip);
-  
-  if (!attempts) {
-    attemptMap.set(ip, { count: 1, lastAttempt: now });
-    return true;
-  }
-  
-  // Reset if window expired
-  if (now - attempts.lastAttempt > WINDOW_MS) {
-    attemptMap.set(ip, { count: 1, lastAttempt: now });
-    return true;
-  }
-  
-  if (attempts.count >= MAX_ATTEMPTS) {
-    return false;
-  }
-  
-  attempts.count++;
-  attempts.lastAttempt = now;
-  return true;
-}
 
 function validateCallbackParams(searchParams: URLSearchParams) {
   const orderId = searchParams.get('orderId');
@@ -55,16 +28,8 @@ function validateCallbackParams(searchParams: URLSearchParams) {
   return { orderId, authority, status };
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(paymentRateLimit, async function(request: NextRequest) {
   try {
-    // Rate limiting
-    const headersList = headers();
-    const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
-    
-    if (!checkRateLimit(ip)) {
-      console.warn(`Rate limit exceeded for IP: ${ip}`);
-      return NextResponse.redirect(new URL('/order/failed?reason=rate_limit', request.url));
-    }
 
     // Validate and sanitize parameters
     const { searchParams } = new URL(request.url);
@@ -136,9 +101,7 @@ export async function GET(request: NextRequest) {
               raw: { 
                 authority, 
                 status, 
-                verifiedAt: new Date(),
-                ip: ip.slice(0, 45), // Truncate IP for logging
-                userAgent: headersList.get('user-agent')?.slice(0, 200)
+                verifiedAt: new Date()
               }
             }
           });
@@ -245,6 +208,7 @@ export async function GET(request: NextRequest) {
             }
           }
         } catch (emailError) {
+          Sentry.captureException(emailError);
           console.error('Error sending order receipt email:', emailError);
         }
       });
@@ -260,8 +224,7 @@ export async function GET(request: NextRequest) {
             authority, 
             status, 
             reason: verifyResult.reason, 
-            failedAt: new Date(),
-            ip: ip.slice(0, 45)
+            failedAt: new Date()
           }
         }
       });
@@ -270,6 +233,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(`/order/failed?orderId=${payment.orderId}&reason=${verifyResult.reason || 'verification_failed'}`, request.url));
     }
   } catch (error) {
+    Sentry.captureException(error);
     console.error('Error processing payment callback:', error);
     
     // Don't expose internal error details
@@ -279,4 +243,4 @@ export async function GET(request: NextRequest) {
       
     return NextResponse.redirect(new URL(`/order/failed?reason=${safeReason}`, request.url));
   }
-}
+});

@@ -4,9 +4,11 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
+import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(orderRateLimit, async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -33,15 +35,16 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(products);
   } catch (error) {
+    Sentry.captureException(error);
     console.error('Error fetching seller products:', error);
     return NextResponse.json(
       { error: 'Failed to fetch products' },
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(orderRateLimit, async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -161,13 +164,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(product);
   } catch (error) {
+    Sentry.captureException(error);
     console.error('Error creating product:', error);
     return NextResponse.json(
       { error: 'Failed to create product' },
       { status: 500 }
     );
   }
-}
+});
 
 function generateSlug(input: string) {
   return input
