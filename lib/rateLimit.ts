@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { headers } from 'next/headers';
 
 // In-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -26,10 +25,9 @@ setInterval(() => {
 
 export function createRateLimiter(config: RateLimitConfig) {
   return function rateLimit(request: NextRequest): { allowed: boolean; remainingRequests: number; resetTime: number } {
-    const headersList = headers();
-    const ip = headersList.get('x-forwarded-for') || 
-               headersList.get('x-real-ip') || 
-               headersList.get('cf-connecting-ip') || 
+  const ip = request.headers.get('x-forwarded-for') || 
+         request.headers.get('x-real-ip') || 
+         request.headers.get('cf-connecting-ip') || 
                'unknown';
     
     // Create a unique key for this IP and endpoint
@@ -112,7 +110,7 @@ export function withRateLimit(
     if (!allowed) {
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);
       
-      console.warn(`Rate limit exceeded for ${request.url} from IP ${headers().get('x-forwarded-for') || 'unknown'}`);
+  console.warn(`Rate limit exceeded for ${request.url} from IP ${request.headers.get('x-forwarded-for') || 'unknown'}`);
       
       return new Response(
         JSON.stringify({ 

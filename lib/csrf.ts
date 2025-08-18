@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { headers } from 'next/headers';
 
 /**
  * Basic CSRF protection by validating origin and referer headers
@@ -11,10 +10,9 @@ export function validateCSRF(request: NextRequest): boolean {
     return true;
   }
 
-  const headersList = headers();
-  const origin = headersList.get('origin');
-  const referer = headersList.get('referer');
-  const host = headersList.get('host');
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  const host = request.headers.get('host');
 
   // Check if request has origin header
   if (origin) {
