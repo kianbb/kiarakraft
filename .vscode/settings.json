@@ -1,0 +1,25 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.hg/store/**": true,
+    "**/node_modules/**": true,
+    "**/node_modules.backup/**": true,
+    "**/.next/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/out/**": true,
+    "**/coverage/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/node_modules.backup": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/out": true,
+    "**/coverage": true
+  },
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.preferences.preferTypeOnlyAutoImports": true
+}
