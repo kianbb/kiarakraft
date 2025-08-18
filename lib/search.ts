@@ -195,20 +195,9 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         c.name as category_name,
         c.slug as category_slug,
         (
-          -- Enhanced relevance scoring with multiple factors
-          (SIMILARITY(p.title, ${searchQueryParam}) * 4) +          -- Title similarity (4x weight)
-          (SIMILARITY(p.description, ${searchQueryParam}) * 1.5) +  -- Description similarity (1.5x weight)
-          (ts_rank_cd(to_tsvector('english', p.title || ' ' || p.description), plainto_tsquery('english', ${searchQueryParam})) * 3) + -- Enhanced FTS rank (3x weight)
-          CASE 
-            WHEN LOWER(p.title) = LOWER(${searchQueryParam}) THEN 2.0    -- Exact title match (huge bonus)
-            WHEN p.title ILIKE ${searchQueryParam} || '%' THEN 1.5        -- Title starts with query
-            WHEN p.title ILIKE '%' || ${searchQueryParam} || '%' THEN 0.8  -- Title contains query
-            ELSE 0
-          END +
-          CASE 
-            WHEN LOWER(p.description) ILIKE '%' || LOWER(${searchQueryParam}) || '%' THEN 0.3  -- Description contains query
-            ELSE 0
-          END +
+          -- Use the new PostgreSQL function for optimized search ranking
+          product_search_rank(${searchQueryParam}, p.title, p.description) +
+          -- Add business logic bonuses
           CASE 
             WHEN sp.verified THEN 0.3  -- Verified seller bonus
             ELSE 0

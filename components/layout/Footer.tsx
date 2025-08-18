@@ -45,8 +45,10 @@ export default function Footer({ serverLocale, serverFooter, serverCategories }:
     {
       title: t('legal'),
       links: [
-        { name: t('terms'), href: `/${locale}/terms` },
-        { name: t('privacy'), href: `/${locale}/privacy` },
+        { name: t('terms'), href: `/${locale}/legal/terms` },
+        { name: t('privacy'), href: `/${locale}/legal/privacy` },
+        { name: t('refunds'), href: `/${locale}/legal/refunds` },
+        { name: t('shipping'), href: `/${locale}/legal/shipping` },
       ]
     },
     {
