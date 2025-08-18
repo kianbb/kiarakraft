@@ -105,12 +105,16 @@ export const PATCH = withRateLimit(adminRateLimit, withCSRF(async function(reque
 
       // Mark offline payment as paid with enhanced security
       const result = await prisma.$transaction(async (tx) => {
+  // Lock the payment row to avoid races
+  await tx.$queryRaw`SELECT id, status FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
+
         const payment = await tx.payment.findUnique({
           where: { id: paymentId },
           include: { 
             order: {
               include: {
-                user: { select: { email: true, name: true } }
+                user: { select: { email: true, name: true } },
+                items: { include: { product: true } }
               }
             }
           }
@@ -126,6 +130,11 @@ export const PATCH = withRateLimit(adminRateLimit, withCSRF(async function(reque
 
         if (payment.status === 'PAID') {
           throw new Error('Payment is already marked as paid');
+        }
+
+        // Only allow marking when in expected pre-paid states
+        if (payment.status !== 'INITIATED' && payment.status !== 'PENDING') {
+          throw new Error('Payment is not in a valid state to be marked as paid');
         }
 
         // Security check: prevent marking very old payments without additional verification
@@ -167,6 +176,15 @@ export const PATCH = withRateLimit(adminRateLimit, withCSRF(async function(reque
           where: { id: payment.orderId },
           data: { status: 'PAID' }
         });
+
+        // Decrement stock atomically for all ordered items (similar to gateway callback)
+        for (const item of payment.order.items) {
+          // Atomic stock decrement with guard using SQL (prevents negative values)
+          const updated = await tx.$executeRaw`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`;
+          if (Number(updated) === 0) {
+            throw new Error('Insufficient stock while marking order as paid');
+          }
+        }
 
         return { paymentId: payment.id, orderId: payment.orderId };
       });
