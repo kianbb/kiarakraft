@@ -39,7 +39,6 @@ const nextConfig = {
       allowedOrigins: ['localhost:3000', '127.0.0.1:3000']
     },
     optimizePackageImports: ['lucide-react', '@/components/ui'],
-    serverComponentsExternalPackages: ['prisma', '@prisma/client'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -91,6 +90,32 @@ const nextConfig = {
           value: 'public, max-age=31536000, immutable'
         }
       ]
+    },
+    {
+      source: '/sw.js',
+      headers: [
+        {
+          key: 'Content-Type',
+          value: 'application/javascript'
+        },
+        {
+          key: 'Service-Worker-Allowed',
+          value: '/'
+        },
+        {
+          key: 'Cache-Control',
+          value: 'no-cache, no-store, must-revalidate'
+        }
+      ]
+    },
+    {
+      source: '/manifest.webmanifest',
+      headers: [
+        {
+          key: 'Content-Type',
+          value: 'application/manifest+json'
+        }
+      ]
     }
   ],
   eslint: {
@@ -100,6 +125,14 @@ const nextConfig = {
   typescript: {
     // Enforce TypeScript checks during builds to prevent runtime errors
     ignoreBuildErrors: false,
+  },
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      // Silence known benign OTel/Sentry dynamic require warnings
+      /Critical dependency: the request of a dependency is an expression/,
+      /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
+    ];
+    return config;
   },
 };
 
