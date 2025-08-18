@@ -308,8 +308,7 @@
     "productTitlePlaceholder": "نام محصول را وارد کنید",
     "productDescriptionPlaceholder": "توضیحات کاملی از محصول ارائه دهید",
     "selectCategory": "دسته‌بندی را انتخاب کنید",
-    "productImageUrl": "آدرس تصویر محصول",
-    "productImages": "تصاویر محصول",
+  "productImageUrl": "آدرس تصویر محصول",
     "productTags": "برچسب‌های محصول",
     "productTagsPlaceholder": "دستساز، سنتی، منحصربه‌فرد",
     "tagsHelpText": "برچسب‌ها را با کاما جدا کنید",
@@ -376,5 +375,23 @@
     "madeWith": "ساخته‌شده با ❤️ برای هنرمندان ایرانی",
     "supportMessage": "با خرید از کیارا کرفت، از هنرمندان و صنعتگران ایرانی حمایت کنید",
     "allRightsReserved": "تمام حقوق محفوظ است"
+  }
+  ,
+  "admin": {
+    "paymentsManagement": "مدیریت پرداخت‌ها",
+    "filterByStatus": "فیلتر بر اساس وضعیت",
+    "allStatuses": "همه وضعیت‌ها",
+    "initiated": "ایجاد شده",
+    "pending": "در انتظار",
+    "paid": "پرداخت شده",
+    "failed": "ناموفق",
+    "viewOrder": "مشاهده سفارش",
+    "updating": "در حال به‌روزرسانی...",
+    "markAsPaid": "ثبت به عنوان پرداخت‌شده",
+    "noPayments": "پرداختی برای نمایش وجود ندارد",
+    "pageOf": "صفحه {current} از {total}",
+    "previous": "قبلی",
+    "next": "بعدی",
+    "updateFailed": "به‌روزرسانی ناموفق بود"
   }
 }

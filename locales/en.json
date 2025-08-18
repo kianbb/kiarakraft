@@ -308,8 +308,7 @@
     "productTitlePlaceholder": "Enter product name",
     "productDescriptionPlaceholder": "Provide a detailed description of your product",
     "selectCategory": "Select category",
-    "productImageUrl": "Product Image URL",
-    "productImages": "Product Images",
+  "productImageUrl": "Product Image URL",
     "productTags": "Product Tags",
     "productTagsPlaceholder": "handmade, traditional, unique",
     "tagsHelpText": "Separate tags with commas",
@@ -376,5 +375,23 @@
     "madeWith": "Made with ❤️ for Iranian artisans",
     "supportMessage": "Support Iranian artists and craftspeople by shopping at Kiara Kraft",
     "allRightsReserved": "All rights reserved"
+  },
+  
+  "admin": {
+    "paymentsManagement": "Payments Management",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "initiated": "Initiated",
+    "pending": "Pending",
+    "paid": "Paid",
+    "failed": "Failed",
+    "viewOrder": "View Order",
+    "updating": "Updating...",
+    "markAsPaid": "Mark as PAID",
+    "noPayments": "No payments to show",
+    "pageOf": "Page {current} of {total}",
+    "previous": "Previous",
+    "next": "Next",
+    "updateFailed": "Update failed"
   }
 }
