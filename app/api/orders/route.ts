@@ -22,6 +22,22 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
 
     const { shippingInfo } = await request.json();
 
+    // Normalize shipping fields from client (address vs address1)
+    const normalized = {
+      fullName: shippingInfo?.fullName?.toString().trim() || '',
+      phone: shippingInfo?.phone?.toString().trim() || '',
+      address1: (shippingInfo?.address1 ?? shippingInfo?.address ?? '').toString().trim(),
+      address2: shippingInfo?.address2 ? shippingInfo.address2.toString() : null,
+      city: shippingInfo?.city?.toString().trim() || '',
+      province: shippingInfo?.province?.toString().trim() || '',
+      postalCode: shippingInfo?.postalCode?.toString().trim() || ''
+    };
+
+    // Basic validation
+    if (!normalized.fullName || !normalized.phone || !normalized.address1 || !normalized.city || !normalized.province || !normalized.postalCode) {
+      return NextResponse.json({ error: 'Invalid shipping information' }, { status: 400 });
+    }
+
     // Get cart items with proper typing
     const cart = await prisma.cart.findUnique({
       where: { userId: user.id },
@@ -79,18 +95,18 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
       }
 
       // Create order
-      const newOrder = await tx.order.create({
+    const newOrder = await tx.order.create({
         data: {
           userId: user.id,
           status: 'PENDING',
           totalToman: total,
-          fullName: shippingInfo.fullName,
-          phone: shippingInfo.phone,
-          address1: shippingInfo.address1,
-          address2: shippingInfo.address2 || null,
-          city: shippingInfo.city,
-          province: shippingInfo.province,
-          postalCode: shippingInfo.postalCode
+      fullName: normalized.fullName,
+      phone: normalized.phone,
+      address1: normalized.address1,
+      address2: normalized.address2,
+      city: normalized.city,
+      province: normalized.province,
+      postalCode: normalized.postalCode
         }
       });
 
