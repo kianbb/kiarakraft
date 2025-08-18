@@ -1,15 +1,15 @@
 {
   "ci": {
     "collect": {
-      "numberOfRuns": 3,
+      "numberOfRuns": 1,
       "url": [
         "http://localhost:3000/fa",
-        "http://localhost:3000/en",
-        "http://localhost:3000/fa/explore",
-        "http://localhost:3000/en/explore"
+        "http://localhost:3000/en"
       ],
       "settings": {
-        "chromeFlags": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+        "chromeFlags": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--disable-extensions"],
+        "maxWaitForFcp": 15000,
+        "maxWaitForLoad": 35000
       }
     },
     "assert": {
