@@ -3,7 +3,8 @@ import type { PaymentAdapter } from "../adapter";
 export const OfflineAdapter: PaymentAdapter = {
   gateway: "OFFLINE",
   
-  async create({ orderId, callbackUrl }) {
+  async create(input) {
+    const { orderId, callbackUrl } = input;
     // Immediately "created"; redirect to a confirmation page with manual instructions
     const url = `${callbackUrl}?orderId=${orderId}&ok=1`;
     return { redirectUrl: url };
