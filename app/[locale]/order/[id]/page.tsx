@@ -147,7 +147,7 @@ export default function OrderConfirmationPage() {
                 <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                   <div className="relative w-16 h-16 rounded overflow-hidden bg-gray-100">
                     <Image
-                      src={item.product.images[0]?.url || '/placeholder-product.jpg'}
+                      src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
                       alt={item.product.title}
                       fill
                       className="object-cover"

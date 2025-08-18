@@ -253,7 +253,7 @@ export default function SellerDashboard() {
                   <div key={product.id} className="flex items-center gap-3 p-3 border rounded">
                     <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
                       <Image
-                        src={product.images[0]?.url || '/placeholder-product.jpg'}
+                        src={product.images?.[0]?.url || '/placeholder-product.jpg'}
                         alt={product.title}
                         width={48}
                         height={48}

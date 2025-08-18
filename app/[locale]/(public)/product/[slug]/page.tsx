@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       title, 
       description, 
       type: "website", 
-      images: p?.images?.[0]?.url ? [p.images[0].url] : [] 
+  images: p?.images?.[0]?.url ? [p.images?.[0]?.url] : [] 
     }
   };
 }

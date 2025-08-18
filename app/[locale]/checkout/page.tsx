@@ -298,7 +298,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
                         <Image
-                          src={item.product.images[0]?.url || '/placeholder-product.jpg'}
+                          src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
                           alt={item.product.title}
                           fill
                           className="object-cover"

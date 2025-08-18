@@ -182,7 +182,7 @@ export default function SellerOrdersPage() {
                     <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg">
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden">
                         <Image
-                          src={item.product.images[0]?.url || '/placeholder-product.jpg'}
+                          src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
                           alt={item.product.title}
                           fill
                           className="object-cover"

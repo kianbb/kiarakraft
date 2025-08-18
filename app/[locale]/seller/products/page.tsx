@@ -156,7 +156,7 @@ export default function SellerProductsPage() {
               <div key={product.id} className="bg-white rounded-lg border overflow-hidden">
                 <div className="relative aspect-square">
                   <Image
-                    src={product.images[0]?.url || '/placeholder-product.jpg'}
+                    src={product.images?.[0]?.url || '/placeholder-product.jpg'}
                     alt={product.title}
                     fill
                     className="object-cover"
