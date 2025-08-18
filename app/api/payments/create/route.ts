@@ -46,9 +46,11 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
       return NextResponse.json({ error: 'Payment already exists for this order' }, { status: 400 });
     }
 
-    // Build callback URL
-    const baseUrl = process.env.PUBLIC_APP_BASE || 'http://localhost:3000';
-    const callbackUrl = `${baseUrl}/api/payments/callback`;
+  // Build callback URL using request origin (fallback to env)
+  // This prevents leaking "http://localhost:3000" in production when env is missing.
+  const requestOrigin = new URL(request.url).origin;
+  const baseUrl = (process.env.PUBLIC_APP_BASE?.replace(/\/$/, '')) || requestOrigin;
+  const callbackUrl = `${baseUrl}/api/payments/callback`;
 
     // Create payment in adapter
     const result = await adapter.create({
