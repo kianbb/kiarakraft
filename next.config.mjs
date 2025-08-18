@@ -39,7 +39,6 @@ const nextConfig = {
       allowedOrigins: ['localhost:3000', '127.0.0.1:3000']
     },
     optimizePackageImports: ['lucide-react', '@/components/ui'],
-    serverComponentsExternalPackages: ['prisma', '@prisma/client'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
