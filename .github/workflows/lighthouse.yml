@@ -78,17 +78,17 @@ jobs:
                   pwa: result.categories.pwa ? Math.round(result.categories.pwa.score * 100) : 'N/A'
                 };
                 
-                const comment = `## 🚀 Lighthouse CI Results
+                const comment = \`## 🚀 Lighthouse CI Results
                 
 | Category | Score |
 |----------|-------|
-| Performance | ${scores.performance}/100 |
-| Accessibility | ${scores.accessibility}/100 |
-| Best Practices | ${scores['best-practices']}/100 |
-| SEO | ${scores.seo}/100 |
-| PWA | ${scores.pwa}/100 |
+| Performance | \${scores.performance}/100 |
+| Accessibility | \${scores.accessibility}/100 |
+| Best Practices | \${scores['best-practices']}/100 |
+| SEO | \${scores.seo}/100 |
+| PWA | \${scores.pwa}/100 |
 
-View full report in the [Lighthouse CI dashboard](${{ steps.lighthouse.outputs.links }}).`;
+View full report in the Lighthouse CI dashboard.\`;
                 
                 github.rest.issues.createComment({
                   issue_number: context.issue.number,
