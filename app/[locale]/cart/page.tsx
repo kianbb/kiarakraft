@@ -60,11 +60,17 @@ export default function CartPage() {
       if (response.ok) {
         if (newQuantity === 0) {
           setCartItems(cartItems.filter((item) => item.id !== itemId));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('cart:updated'));
+          }
         } else {
           const updatedItem = await response.json();
           setCartItems(cartItems.map((item) => 
             item.id === itemId ? updatedItem : item
           ));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('cart:updated'));
+          }
         }
       }
     } catch (error) {
@@ -83,6 +89,9 @@ export default function CartPage() {
 
       if (response.ok) {
         setCartItems(cartItems.filter((item) => item.id !== itemId));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('cart:updated'));
+        }
       }
     } catch (error) {
       console.error('Error removing item:', error);

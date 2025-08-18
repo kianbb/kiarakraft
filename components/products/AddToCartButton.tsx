@@ -46,6 +46,9 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
       if (response.ok) {
         // Show success message or toast here
         alert(t('addedToCart'));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('cart:updated'));
+        }
       } else {
         throw new Error('Failed to add to cart');
       }

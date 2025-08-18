@@ -27,6 +27,7 @@ export default function Navbar() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
     // Keep hook order stable by calling hooks unconditionally
     const _locale = useLocale();
     const _t = useTranslations('navigation');
@@ -36,6 +37,35 @@ export default function Navbar() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Fetch cart count when session/path changes and on custom events
+  useEffect(() => {
+    if (!isHydrated) return;
+    const refresh = async () => {
+      try {
+        const res = await fetch('/api/cart', { cache: 'no-store' });
+        if (!res.ok) {
+          setCartCount(0);
+          return;
+        }
+        const items: Array<{ quantity: number }> = await res.json();
+        const total = items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+        setCartCount(total);
+      } catch {
+        setCartCount(0);
+      }
+    };
+    refresh();
+
+    const onUpdated = () => refresh();
+    const onFocus = () => refresh();
+    window.addEventListener('cart:updated', onUpdated as EventListener);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('cart:updated', onUpdated as EventListener);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isHydrated, session, pathname]);
 
   // Don't render until hydrated to prevent locale context issues
   if (!isHydrated) {
@@ -117,12 +147,14 @@ export default function Navbar() {
             </div>
 
             {/* Cart */}
-            <Link href={`/${locale}/cart`} className="relative" aria-label={`${t('cart')} (0 items)`}>
+            <Link href={`/${locale}/cart`} className="relative" aria-label={`${t('cart')} (${cartCount} items)`}>
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="w-5 h-5" aria-hidden="true" />
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center" aria-label="0 items in cart">
-                  0
-                </span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center" aria-label={`${cartCount} items in cart`}>
+                    {cartCount}
+                  </span>
+                )}
               </Button>
             </Link>
 
