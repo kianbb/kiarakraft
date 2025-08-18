@@ -72,7 +72,7 @@ export const GET = withRateLimit(paymentRateLimit, async function(request: NextR
       authority: authority || payment.authority || undefined
     });
 
-    if (verifyResult.ok) {
+  if (verifyResult.ok) {
       // Payment successful - update records in transaction with proper locking
       try {
         await prisma.$transaction(async (tx) => {
@@ -215,22 +215,26 @@ export const GET = withRateLimit(paymentRateLimit, async function(request: NextR
       
       return NextResponse.redirect(new URL(`/order/success?orderId=${payment.orderId}`, request.url));
     } else {
-      // Payment failed
+      // Payment not verified
+      const isManual = verifyResult.reason === 'manual';
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          status: 'FAILED',
-          raw: { 
-            authority, 
-            status, 
-            reason: verifyResult.reason, 
-            failedAt: new Date()
+          status: isManual ? 'PENDING' : 'FAILED',
+          raw: {
+            authority,
+            status,
+            reason: verifyResult.reason,
+            updatedAt: new Date()
           }
         }
       });
 
-      console.warn(`Payment verification failed: ${payment.id}, reason: ${verifyResult.reason}`);
-      return NextResponse.redirect(new URL(`/order/failed?orderId=${payment.orderId}&reason=${verifyResult.reason || 'verification_failed'}`, request.url));
+      if (!isManual) {
+        console.warn(`Payment verification failed: ${payment.id}, reason: ${verifyResult.reason}`);
+      }
+      const reasonParam = isManual ? 'manual' : (verifyResult.reason || 'verification_failed');
+      return NextResponse.redirect(new URL(`/order/failed?orderId=${payment.orderId}&reason=${reasonParam}`, request.url));
     }
   } catch (error) {
     Sentry.captureException(error);

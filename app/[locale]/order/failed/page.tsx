@@ -65,13 +65,14 @@ function OrderFailedContent() {
                 </Button>
               </Link>
             )}
-            
-            <Link href="/checkout">
-              <Button variant="outline" size="lg" className="w-full">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {t('retryPayment')}
-              </Button>
-            </Link>
+            {reason !== 'manual' && (
+              <Link href="/checkout">
+                <Button variant="outline" size="lg" className="w-full">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {t('retryPayment')}
+                </Button>
+              </Link>
+            )}
             
             <Link href="/explore">
               <Button variant="ghost" size="lg" className="w-full">
