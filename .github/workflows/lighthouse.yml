@@ -1,0 +1,100 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [ main, chore/deps-2025-08-safe ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/test?sslmode=disable"
+          DIRECT_URL: "postgresql://user:pass@localhost:5432/test?sslmode=disable" 
+          NEXTAUTH_SECRET: "test-secret-key"
+          NEXTAUTH_URL: "http://localhost:3000"
+          
+      - name: Start application
+        run: npm start &
+        env:
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/test?sslmode=disable"
+          DIRECT_URL: "postgresql://user:pass@localhost:5432/test?sslmode=disable"
+          NEXTAUTH_SECRET: "test-secret-key"
+          NEXTAUTH_URL: "http://localhost:3000"
+          
+      - name: Wait for server
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 2; done'
+          
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: '.lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          
+      - name: Comment PR with Lighthouse results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Look for Lighthouse results
+            const resultsPath = '.lighthouseci';
+            if (fs.existsSync(resultsPath)) {
+              const results = fs.readdirSync(resultsPath)
+                .filter(f => f.endsWith('.json'))
+                .map(f => JSON.parse(fs.readFileSync(path.join(resultsPath, f))))
+                .filter(r => r.categories);
+                
+              if (results.length > 0) {
+                const result = results[0];
+                const scores = {
+                  performance: Math.round(result.categories.performance.score * 100),
+                  accessibility: Math.round(result.categories.accessibility.score * 100),
+                  'best-practices': Math.round(result.categories['best-practices'].score * 100),
+                  seo: Math.round(result.categories.seo.score * 100),
+                  pwa: result.categories.pwa ? Math.round(result.categories.pwa.score * 100) : 'N/A'
+                };
+                
+                const comment = `## 🚀 Lighthouse CI Results
+                
+| Category | Score |
+|----------|-------|
+| Performance | ${scores.performance}/100 |
+| Accessibility | ${scores.accessibility}/100 |
+| Best Practices | ${scores['best-practices']}/100 |
+| SEO | ${scores.seo}/100 |
+| PWA | ${scores.pwa}/100 |
+
+View full report in the [Lighthouse CI dashboard](${{ steps.lighthouse.outputs.links }}).`;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            }

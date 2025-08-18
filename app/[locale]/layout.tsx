@@ -3,6 +3,7 @@ import { Providers } from '@/components/providers/Providers';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { StructuredData } from '@/components/seo/StructuredData';
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { inter, vazirmatn } from '@/lib/fonts';
 import { Metadata } from 'next';
 
@@ -95,7 +96,7 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
       shortcut: '/favicon-16x16.png',
       apple: '/apple-touch-icon.png',
     },
-    manifest: '/manifest.json',
+    manifest: '/manifest.webmanifest',
   };
 }
 
@@ -197,6 +198,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       </head>
       <body className={fontClass}>
         <Providers messages={messages} locale={locale}>
+          <ServiceWorkerRegistration />
           <StructuredData data={organizationStructuredData} />
           <StructuredData data={websiteStructuredData} />
           <div className="min-h-screen bg-background">
