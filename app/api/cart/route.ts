@@ -31,12 +31,13 @@ export async function GET() {
       });
     }
 
-    const cartItems = await prisma.cartItem.findMany({
+  const cartItems = await prisma.cartItem.findMany({
       where: { cart: { userId: user.id } },
       include: {
         product: {
           include: {
-            seller: true
+      seller: true,
+      images: true
           }
         }
       }
@@ -115,13 +116,14 @@ export const POST = withCSRF(async function(request: NextRequest) {
 
     if (existingItem) {
       // Update quantity
-      const updatedItem = await prisma.cartItem.update({
+  const updatedItem = await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: existingItem.quantity + quantity },
         include: {
           product: {
             include: {
-              seller: true
+      seller: true,
+      images: true
             }
           }
         }
@@ -129,7 +131,7 @@ export const POST = withCSRF(async function(request: NextRequest) {
       return NextResponse.json(updatedItem);
     } else {
       // Create new cart item
-      const cartItem = await prisma.cartItem.create({
+  const cartItem = await prisma.cartItem.create({
         data: {
           cartId: cart.id,
           productId: productId,
@@ -138,7 +140,8 @@ export const POST = withCSRF(async function(request: NextRequest) {
         include: {
           product: {
             include: {
-              seller: true
+      seller: true,
+      images: true
             }
           }
         }

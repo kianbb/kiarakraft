@@ -53,13 +53,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Insufficient stock' }, { status: 400 });
     }
 
-    const updatedItem = await prisma.cartItem.update({
+  const updatedItem = await prisma.cartItem.update({
       where: { id: params.id },
       data: { quantity },
       include: {
         product: {
           include: {
-            seller: true
+      seller: true,
+      images: true
           }
         }
       }
