@@ -100,6 +100,14 @@ const nextConfig = {
     // Enforce TypeScript checks during builds to prevent runtime errors
     ignoreBuildErrors: false,
   },
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      // Silence known benign OTel/Sentry dynamic require warnings
+      /Critical dependency: the request of a dependency is an expression/,
+      /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
+    ];
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);
