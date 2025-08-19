@@ -106,12 +106,15 @@ export default function SellerOnboardingPage() {
 
     setLoading(true);
     try {
-      for (const file of Array.from(files)) {
+      const arr = Array.from(files);
+      const baseCount = uploadedDocs.length;
+      for (let i = 0; i < arr.length; i++) {
+        const file = arr[i];
         const formData = new FormData();
         formData.append('file', file);
         formData.append('type', 'verification');
 
-        const response = await fetch('/api/seller/documents/upload', {
+        const response = await fetch(`/api/seller/documents/upload?count=${baseCount + i}`, {
           method: 'POST',
           body: formData,
         });
@@ -121,7 +124,12 @@ export default function SellerOnboardingPage() {
           setUploadedDocs(prev => [...prev, result.url]);
           toast.success('Document uploaded successfully');
         } else {
-          toast.error('Failed to upload document');
+          let msg = 'Failed to upload document';
+          try {
+            const err = await response.json();
+            msg = err?.message || msg;
+          } catch {}
+          toast.error(msg);
         }
       }
     } catch (error) {
