@@ -3,9 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadImageToCloudinary, UPLOAD_FOLDER } from '@/lib/cloudinary';
+import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
 
-export const POST = withRateLimit(uploadRateLimit, async function(request: NextRequest) {
+export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -116,4 +117,4 @@ export const POST = withRateLimit(uploadRateLimit, async function(request: NextR
       { status: 500 }
     );
   }
-});
+}));
