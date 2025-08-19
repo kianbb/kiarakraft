@@ -134,7 +134,12 @@ export default function CheckoutPage() {
             setPreflightIssues(error.details);
           }
           alert(t('paymentPreflightIssues'));
-          // Stay on checkout to let user adjust quantities
+          // If server canceled the order and restored the cart, send user to cart to fix
+          if (error?.orderCanceled && error?.cartRestored) {
+            router.push('/cart');
+            return;
+          }
+          // Otherwise stay on checkout to let user adjust quantities
           return;
         } else {
           const error = await paymentResponse.json();
