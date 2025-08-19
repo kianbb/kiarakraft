@@ -3,7 +3,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { uploadImageToCloudinary, validateImageFile, UPLOAD_FOLDER } from '@/lib/cloudinary';
+import { uploadImageToCloudinary, validateImageFile, UPLOAD_FOLDER, deleteImageFromCloudinary } from '@/lib/cloudinary';
 import { revalidateTag } from 'next/cache';
 
 export async function uploadProductImage(formData: FormData) {
@@ -131,19 +131,17 @@ export async function deleteProductImage(imageId: string, productId: string) {
       return { success: false, error: 'Image not found or access denied' };
     }
 
-    // Delete from database
-    await prisma.listingImage.delete({
-      where: { id: imageId }
-    });
+  // Delete from database
+  await prisma.listingImage.delete({ where: { id: imageId } });
 
-    // TODO: Delete from Cloudinary (optional, as we have auto-cleanup)
-    // Note: You might want to implement this for storage optimization
+  // Best-effort delete from Cloudinary
+  const cloudDeleted = await deleteImageFromCloudinary(image.url);
 
     // Revalidate cache
     revalidateTag(`product-${productId}`);
     revalidateTag('products');
 
-    return { success: true };
+  return { success: true, cloudDeleted };
   } catch (error) {
     console.error('Error deleting product image:', error);
     return { 
@@ -206,5 +204,37 @@ export async function reorderProductImages(productId: string, imageIds: string[]
       success: false, 
       error: error instanceof Error ? error.message : 'Reorder failed' 
     };
+  }
+}
+
+export async function updateProductImageAlt(imageId: string, productId: string, alt: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) return { success: false, error: 'Unauthorized' };
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email }, include: { sellerProfile: true } });
+    if (!user || user.role !== 'SELLER' || !user.sellerProfile) return { success: false, error: 'Seller profile required' };
+
+    // Basic validation
+    const trimmed = (alt || '').trim();
+    if (trimmed.length > 200) return { success: false, error: 'Alt text too long (max 200 chars)' };
+
+    // Ownership + existence
+    const img = await prisma.listingImage.findFirst({
+      where: {
+        id: imageId,
+        productId,
+        product: { sellerId: user.sellerProfile.id }
+      }
+    });
+    if (!img) return { success: false, error: 'Image not found or access denied' };
+
+    await prisma.listingImage.update({ where: { id: imageId }, data: { alt: trimmed || null } });
+    revalidateTag(`product-${productId}`);
+    revalidateTag('products');
+    return { success: true, alt: trimmed };
+  } catch (error) {
+    console.error('Error updating image alt:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Update failed' };
   }
 }

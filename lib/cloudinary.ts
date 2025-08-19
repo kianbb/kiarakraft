@@ -77,3 +77,46 @@ export async function uploadImageToCloudinary(
     ).end(buffer);
   });
 }
+
+// Try to derive Cloudinary public_id from a secure_url. This handles optional version segments.
+export function extractPublicIdFromUrl(url: string): string | null {
+  try {
+    // Example: https://res.cloudinary.com/<cloud>/image/upload/v1699999999/kiarakraft/products/123/abcde123.webp
+    const uploadIdx = url.indexOf('/upload/');
+    if (uploadIdx === -1) return null;
+    let path = url.substring(uploadIdx + '/upload/'.length);
+    // Remove query string if any
+    const qIdx = path.indexOf('?');
+    if (qIdx !== -1) path = path.substring(0, qIdx);
+    // Strip transformation segments if present (they appear before version or public id and contain commas and/or slashes without file extension)
+    // Cloudinary transformation strings don't start with 'v' followed by digits. If path starts with 'v1234/' that's version, keep going.
+    // If path starts with something like 'c_fill,w_800/...', drop until next '/'
+    if (/^[a-z_][^/]*\//.test(path) && !/^v\d+\//.test(path)) {
+      path = path.substring(path.indexOf('/') + 1);
+    }
+    // Remove version if present
+    if (/^v\d+\//.test(path)) {
+      path = path.replace(/^v\d+\//, '');
+    }
+    // Remove file extension
+    const lastDot = path.lastIndexOf('.');
+    if (lastDot > -1) path = path.substring(0, lastDot);
+    return path;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteImageFromCloudinary(publicIdOrUrl: string): Promise<boolean> {
+  try {
+    const publicId = publicIdOrUrl.includes('/upload/')
+      ? extractPublicIdFromUrl(publicIdOrUrl) ?? ''
+      : publicIdOrUrl;
+    if (!publicId) return false;
+    const res = await cloudinary.uploader.destroy(publicId, { invalidate: true });
+    return res?.result === 'ok' || res?.result === 'not found';
+  } catch (e) {
+    console.error('Cloudinary destroy error:', e);
+    return false;
+  }
+}

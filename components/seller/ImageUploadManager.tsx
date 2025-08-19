@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { uploadProductImage, deleteProductImage, reorderProductImages } from '@/lib/actions/upload';
+import { uploadProductImage, deleteProductImage, reorderProductImages, updateProductImageAlt } from '@/lib/actions/upload';
 import { Upload, X, GripVertical, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
@@ -32,6 +32,8 @@ export default function ImageUploadManager({
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<number>(0);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [editingAltId, setEditingAltId] = useState<string | null>(null);
+  const [altDraft, setAltDraft] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateImages = (newImages: ImageData[]) => {
@@ -156,6 +158,25 @@ export default function ImageUploadManager({
     setDraggedIndex(null);
   };
 
+  const startEditAlt = (img: ImageData) => {
+    setEditingAltId(img.id);
+    setAltDraft(img.alt ?? '');
+  };
+
+  const saveAlt = async () => {
+    if (!editingAltId) return;
+    const result = await updateProductImageAlt(editingAltId, productId, altDraft.trim());
+    if (result.success) {
+      const newImages = images.map(img => img.id === editingAltId ? { ...img, alt: result.alt ?? '' } : img);
+      updateImages(newImages);
+      toast.success('Alt text updated');
+      setEditingAltId(null);
+      setAltDraft('');
+    } else {
+      toast.error(result.error || 'Failed to update alt');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -276,6 +297,33 @@ export default function ImageUploadManager({
                     Primary
                   </div>
                 )}
+
+                {/* Alt editor overlay */}
+                <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform">
+                  <div className="bg-black/60 p-2 flex gap-2 items-center">
+                    {editingAltId === image.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={altDraft}
+                          onChange={(e) => setAltDraft(e.target.value)}
+                          placeholder="Alt text (max 200 chars)"
+                          maxLength={200}
+                          className="flex-1 text-xs px-2 py-1 rounded bg-white text-black"
+                        />
+                        <Button size="sm" variant="secondary" onClick={saveAlt}>Save</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingAltId(null); setAltDraft(''); }}>Cancel</Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 text-xs text-white truncate" title={image.alt || ''}>
+                          {image.alt || 'No alt text'}
+                        </div>
+                        <Button size="sm" variant="secondary" onClick={() => startEditAlt(image)}>Edit alt</Button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
         </div>
