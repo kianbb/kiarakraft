@@ -6,6 +6,7 @@ import { StructuredData } from '@/components/seo/StructuredData';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/react';
 import { inter, vazirmatn } from '@/lib/fonts';
 import { Metadata } from 'next';
 
@@ -217,6 +218,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <Providers messages={messages} locale={locale}>
           <ServiceWorkerRegistration />
           <SpeedInsights />
+          <Analytics />
           <StructuredData data={organizationStructuredData} />
           <StructuredData data={websiteStructuredData} />
           <div className="min-h-screen bg-background">
