@@ -14,33 +14,75 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/android-chrome-192x192.png',
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'maskable',
       },
       {
         src: '/android-chrome-512x512.png',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'maskable',
       },
       {
         src: '/apple-touch-icon.png',
         sizes: '180x180',
         type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/favicon.ico',
+        sizes: '16x16 32x32 48x48',
+        type: 'image/x-icon',
+        purpose: 'any',
       },
     ],
     lang: 'fa',
     dir: 'rtl',
     orientation: 'portrait',
     categories: ['shopping', 'lifestyle', 'business'],
-    screenshots: [
+    shortcuts: [
       {
-        src: '/screenshot-wide.png',
-        type: 'image/png',
-        sizes: '1280x720',
+        name: 'جستجو محصولات',
+        short_name: 'جستجو',
+        description: 'Search for handcrafted products',
+        url: '/fa/explore',
+        icons: [
+          {
+            src: '/android-chrome-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          }
+        ]
       },
       {
-        src: '/screenshot-narrow.png',
-        type: 'image/png',
-        sizes: '750x1334',
-      },
+        name: 'سبد خرید',
+        short_name: 'سبد',
+        description: 'View your shopping cart',
+        url: '/fa/cart',
+        icons: [
+          {
+            src: '/android-chrome-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          }
+        ]
+      }
     ],
+    // Screenshots will be added in the future for better PWA discovery
+    // screenshots: [
+    //   {
+    //     src: '/screenshot-wide.png',
+    //     type: 'image/png',
+    //     sizes: '1280x720',
+    //     form_factor: 'wide',
+    //     label: 'Kiara Kraft homepage showcasing handcrafted products'
+    //   },
+    //   {
+    //     src: '/screenshot-narrow.png', 
+    //     type: 'image/png',
+    //     sizes: '750x1334',
+    //     form_factor: 'narrow',
+    //     label: 'Browse products on mobile'
+    //   },
+    // ],
   }
 }
