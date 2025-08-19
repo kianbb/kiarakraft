@@ -21,6 +21,7 @@
     "verify:i18n:quick": "node scripts/quick-i18n-check.js",
     "translate:backfill": "tsx scripts/backfill-translations.ts",
     "eligibility:backfill": "tsx scripts/backfill-eligibility.ts",
+    "search:smoke": "tsx scripts/search-smoke.ts",
     "prisma:baseline:clear": "tsx scripts/prisma-reset-migrations-table.ts",
     "prisma:baseline:resolve": "prisma migrate resolve --applied 202508191343_init",
     "prisma:baseline:status": "prisma migrate status && prisma migrate deploy"
