@@ -126,7 +126,34 @@ export default function AdminPaymentsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const handleOrderAction = async (orderId: string, action: 'mark_shipped' | 'mark_delivered' | 'cancel') => {
+    if (action === 'cancel') {
+      const confirmCancel = confirm(t('confirmCancelOrder'));
+      if (!confirmCancel) return;
+    }
+    try {
+      setUpdating(orderId);
+      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      if (!res.ok) {
+        type ErrShape = { error?: string } | undefined;
+        const e: ErrShape = await res.json().catch(() => undefined);
+        alert(e?.error || t('updateFailed'));
+        return;
+      }
+      fetchPayments();
+    } catch (err) {
+      console.error('Order status update failed', err);
+      alert(t('updateFailed'));
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'PAID':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Paid</Badge>;
@@ -201,8 +228,9 @@ export default function AdminPaymentsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold">Order #{payment.order.id}</h3>
-                    {getStatusBadge(payment.status)}
+                    {getPaymentStatusBadge(payment.status)}
                     {getGatewayBadge(payment.gateway)}
+                    <Badge variant="outline">{t('orderStatus')}: {payment.order.status}</Badge>
                   </div>
                   
                   <div className="text-sm text-muted-foreground">
@@ -223,7 +251,7 @@ export default function AdminPaymentsPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -232,7 +260,7 @@ export default function AdminPaymentsPage() {
                     <Eye className="h-4 w-4 mr-1" />
                     {t('viewOrder')}
                   </Button>
-                  
+
                   {payment.gateway === 'OFFLINE' && payment.status !== 'PAID' && (
                     <Button
                       size="sm"
@@ -240,6 +268,47 @@ export default function AdminPaymentsPage() {
                       disabled={updating === payment.id}
                     >
                       {updating === payment.id ? t('updating') : t('markAsPaid')}
+                    </Button>
+                  )}
+
+                  {payment.order.status === 'PENDING' && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleOrderAction(payment.order.id, 'cancel')}
+                      disabled={updating === payment.order.id}
+                    >
+                      {t('cancelOrder')}
+                    </Button>
+                  )}
+
+                  {payment.order.status === 'PAID' && (
+                    <>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleOrderAction(payment.order.id, 'cancel')}
+                        disabled={updating === payment.order.id}
+                      >
+                        {t('cancelOrder')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOrderAction(payment.order.id, 'mark_shipped')}
+                        disabled={updating === payment.order.id}
+                      >
+                        {t('markShipped')}
+                      </Button>
+                    </>
+                  )}
+
+                  {payment.order.status === 'SHIPPED' && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleOrderAction(payment.order.id, 'mark_delivered')}
+                      disabled={updating === payment.order.id}
+                    >
+                      {t('markDelivered')}
                     </Button>
                   )}
                 </div>
