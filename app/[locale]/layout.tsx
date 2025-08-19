@@ -4,6 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { StructuredData } from '@/components/seo/StructuredData';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { inter, vazirmatn } from '@/lib/fonts';
 import { Metadata } from 'next';
@@ -225,6 +226,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       {/* Pass server locale and pre-rendered footer/category strings so Footer
         can render localized text during SSR without showing translation keys. */}
       <Footer serverLocale={locale} serverFooter={serverFooter} serverCategories={serverCategories} />
+          <PWAInstallPrompt />
           </div>
         </Providers>
       </body>
