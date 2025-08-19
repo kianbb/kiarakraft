@@ -29,6 +29,8 @@ export default function ImageUploadManager({
 }: ImageUploadManagerProps) {
   const [images, setImages] = useState<ImageData[]>(initialImages);
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [progress, setProgress] = useState<number>(0);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,41 +39,62 @@ export default function ImageUploadManager({
     onImagesChange?.(newImages);
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  const validateClientFile = (file: File): string | null => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const max = 5 * 1024 * 1024; // 5MB
+    if (!allowed.includes(file.type)) return 'Invalid file type. Only JPEG, PNG, and WebP are allowed.';
+    if (file.size > max) return 'File size too large. Maximum 5MB allowed.';
+    return null;
+  };
 
-    if (images.length + files.length > maxImages) {
+  const uploadFiles = async (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+
+    if (images.length + list.length > maxImages) {
       toast.error(`Maximum ${maxImages} images allowed`);
       return;
     }
 
     setUploading(true);
-
+    setProgress(0);
     try {
-      for (const file of Array.from(files)) {
+      for (let i = 0; i < list.length; i++) {
+        const file = list[i];
+        const err = validateClientFile(file);
+        if (err) {
+          toast.error(err);
+          continue;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('productId', productId);
 
         const result = await uploadProductImage(formData);
-        
         if (result.success && result.image) {
           updateImages([...images, result.image]);
-          toast.success('Image uploaded successfully');
         } else {
           toast.error(result.error || 'Upload failed');
         }
+
+        setProgress(Math.round(((i + 1) / list.length) * 100));
       }
+      if (list.length > 0) toast.success('Upload complete');
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Upload failed');
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setTimeout(() => setProgress(0), 400);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    await uploadFiles(files);
   };
 
   const handleDelete = async (imageId: string) => {
@@ -144,7 +167,22 @@ export default function ImageUploadManager({
 
       {/* Upload Area */}
       {images.length < maxImages && (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+        <div
+          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+            isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
+          }`}
+          onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            if (uploading) return;
+            const dtFiles = e.dataTransfer?.files;
+            if (dtFiles && dtFiles.length) uploadFiles(dtFiles);
+          }}
+          aria-label="Upload product images"
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -172,8 +210,21 @@ export default function ImageUploadManager({
                 {uploading ? 'Uploading...' : 'Choose Images'}
               </Button>
               <p className="text-sm text-muted-foreground mt-2">
-                JPEG, PNG, WebP up to 5MB each
+                Drag & drop or click to upload. JPEG, PNG, WebP up to 5MB each
               </p>
+
+              {uploading && (
+                <div className="mt-3 h-2 w-56 bg-gray-200 rounded">
+                  <div
+                    className="h-2 bg-primary rounded"
+                    style={{ width: `${progress}%` }}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progress}
+                    role="progressbar"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
