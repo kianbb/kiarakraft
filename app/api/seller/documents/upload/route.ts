@@ -28,22 +28,27 @@ export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(reque
     const type = formData.get('type') as string;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'No file provided' }, { status: 400 });
     }
 
     // Validate file type and size
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Only JPEG, PNG, and PDF files are allowed.' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Invalid file type. Only JPEG, PNG, and PDF files are allowed.' }, { status: 400 });
     }
 
     const maxSize = 10 * 1024 * 1024; // 10MB for documents
     if (file.size > maxSize) {
-      return NextResponse.json({ 
-        error: 'File too large. Maximum 10MB allowed.' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'File too large. Maximum 10MB allowed.' }, { status: 400 });
+    }
+
+    // Enforce a maximum number of documents per seller (e.g., 5)
+  const folderPath = `${UPLOAD_FOLDER}/sellers/${user.sellerProfile.id}/documents`;
+    // We don’t list files from Cloudinary; we approximate with count tracked in notes or let client limit uploads.
+    // As a simple server-side cap, reject if client already reports >=5 in querystring (?count=)
+    const clientCount = Number((new URL(request.url)).searchParams.get('count') || '0');
+    if (!Number.isNaN(clientCount) && clientCount >= 5) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Maximum 5 documents allowed' }, { status: 400 });
     }
 
     // Convert file to buffer
@@ -51,7 +56,6 @@ export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(reque
     const buffer = Buffer.from(bytes);
 
     // Create secure folder path
-    const folderPath = `${UPLOAD_FOLDER}/sellers/${user.sellerProfile.id}/documents`;
     const fileName = `${type || 'document'}-${Date.now()}`;
 
     // Upload to Cloudinary

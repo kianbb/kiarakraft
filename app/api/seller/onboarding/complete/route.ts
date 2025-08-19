@@ -23,7 +23,7 @@ export const POST = withRateLimit(authRateLimit, withCSRF(async function(request
       return NextResponse.json({ error: 'Seller profile required' }, { status: 403 });
     }
 
-    const body = await request.json();
+  const body = await request.json();
     const {
       shopName,
       displayName,
@@ -39,9 +39,33 @@ export const POST = withRateLimit(authRateLimit, withCSRF(async function(request
 
     // Validate required fields
     if (!shopName || !displayName || !bio || !phone || !province || !city || !address || !nationalId) {
-      return NextResponse.json({ 
-        error: 'All required fields must be provided' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'All required fields must be provided' }, { status: 400 });
+    }
+
+    // uploadedDocs: optional but if present must be an array of Cloudinary URLs within the seller docs folder and <= 5 items
+    const docs: unknown = uploadedDocs;
+    if (docs !== undefined) {
+      if (!Array.isArray(docs)) {
+        return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'uploadedDocs must be an array' }, { status: 400 });
+      }
+      if (docs.length > 5) {
+        return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'A maximum of 5 documents is allowed' }, { status: 400 });
+      }
+      const expectedPathPart = `/sellers/${user.sellerProfile.id}/documents`;
+      const invalid = docs.find((u) => {
+        if (typeof u !== 'string') return true;
+        try {
+          const url = new URL(u);
+          if (!url.hostname.includes('res.cloudinary.com')) return true;
+          // ensure folder path appears in pathname
+          return !url.pathname.includes(expectedPathPart);
+        } catch {
+          return true;
+        }
+      });
+      if (invalid) {
+        return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'uploadedDocs must be Cloudinary URLs within your documents folder' }, { status: 400 });
+      }
     }
 
     // Create secure hash of national ID (never store raw ID)
@@ -69,7 +93,7 @@ export const POST = withRateLimit(authRateLimit, withCSRF(async function(request
     });
 
     // Log the onboarding completion for admin review
-    console.log(`Seller onboarding completed: ${user.email} (${updatedProfile.shopName})`);
+  console.log(`Seller onboarding completed: ${user.email} (${updatedProfile.shopName})`);
 
     return NextResponse.json({
       success: true,
