@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withCSRF } from '@/lib/csrf';
+import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
 import { nextStatusForSeller, type OrderStatus, type SellerAction } from '@/lib/orderStatus';
 
 // Allowed transitions for sellers (whole-order level only when the order is single-seller)
 // - PAID -> SHIPPED
 // - SHIPPED -> DELIVERED
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withRateLimit(sellerRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -70,4 +72,4 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       { status: 500 }
     );
   }
-}
+}));

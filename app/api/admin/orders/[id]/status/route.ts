@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withCSRF } from '@/lib/csrf';
+import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import { nextStatusForAdmin, type OrderStatus, type AdminAction } from '@/lib/orderStatus';
 
 // Admin can set status to SHIPPED, DELIVERED, or CANCELED, with guards
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withRateLimit(adminRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email || session.user.role !== 'ADMIN') {
@@ -36,4 +38,4 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     console.error('Error updating order status (admin):', error);
     return NextResponse.json({ error: 'Failed to update order status' }, { status: 500 });
   }
-}
+}));

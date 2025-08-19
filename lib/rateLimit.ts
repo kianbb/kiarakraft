@@ -100,11 +100,11 @@ export const uploadRateLimit = createRateLimiter({
 /**
  * Middleware helper to add rate limiting to API routes
  */
-export function withRateLimit(
+export function withRateLimit<T extends unknown[]>(
   rateLimiter: ReturnType<typeof createRateLimiter>,
-  handler: (request: NextRequest) => Promise<Response>
+  handler: (request: NextRequest, ...rest: T) => Promise<Response>
 ) {
-  return async (request: NextRequest): Promise<Response> => {
+  return async (request: NextRequest, ...rest: T): Promise<Response> => {
     const { allowed, remainingRequests, resetTime } = rateLimiter(request);
     
     if (!allowed) {
@@ -129,7 +129,7 @@ export function withRateLimit(
       );
     }
     
-    const response = await handler(request);
+  const response = await handler(request, ...rest);
     
     // Add rate limit headers to successful responses
     response.headers.set('X-RateLimit-Remaining', remainingRequests.toString());
@@ -138,3 +138,8 @@ export function withRateLimit(
     return response;
   };
 }
+
+export const sellerRateLimit = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 20 // 20 seller actions per minute
+});

@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import { withCSRF } from '@/lib/csrf';
 
-export const POST = withRateLimit(orderRateLimit, async function(request: NextRequest) {
+export const POST = withRateLimit(orderRateLimit, withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -143,4 +144,4 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
       { status: 500 }
     );
   }
-});
+}));

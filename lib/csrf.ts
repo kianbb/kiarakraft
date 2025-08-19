@@ -44,8 +44,8 @@ export function validateCSRF(request: NextRequest): boolean {
 /**
  * Middleware helper to add CSRF validation to API routes
  */
-export function withCSRF(handler: (request: NextRequest) => Promise<Response>) {
-  return async (request: NextRequest): Promise<Response> => {
+export function withCSRF<T extends unknown[]>(handler: (request: NextRequest, ...rest: T) => Promise<Response>) {
+  return async (request: NextRequest, ...rest: T): Promise<Response> => {
     if (!validateCSRF(request)) {
       return new Response(
         JSON.stringify({ error: 'CSRF validation failed' }),
@@ -56,6 +56,6 @@ export function withCSRF(handler: (request: NextRequest) => Promise<Response>) {
       );
     }
     
-    return handler(request);
+    return handler(request, ...rest);
   };
 }
