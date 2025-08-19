@@ -6,6 +6,7 @@ import { adapter } from '@/lib/payments';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import { collectPreflightIssues } from '@/lib/orderPreflight';
+import { cancelOrderAndRestoreCart } from '@/lib/paymentsPreflight';
 import { parseOrderId } from '@/lib/validation';
 
 export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(request: NextRequest) {
@@ -56,36 +57,20 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
 
     if (insufficient.length > 0) {
       // If preflight fails, auto-cancel the pending order and restore the user's cart
-      await prisma.$transaction(async (tx) => {
-        // Cancel order if still pending
-        await tx.order.update({
-          where: { id: orderId },
-          data: { status: 'CANCELED' }
-        });
-
-        // Ensure cart exists
-        const cart = await tx.cart.upsert({
-          where: { userId: user.id },
-          create: { userId: user.id },
-          update: {}
-        });
-
-        // Repopulate cart items from the order items so user can adjust
-        for (const it of items) {
-          await tx.cartItem.upsert({
-            where: { cartId_productId: { cartId: cart.id, productId: it.productId } },
-            update: { quantity: it.quantity },
-            create: { cartId: cart.id, productId: it.productId, quantity: it.quantity }
-          });
-        }
-      });
+      const flags = await prisma.$transaction(async (tx) =>
+        cancelOrderAndRestoreCart(
+          tx as unknown as import('@/lib/paymentsPreflight').MinimalTx,
+          user.id,
+          orderId,
+          items.map((it) => ({ productId: it.productId, quantity: it.quantity }))
+        )
+      );
 
       return NextResponse.json(
         {
           error: 'insufficient_stock',
           details: insufficient,
-          orderCanceled: true,
-          cartRestored: true
+          ...flags
         },
         { status: 409 }
       );
