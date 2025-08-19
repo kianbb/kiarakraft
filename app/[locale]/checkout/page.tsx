@@ -107,6 +107,12 @@ export default function CheckoutPage() {
       });
 
       if (!orderResponse.ok) {
+        if (orderResponse.status === 409) {
+          const err = await orderResponse.json();
+          if (Array.isArray(err?.details)) setPreflightIssues(err.details);
+          alert(t('paymentPreflightIssues'));
+          return;
+        }
         alert(t('orderFailed'));
         return;
       }

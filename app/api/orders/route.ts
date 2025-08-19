@@ -54,18 +54,35 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
 
     const cartItems = cart.items;
 
-    // Critical: Validate stock availability before processing
+    // Preflight: collect any issues (inactive or insufficient stock)
+    const preflightIssues: Array<{ productId: string; title: string; requested: number; available: number; reason: 'inactive' | 'insufficient_stock' }> = [];
     for (const item of cartItems) {
-      if (item.product.stock < item.quantity) {
-        return NextResponse.json({ 
-          error: `Insufficient stock for ${item.product.title}. Available: ${item.product.stock}, Requested: ${item.quantity}` 
-        }, { status: 400 });
+      const available = item.product.stock ?? 0;
+      const isActive = item.product.active;
+      if (!isActive) {
+        preflightIssues.push({
+          productId: item.productId,
+          title: item.product.title,
+          requested: item.quantity,
+          available,
+          reason: 'inactive'
+        });
+      } else if (available < item.quantity) {
+        preflightIssues.push({
+          productId: item.productId,
+          title: item.product.title,
+          requested: item.quantity,
+          available,
+          reason: 'insufficient_stock'
+        });
       }
-      if (!item.product.active) {
-        return NextResponse.json({ 
-          error: `Product ${item.product.title} is no longer available` 
-        }, { status: 400 });
-      }
+    }
+
+    if (preflightIssues.length > 0) {
+      return NextResponse.json(
+        { error: 'insufficient_stock', details: preflightIssues },
+        { status: 409 }
+      );
     }
 
     // Calculate totals using correct price field
