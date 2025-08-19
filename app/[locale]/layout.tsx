@@ -188,6 +188,15 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         
+        {/* Plausible Analytics (respects DNT by default). Configure NEXT_PUBLIC_PLAUSIBLE_DOMAIN in env to enable. */}
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
+          <script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src="https://plausible.io/js/script.js"
+          />
+        ) : null}
+        
         
         {/* Preload LCP image for hero section */}
         <link 
