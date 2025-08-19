@@ -25,25 +25,22 @@ jobs:
       - name: Cache npm dependencies
         uses: actions/cache@v3
         with:
-          path: kiarakraft/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('kiarakraft/package-lock.json') }}
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
-        working-directory: kiarakraft
 
       - name: Generate Prisma Client
         run: npx prisma generate
-        working-directory: kiarakraft
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
       - name: Build application
         run: npm run build
-        working-directory: kiarakraft
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
@@ -52,7 +49,6 @@ jobs:
 
       - name: Run Lighthouse CI
         run: npx @lhci/cli autorun
-        working-directory: kiarakraft
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
