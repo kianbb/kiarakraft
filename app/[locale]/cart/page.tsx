@@ -160,7 +160,7 @@ export default function CartPage() {
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
                     <Image
                       src={item.product.images?.[0]?.url || '/placeholder.jpg'}
-                      alt={item.product.title}
+                      alt={item.product.images?.[0]?.alt || item.product.title}
                       fill
                       className="object-cover"
                     />

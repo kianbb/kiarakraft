@@ -148,7 +148,7 @@ export default function OrderConfirmationPage() {
                   <div className="relative w-16 h-16 rounded overflow-hidden bg-gray-100">
                     <Image
                       src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
-                      alt={item.product.title}
+                      alt={item.product.images?.[0]?.alt || item.product.title}
                       fill
                       className="object-cover"
                     />
