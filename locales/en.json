@@ -107,7 +107,13 @@
     "emptyCart": "Cart is Empty",
     "emptyCartDescription": "Add some products to your cart to continue",
     "startShopping": "Start Shopping",
-    "orderFailed": "Failed to place order"
+  "orderFailed": "Failed to place order",
+  "paymentPreflightIssues": "Some items can't be purchased right now",
+  "paymentPreflightDescription": "One or more items in your order are inactive or don't have enough stock.",
+  "inactiveProduct": "This product is currently inactive/unavailable",
+  "insufficientStockDetail": "Only {available} available (you requested {requested})",
+  "adjustCart": "Please adjust your cart or quantities and try again.",
+  "goToCart": "Go to Cart"
   },
   "order": {
     "success": "Order Placed Successfully!",

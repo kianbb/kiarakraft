@@ -37,6 +37,45 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
       return NextResponse.json({ error: 'Order not found or not pending' }, { status: 404 });
     }
 
+    // Preflight: re-check stock and product activity before initiating payment
+    const items = await prisma.orderItem.findMany({
+      where: { orderId },
+      include: { product: { select: { id: true, title: true, stock: true, active: true } } }
+    });
+
+    const insufficient: Array<{ productId: string; title: string; requested: number; available: number; reason: string }> = [];
+    for (const it of items) {
+      const available = it.product?.stock ?? 0;
+      const isActive = it.product?.active ?? false;
+      if (!isActive) {
+        insufficient.push({
+          productId: it.productId,
+          title: it.product?.title || 'Unknown',
+          requested: it.quantity,
+          available,
+          reason: 'inactive'
+        });
+      } else if (available < it.quantity) {
+        insufficient.push({
+          productId: it.productId,
+          title: it.product?.title || 'Unknown',
+          requested: it.quantity,
+          available,
+          reason: 'insufficient_stock'
+        });
+      }
+    }
+
+    if (insufficient.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'insufficient_stock',
+          details: insufficient
+        },
+        { status: 409 }
+      );
+    }
+
     // Check if payment already exists
     const existingPayment = await prisma.payment.findUnique({
       where: { orderId }

@@ -107,7 +107,13 @@
     "emptyCart": "سبد خرید خالی است",
     "emptyCartDescription": "برای ادامه خرید، محصولاتی به سبد خرید اضافه کنید",
     "startShopping": "شروع خرید",
-    "orderFailed": "خطا در ثبت سفارش"
+  "orderFailed": "خطا در ثبت سفارش",
+  "paymentPreflightIssues": "برخی اقلام در حال حاضر قابل خرید نیستند",
+  "paymentPreflightDescription": "یک یا چند قلم از سفارش شما غیرفعال هستند یا موجودی کافی ندارند.",
+  "inactiveProduct": "این محصول در حال حاضر غیرفعال/ناموجود است",
+  "insufficientStockDetail": "فقط {available} عدد موجود است (شما {requested} عدد درخواست کرده‌اید)",
+  "adjustCart": "لطفاً سبد خرید یا تعداد اقلام را اصلاح کرده و دوباره تلاش کنید.",
+  "goToCart": "رفتن به سبد خرید"
   },
   "order": {
     "success": "سفارش با موفقیت ثبت شد!",

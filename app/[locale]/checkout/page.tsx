@@ -39,6 +39,9 @@ export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [preflightIssues, setPreflightIssues] = useState<
+    Array<{ productId: string; title?: string; requested: number; available: number; reason: 'inactive' | 'insufficient_stock' }>
+  >([]);
 
   const {
     register,
@@ -91,6 +94,7 @@ export default function CheckoutPage() {
 
   const onSubmit = async (data: CheckoutForm) => {
     setPlacing(true);
+  setPreflightIssues([]);
     try {
       // Create order first
       const orderResponse = await fetch('/api/orders', {
@@ -123,10 +127,21 @@ export default function CheckoutPage() {
         // Redirect to payment gateway or confirmation page
         window.location.href = redirectUrl;
       } else {
-        const error = await paymentResponse.json();
-        alert(error.error || t('paymentFailed'));
-        // Fallback to order page if payment creation fails
-        router.push(`/order/${order.id}`);
+        if (paymentResponse.status === 409) {
+          // Stock or activity preflight failed
+          const error = await paymentResponse.json();
+          if (Array.isArray(error?.details)) {
+            setPreflightIssues(error.details);
+          }
+          alert(t('paymentPreflightIssues'));
+          // Stay on checkout to let user adjust quantities
+          return;
+        } else {
+          const error = await paymentResponse.json();
+          alert(error.error || t('paymentFailed'));
+          // Fallback to order page if payment creation fails otherwise
+          router.push(`/order/${order.id}`);
+        }
       }
     } catch (error) {
       console.error('Error placing order:', error);
@@ -179,6 +194,29 @@ export default function CheckoutPage() {
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
+
+        {preflightIssues.length > 0 && (
+          <div className="mb-8 rounded-md border border-red-300 bg-red-50 p-4 text-red-900">
+            <p className="font-semibold mb-2">{t('paymentPreflightIssues')}</p>
+            <p className="text-sm mb-3 text-red-800">{t('paymentPreflightDescription')}</p>
+            <ul className="list-disc pl-6 space-y-1 text-sm">
+              {preflightIssues.map((iss, idx) => (
+                <li key={idx}>
+                  <span className="font-medium">{iss.title || 'Item'}</span>: {' '}
+                  {iss.reason === 'inactive'
+                    ? t('inactiveProduct')
+                    : t('insufficientStockDetail', { available: iss.available, requested: iss.requested })}
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm mt-3">{t('adjustCart')}</p>
+            <div className="mt-3">
+              <Link href="/cart">
+                <Button variant="destructive" size="sm">{t('goToCart')}</Button>
+              </Link>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
