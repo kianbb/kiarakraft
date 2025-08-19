@@ -58,7 +58,8 @@ export async function PUT(
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
+      include: { sellerProfile: true }
     });
 
     if (!user) {
@@ -85,13 +86,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    const updatedProduct = await prisma.product.update({
+  // Prevent unverified sellers from self-activating products
+  const nextActive = typeof data.active === 'boolean' ? data.active : undefined;
+  const allowActive = user.sellerProfile?.verified ? nextActive : undefined;
+
+  const updatedProduct = await prisma.product.update({
       where: { id: params.id },
       data: {
         title: data.title,
         description: data.description,
         priceToman: data.priceToman,
-        stock: data.stock
+    stock: data.stock,
+    ...(allowActive !== undefined ? { active: allowActive } : {})
       }
     });
 

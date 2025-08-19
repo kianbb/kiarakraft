@@ -17,17 +17,24 @@ export const GET = withRateLimit(orderRateLimit, async function(request: NextReq
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
+      include: { sellerProfile: true }
     });
 
-    if (!user) {
+    if (!user || !user.sellerProfile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    // Optionally gate: allow viewing their products regardless, but note verification
+    // If stricter policy desired, uncomment next block to require verification for listing
+    // if (!user.sellerProfile.verified) {
+    //   return NextResponse.json({ error: 'Seller verification required' }, { status: 403 });
+    // }
 
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
 
-  const products = await prisma.product.findMany({
+    const products = await prisma.product.findMany({
       where: { sellerId: user.id },
       orderBy: { createdAt: 'desc' },
       take: limit
@@ -53,10 +60,11 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
+      include: { sellerProfile: true }
     });
 
-    if (!user) {
+    if (!user || !user.sellerProfile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -78,6 +86,8 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
       categoryId = cat?.id;
     }
 
+  const isVerified = !!user.sellerProfile.verified;
+
   const product = await prisma.product.create({
       data: {
         title: data.name,
@@ -86,8 +96,9 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
         stock: data.stock,
         slug: data.slug || generateSlug(data.name),
         categoryId,
-        sellerId: user.id,
-    active: true
+    sellerId: user.id,
+    // Trust & Safety: Unverified sellers' products are created inactive
+    active: isVerified
       }
     });
 
