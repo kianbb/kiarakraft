@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -34,24 +34,9 @@ export default function SellerDashboard() {
   const [recentOrders, setRecentOrders] = useState<OrderWithItems[]>([]);
   const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVerified, setIsVerified] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
-      router.push(`/${locale}/auth/login`);
-      return;
-    }
-
-    if (session.user?.role !== 'SELLER') {
-      router.push(`/${locale}`);
-      return;
-    }
-
-    fetchDashboardData();
-  }, [session, status, router, locale]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const [statsRes, ordersRes, productsRes] = await Promise.all([
         fetch('/api/seller/stats'),
@@ -73,12 +58,35 @@ export default function SellerDashboard() {
         const productsData = await productsRes.json();
         setRecentProducts(productsData);
       }
+
+      // Fetch seller profile for verification state
+      const profileRes = await fetch('/api/seller/profile');
+      if (profileRes.ok) {
+        const profileData: { sellerProfile?: { verified?: boolean } } = await profileRes.json();
+        setIsVerified(Boolean(profileData?.sellerProfile?.verified));
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (!session) {
+      router.push(`/${locale}/auth/login`);
+      return;
+    }
+
+    if (session.user?.role !== 'SELLER') {
+      router.push(`/${locale}`);
+      return;
+    }
+
+    fetchDashboardData();
+  }, [session, status, router, locale, fetchDashboardData]);
 
   if (status === 'loading' || loading) {
     return (
@@ -110,6 +118,22 @@ export default function SellerDashboard() {
             {t('welcome')}, {session.user.name}!
           </p>
         </div>
+
+        {isVerified === false && (
+          <div className="mb-8 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
+            <p className="text-sm text-yellow-900">
+              {t('verificationPendingMessage') || 'Your account is not verified yet. New products will remain inactive until verification is complete.'}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Link href={`/${locale}/seller/onboarding`}>
+                <Button size="sm">{t('completeOnboarding') || 'Complete onboarding'}</Button>
+              </Link>
+              <Link href={`/${locale}/seller/profile`}>
+                <Button variant="outline" size="sm">{t('updateProfile') || 'Update Profile'}</Button>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
