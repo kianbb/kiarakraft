@@ -350,6 +350,8 @@
     "statusShipped": "Shipped",
     "statusDelivered": "Delivered",
     "statusCancelled": "Cancelled",
+  "markShipped": "Mark shipped",
+  "markDelivered": "Mark delivered",
     "shippingAddress": "Shipping Address",
     "phone": "Phone",
     "price": "Price",

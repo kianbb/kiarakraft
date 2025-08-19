@@ -8,6 +8,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { formatPrice, formatDate } from '@/lib/utils';
 import { OrderWithItems } from '@/types/database';
 import { 
@@ -60,6 +61,26 @@ export default function SellerOrdersPage() {
     }
   };
 
+  const handleAction = async (orderId: string, action: 'mark_shipped' | 'mark_delivered') => {
+    try {
+      const res = await fetch(`/api/seller/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      if (!res.ok) {
+        type ErrShape = { error?: string } | undefined;
+        const e: ErrShape = await res.json().catch(() => undefined);
+        console.error('Failed to update status', (e && e.error) || res.statusText);
+        return;
+      }
+      // Refresh list
+      fetchOrders();
+    } catch (err) {
+      console.error('Error updating status', err);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -70,7 +91,7 @@ export default function SellerOrdersPage() {
         return <Badge variant="outline">{t('statusShipped')}</Badge>;
       case 'DELIVERED':
         return <Badge className="bg-green-100 text-green-800">{t('statusDelivered')}</Badge>;
-      case 'CANCELLED':
+  case 'CANCELED':
         return <Badge variant="destructive">{t('statusCancelled')}</Badge>;
       default:
         return <Badge>{status}</Badge>;
@@ -205,7 +226,6 @@ export default function SellerOrdersPage() {
                 </div>
 
                 {/* Shipping Address */}
-                {/* Shipping Address */}
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                   <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
                   <div className="text-sm text-muted-foreground">
@@ -214,6 +234,20 @@ export default function SellerOrdersPage() {
                     <div>{order.city}, {order.province} {order.postalCode}</div>
                     <div>{t('phone')}: {order.phone}</div>
                   </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 flex gap-2 justify-end">
+                  {order.status === 'PAID' && (
+                    <Button onClick={() => handleAction(order.id, 'mark_shipped')}>
+                      {t('markShipped')}
+                    </Button>
+                  )}
+                  {order.status === 'SHIPPED' && (
+                    <Button onClick={() => handleAction(order.id, 'mark_delivered')}>
+                      {t('markDelivered')}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

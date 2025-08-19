@@ -350,6 +350,8 @@
     "statusShipped": "ارسال شده",
     "statusDelivered": "تحویل داده شده",
     "statusCancelled": "لغو شده",
+  "markShipped": "ثبت ارسال",
+  "markDelivered": "ثبت تحویل",
     "shippingAddress": "آدرس ارسال",
     "phone": "تلفن",
     "price": "قیمت",

@@ -76,26 +76,12 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
     const shippingCost = 50000; // Fixed shipping
     const total = subtotal + shippingCost;
 
-    // Create order in transaction with atomic stock reduction
+    // Create order in a transaction without decrementing stock yet.
+    // Stock is decremented only upon successful payment (gateway callback or admin mark-paid),
+    // which prevents double-decrement and keeps inventory consistent on failed payments.
     const order = await prisma.$transaction(async (tx) => {
-      // Atomic stock check and reservation using SELECT FOR UPDATE
-      for (const item of cartItems) {
-        const currentProduct = await tx.$queryRaw`
-          SELECT stock, active, title FROM "Product" 
-          WHERE id = ${item.productId} FOR UPDATE
-        ` as Array<{ stock: number; active: boolean; title: string }>;
-        
-        if (!currentProduct[0] || currentProduct[0].stock < item.quantity) {
-          throw new Error(`Insufficient stock for ${currentProduct[0]?.title || 'product'}`);
-        }
-        
-        if (!currentProduct[0].active) {
-          throw new Error(`Product ${currentProduct[0].title} is no longer available`);
-        }
-      }
-
       // Create order
-    const newOrder = await tx.order.create({
+      const newOrder = await tx.order.create({
         data: {
           userId: user.id,
           status: 'PENDING',
@@ -119,16 +105,6 @@ export const POST = withRateLimit(orderRateLimit, async function(request: NextRe
             productId: item.productId,
             quantity: item.quantity,
             unitPriceToman: item.product.priceToman
-          }
-        });
-        
-        // Reduce product stock
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity
-            }
           }
         });
       }

@@ -37,7 +37,7 @@ export async function GET() {
             sellerId: user.id
           },
           order: {
-            status: { not: 'CANCELLED' }
+            status: { not: 'CANCELED' }
           }
         },
         _sum: {
