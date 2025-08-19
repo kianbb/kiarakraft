@@ -185,10 +185,10 @@ export async function reorderProductImages(productId: string, imageIds: string[]
     // Update sort orders in transaction
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < imageIds.length; i++) {
-        await tx.listingImage.update({
-          where: { 
+        await tx.listingImage.updateMany({
+          where: {
             id: imageIds[i],
-            productId // Extra safety check
+            productId
           },
           data: { sortOrder: i + 1 }
         });
