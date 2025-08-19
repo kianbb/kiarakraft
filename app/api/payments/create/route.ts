@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { adapter } from '@/lib/payments';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
+import { collectPreflightIssues } from '@/lib/orderPreflight';
 
 export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(request: NextRequest) {
   try {
@@ -43,28 +44,13 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
       include: { product: { select: { id: true, title: true, stock: true, active: true } } }
     });
 
-    const insufficient: Array<{ productId: string; title: string; requested: number; available: number; reason: string }> = [];
-    for (const it of items) {
-      const available = it.product?.stock ?? 0;
-      const isActive = it.product?.active ?? false;
-      if (!isActive) {
-        insufficient.push({
-          productId: it.productId,
-          title: it.product?.title || 'Unknown',
-          requested: it.quantity,
-          available,
-          reason: 'inactive'
-        });
-      } else if (available < it.quantity) {
-        insufficient.push({
-          productId: it.productId,
-          title: it.product?.title || 'Unknown',
-          requested: it.quantity,
-          available,
-          reason: 'insufficient_stock'
-        });
-      }
-    }
+    const insufficient = collectPreflightIssues(
+      items.map((it) => ({
+        productId: it.productId,
+        quantity: it.quantity,
+        product: { title: it.product?.title || 'Unknown', stock: it.product?.stock ?? 0, active: it.product?.active ?? false }
+      }))
+    );
 
     if (insufficient.length > 0) {
       // If preflight fails, auto-cancel the pending order and restore the user's cart

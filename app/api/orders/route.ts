@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
 import { withCSRF } from '@/lib/csrf';
+import { collectPreflightIssues } from '@/lib/orderPreflight';
 
 export const POST = withRateLimit(orderRateLimit, withCSRF(async function(request: NextRequest) {
   try {
@@ -56,28 +57,13 @@ export const POST = withRateLimit(orderRateLimit, withCSRF(async function(reques
     const cartItems = cart.items;
 
     // Preflight: collect any issues (inactive or insufficient stock)
-    const preflightIssues: Array<{ productId: string; title: string; requested: number; available: number; reason: 'inactive' | 'insufficient_stock' }> = [];
-    for (const item of cartItems) {
-      const available = item.product.stock ?? 0;
-      const isActive = item.product.active;
-      if (!isActive) {
-        preflightIssues.push({
-          productId: item.productId,
-          title: item.product.title,
-          requested: item.quantity,
-          available,
-          reason: 'inactive'
-        });
-      } else if (available < item.quantity) {
-        preflightIssues.push({
-          productId: item.productId,
-          title: item.product.title,
-          requested: item.quantity,
-          available,
-          reason: 'insufficient_stock'
-        });
-      }
-    }
+    const preflightIssues = collectPreflightIssues(
+      cartItems.map((it) => ({
+        productId: it.productId,
+        quantity: it.quantity,
+        product: { title: it.product.title, stock: it.product.stock, active: it.product.active }
+      }))
+    );
 
     if (preflightIssues.length > 0) {
       return NextResponse.json(
