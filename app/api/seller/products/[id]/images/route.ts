@@ -4,11 +4,12 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
 import { uploadImageToCloudinary, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE } from '@/lib/cloudinary';
+import { withCSRF } from '@/lib/csrf';
 
 export const runtime = 'nodejs';
 
 // Upload one or more images for a seller's product
-export const POST = withRateLimit(uploadRateLimit, async function(request: NextRequest, { params }: { params: { id: string } }) {
+export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -59,10 +60,10 @@ export const POST = withRateLimit(uploadRateLimit, async function(request: NextR
     console.error('Upload product images error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
-});
+}));
 
 // Reorder images by providing an array of { id, sortOrder }
-export const PATCH = withRateLimit(uploadRateLimit, async function(request: NextRequest, { params }: { params: { id: string } }) {
+export const PATCH = withRateLimit(uploadRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -95,4 +96,4 @@ export const PATCH = withRateLimit(uploadRateLimit, async function(request: Next
     console.error('Reorder images error:', error);
     return NextResponse.json({ error: 'Reorder failed' }, { status: 500 });
   }
-});
+}));

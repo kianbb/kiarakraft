@@ -4,11 +4,12 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
 import { deleteImageFromCloudinary } from '@/lib/cloudinary';
+import { withCSRF } from '@/lib/csrf';
 
 export const runtime = 'nodejs';
 
 // Delete a single image by ID if seller owns the product
-export const DELETE = withRateLimit(uploadRateLimit, async function(request: NextRequest, { params }: { params: { id: string, imageId: string } }) {
+export const DELETE = withRateLimit(uploadRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string, imageId: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -41,10 +42,10 @@ export const DELETE = withRateLimit(uploadRateLimit, async function(request: Nex
     console.error('Delete image error:', error);
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
   }
-});
+}));
 
 // Update image alt text
-export const PATCH = withRateLimit(uploadRateLimit, async function(request: NextRequest, { params }: { params: { id: string, imageId: string } }) {
+export const PATCH = withRateLimit(uploadRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string, imageId: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -70,4 +71,4 @@ export const PATCH = withRateLimit(uploadRateLimit, async function(request: Next
     console.error('Update image alt error:', error);
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
-});
+}));
