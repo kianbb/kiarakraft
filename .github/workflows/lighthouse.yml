@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - chore/deps-2025-08-safe
   pull_request:
     branches:
       - main
@@ -13,7 +12,7 @@ on:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,23 +22,37 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: 'kiarakraft/package-lock.json'
 
       - name: Install dependencies
-  run: npm ci
+        run: npm ci
+        working-directory: kiarakraft
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: kiarakraft
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
       - name: Build application
-  run: npm run build
+        run: npm run build
+        working-directory: kiarakraft
         env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
           NEXTAUTH_SECRET: test-secret-key
           NEXTAUTH_URL: http://localhost:3000
 
       - name: Run Lighthouse CI
-  run: npx -y @lhci/cli@0.13.0 autorun --config=.lighthouserc.json
-        timeout-minutes: 10
+        run: npx @lhci/cli autorun
+        working-directory: kiarakraft
         env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
           NEXTAUTH_SECRET: test-secret-key
           NEXTAUTH_URL: http://localhost:3000
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+          LHCI_BUILD_CONTEXT__COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
+          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
+          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: ${{ github.event.head_commit.message }}

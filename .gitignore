@@ -28,7 +28,7 @@ yarn-error.log*
 
 # lighthouse (local artifacts)
 .lighthouseci
-lighthouserc.json
+# .lighthouserc.json should be tracked for CI
 
 # local env files
 .env*.local
