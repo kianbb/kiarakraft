@@ -94,8 +94,9 @@ export default async function Home({ params }: { params: { locale: string } }) {
               fill
               className="object-cover opacity-5"
               priority
+              fetchPriority="high"
               sizes="100vw"
-              quality={85}
+              quality={70}
             />
           </div>
           
@@ -109,7 +110,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
               {t('hero.description')}
             </p>
-            <Link href={`/${locale}/explore`}>
+            <Link href={`/${locale}/explore`} prefetch={false}>
               <Button size="lg" className="px-8 py-3 text-lg">
                 {t('hero.cta')}
               </Button>
@@ -124,7 +125,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
               {t('featured.categories')}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              {[
+        {[
                 { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=128&h=128&fit=crop&q=80' },
                 { nameKey: 'textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=128&h=128&fit=crop&q=80' },
                 { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=128&h=128&fit=crop&q=80' },
@@ -133,7 +134,8 @@ export default async function Home({ params }: { params: { locale: string } }) {
               ].map((category) => (
                 <Link
                   key={category.slug}
-                  href={`/${locale}/explore?category=${category.slug}`}
+          href={`/${locale}/explore?category=${category.slug}`}
+          prefetch={false}
                   className="group"
                 >
                   <div className="p-6 bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200 text-center group-hover:-translate-y-1">
@@ -167,7 +169,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
               ))}
             </div>
             <div className="text-center mt-12">
-              <Link href={`/${locale}/explore`}>
+              <Link href={`/${locale}/explore`} prefetch={false}>
                 <Button variant="outline" size="lg">
                   {t('viewAllProducts')}
                 </Button>

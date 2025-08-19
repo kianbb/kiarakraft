@@ -185,7 +185,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     <html lang={locale} dir={locale === 'fa' ? 'rtl' : 'ltr'} className={`${inter.variable} ${vazirmatn.variable}`}>
       <head>
         {/* Preconnect to external domains for performance */}
-        <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         
         
@@ -194,6 +194,8 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           rel="preload" 
           href="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80" 
           as="image"
+          imageSrcSet="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1280&h=720&fit=crop&q=70 1280w, https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=70 1920w"
+          imageSizes="100vw"
           fetchPriority="high"
         />
       </head>

@@ -115,6 +115,7 @@ export default function Navbar() {
               <Link
                 key={item.name}
                 href={item.href}
+                prefetch={false}
                 className={`text-sm font-medium transition-colors hover:text-primary ${
                   pathname === item.href
                     ? 'text-primary'
@@ -147,7 +148,7 @@ export default function Navbar() {
             </div>
 
             {/* Cart */}
-            <Link href={`/${locale}/cart`} className="relative" aria-label={`${t('cart')} (${cartCount} items)`}>
+            <Link href={`/${locale}/cart`} prefetch={false} className="relative" aria-label={`${t('cart')} (${cartCount} items)`}>
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="w-5 h-5" aria-hidden="true" />
                 {cartCount > 0 && (
@@ -218,12 +219,12 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="hidden sm:flex items-center space-x-2">
-                <Link href={`/${locale}/auth/login`}>
+                <Link href={`/${locale}/auth/login`} prefetch={false}>
                   <Button variant="ghost" size="sm">
                     {t('login')}
                   </Button>
                 </Link>
-                <Link href={`/${locale}/auth/register`}>
+                <Link href={`/${locale}/auth/register`} prefetch={false}>
                   <Button size="sm">
                     {t('register')}
                   </Button>
@@ -266,6 +267,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={false}
                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                     pathname === item.href
                       ? 'text-primary bg-accent'
@@ -285,12 +287,12 @@ export default function Navbar() {
               {/* Auth buttons on mobile */}
               {!session && (
                 <div className="sm:hidden px-3 py-2 space-y-2">
-                  <Link href={`/${locale}/auth/login`} className="block">
+                  <Link href={`/${locale}/auth/login`} prefetch={false} className="block">
                     <Button variant="outline" className="w-full" onClick={() => setIsMenuOpen(false)}>
                       {t('login')}
                     </Button>
                   </Link>
-                  <Link href={`/${locale}/auth/register`} className="block">
+                  <Link href={`/${locale}/auth/register`} prefetch={false} className="block">
                     <Button className="w-full" onClick={() => setIsMenuOpen(false)}>
                       {t('register')}
                     </Button>
