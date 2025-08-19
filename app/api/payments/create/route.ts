@@ -112,11 +112,27 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
       return NextResponse.json({ error: 'Payment already exists for this order' }, { status: 400 });
     }
 
-  // Build callback URL using request origin (fallback to env)
-  // This prevents leaking "http://localhost:3000" in production when env is missing.
-  const requestOrigin = new URL(request.url).origin;
-  const baseUrl = (process.env.PUBLIC_APP_BASE?.replace(/\/$/, '')) || requestOrigin;
-  const callbackUrl = `${baseUrl}/api/payments/callback`;
+  // Build callback URL with allowlist validation
+  const requestUrl = new URL(request.url);
+  const requestOrigin = requestUrl.origin;
+  const requestHost = requestUrl.host;
+  const envBase = process.env.PUBLIC_APP_BASE?.replace(/\/$/, '') || '';
+  let chosenBase = requestOrigin;
+  if (envBase) {
+    try {
+      const envUrl = new URL(envBase);
+      const allowedHosts = (process.env.ALLOWED_APP_BASE_HOSTS || requestHost)
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean);
+      if (allowedHosts.includes(envUrl.host)) {
+        chosenBase = envUrl.origin;
+      }
+    } catch {
+      // ignore malformed env base, fallback to request origin
+    }
+  }
+  const callbackUrl = `${chosenBase}/api/payments/callback`;
 
     // Create payment in adapter
     const result = await adapter.create({
@@ -135,6 +151,20 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
         authority: result.authority || null
       }
     });
+
+    // Validate redirect URL is http/https to prevent scheme injection
+    try {
+      const r = new URL(result.redirectUrl);
+      if (r.protocol !== 'http:' && r.protocol !== 'https:') {
+        throw new Error('Invalid redirect URL scheme');
+      }
+    } catch (e) {
+      console.error('Unsafe redirect URL from adapter.create', e);
+      return NextResponse.json(
+        { error: 'Invalid redirect URL from payment gateway' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ redirectUrl: result.redirectUrl });
   } catch (error) {
