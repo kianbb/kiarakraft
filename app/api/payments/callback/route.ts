@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { adapter } from '@/lib/payments';
 import { sendEmail } from '@/lib/email';
@@ -33,6 +34,27 @@ export const GET = withRateLimit(paymentRateLimit, async function(request: NextR
     const { searchParams } = new URL(request.url);
     const { orderId, authority, status } = validateCallbackParams(searchParams);
 
+    // Determine preferred locale from referer path or NEXT_LOCALE cookie; default to 'fa'
+    const resolveLocale = (): 'fa' | 'en' => {
+      try {
+        const referer = request.headers.get('referer');
+        if (referer) {
+          const refUrl = new URL(referer);
+          const parts = refUrl.pathname.split('/').filter(Boolean);
+          const maybeLocale = parts[0];
+          if (maybeLocale === 'fa' || maybeLocale === 'en') return maybeLocale;
+        }
+      } catch {}
+      try {
+        const c = cookies();
+        const cl = c.get('NEXT_LOCALE')?.value;
+        if (cl === 'fa' || cl === 'en') return cl;
+      } catch {}
+      return 'fa';
+    };
+    const locale = resolveLocale();
+    const locUrl = (path: string) => new URL(`/${locale}${path}`, request.url);
+
     // Locate payment by orderId or authority
   type PaymentWithOrder = NonNullable<Awaited<ReturnType<typeof prisma.payment.findUnique>>> & { order?: { id: string } | null };
   let payment: PaymentWithOrder | null = null;
@@ -50,12 +72,12 @@ export const GET = withRateLimit(paymentRateLimit, async function(request: NextR
 
     if (!payment) {
       console.warn(`Payment not found for orderId: ${orderId}, authority: ${authority}`);
-      return NextResponse.redirect(new URL('/order/failed?reason=payment_not_found', request.url));
+      return NextResponse.redirect(locUrl('//order/failed?reason=payment_not_found'));
     }
 
     // Idempotency guard
     if (payment.status === 'PAID') {
-      return NextResponse.redirect(new URL(`/order/success?orderId=${payment.orderId}`, request.url));
+      return NextResponse.redirect(locUrl(`/order/success?orderId=${payment.orderId}`));
     }
 
     // Authority mismatch guard
@@ -171,7 +193,7 @@ export const GET = withRateLimit(paymentRateLimit, async function(request: NextR
         }
       });
 
-      return NextResponse.redirect(new URL(`/order/success?orderId=${payment.orderId}`, request.url));
+  return NextResponse.redirect(locUrl(`/order/success?orderId=${payment.orderId}`));
     } else {
       // Not verified
       const isManual = verifyResult.reason === 'manual';
@@ -183,12 +205,13 @@ export const GET = withRateLimit(paymentRateLimit, async function(request: NextR
         }
       });
       const reasonParam = isManual ? 'manual' : (verifyResult.reason || 'verification_failed');
-      return NextResponse.redirect(new URL(`/order/failed?orderId=${payment.orderId}&reason=${reasonParam}`, request.url));
+      return NextResponse.redirect(locUrl(`/order/failed?orderId=${payment.orderId}&reason=${reasonParam}`));
     }
   } catch (error) {
     Sentry.captureException(error);
     console.error('Error processing payment callback:', error);
     const safeReason = error instanceof Error && error.message.includes('Invalid') ? 'invalid_parameters' : 'callback_error';
-    return NextResponse.redirect(new URL(`/order/failed?reason=${safeReason}`, request.url));
+    const locale = 'fa'; // Fallback on unexpected errors
+    return NextResponse.redirect(new URL(`/${locale}/order/failed?reason=${safeReason}`, request.url));
   }
 });
