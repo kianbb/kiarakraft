@@ -1,23 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession as realGetServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { adapter } from '@/lib/payments';
+import { prisma as realPrisma } from '@/lib/prisma';
+import { adapter as realAdapter } from '@/lib/payments';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import { collectPreflightIssues } from '@/lib/orderPreflight';
 import { cancelOrderAndRestoreCart } from '@/lib/paymentsPreflight';
 import { parseOrderId } from '@/lib/validation';
 
+// Test overrides (noop in production). Allows injecting fakes in tests.
+type TestOverrides = {
+  getServerSession?: typeof realGetServerSession;
+  prisma?: typeof realPrisma;
+  adapter?: typeof realAdapter;
+};
+let __testOverrides: TestOverrides | undefined;
+export function __setTestOverrides(overrides?: TestOverrides) {
+  __testOverrides = overrides;
+}
+
 export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+  const getSession = __testOverrides?.getServerSession ?? realGetServerSession;
+  const prisma = __testOverrides?.prisma ?? realPrisma;
+  const adapter = __testOverrides?.adapter ?? realAdapter;
+
+  const session = await getSession(authOptions);
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     });
 
@@ -42,7 +57,7 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
     }
 
     // Preflight: re-check stock and product activity before initiating payment
-    const items = await prisma.orderItem.findMany({
+  const items = await prisma.orderItem.findMany({
       where: { orderId },
       include: { product: { select: { id: true, title: true, stock: true, active: true } } }
     });
@@ -57,7 +72,7 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
 
     if (insufficient.length > 0) {
       // If preflight fails, auto-cancel the pending order and restore the user's cart
-      const flags = await prisma.$transaction(async (tx) =>
+  const flags = await prisma.$transaction(async (tx) =>
         cancelOrderAndRestoreCart(
           tx as unknown as import('@/lib/paymentsPreflight').MinimalTx,
           user.id,
@@ -113,17 +128,17 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
   const callbackUrl = `${chosenBase}/api/payments/callback`;
 
     // Create payment in adapter
-    const result = await adapter.create({
+  const result = await adapter.create({
       orderId,
       amountToman: order.totalToman,
       callbackUrl
     });
 
     // Save payment record
-    await prisma.payment.create({
+  await prisma.payment.create({
       data: {
         orderId,
-        gateway: adapter.gateway,
+    gateway: adapter.gateway,
         status: 'INITIATED',
         amountToman: order.totalToman,
         authority: result.authority || null
