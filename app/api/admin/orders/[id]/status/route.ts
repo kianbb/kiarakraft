@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { nextStatusForAdmin, type OrderStatus, type AdminAction } from '@/lib/orderStatus';
 
 // Admin can set status to SHIPPED, DELIVERED, or CANCELED, with guards
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -24,34 +25,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    let nextStatus: 'SHIPPED' | 'DELIVERED' | 'CANCELED' | null = null;
-    if (action === 'mark_shipped') {
-      if (order.status !== 'PAID') {
-        return NextResponse.json(
-          { error: `Order must be PAID to mark shipped; current=${order.status}` },
-          { status: 400 }
-        );
-      }
-      nextStatus = 'SHIPPED';
-    } else if (action === 'mark_delivered') {
-      if (order.status !== 'SHIPPED') {
-        return NextResponse.json(
-          { error: `Order must be SHIPPED to mark delivered; current=${order.status}` },
-          { status: 400 }
-        );
-      }
-      nextStatus = 'DELIVERED';
-    } else if (action === 'cancel') {
-      if (!['PENDING', 'PAID'].includes(order.status)) {
-        return NextResponse.json(
-          { error: `Only PENDING or PAID orders can be canceled; current=${order.status}` },
-          { status: 400 }
-        );
-      }
-      nextStatus = 'CANCELED';
-    }
-
-    if (!nextStatus) {
+  const nextStatus = nextStatusForAdmin(order.status as OrderStatus, action as AdminAction);
+  if (!nextStatus) {
       return NextResponse.json({ error: 'Unsupported transition' }, { status: 400 });
     }
 

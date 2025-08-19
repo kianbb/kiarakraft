@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { nextStatusForSeller, type OrderStatus, type SellerAction } from '@/lib/orderStatus';
 
 // Allowed transitions for sellers (whole-order level only when the order is single-seller)
 // - PAID -> SHIPPED
@@ -51,27 +52,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       );
     }
 
-    // Enforce allowed transitions
-    let nextStatus: 'SHIPPED' | 'DELIVERED' | null = null;
-    if (action === 'mark_shipped') {
-      if (order.status !== 'PAID') {
-        return NextResponse.json(
-          { error: `Order must be PAID to mark shipped; current=${order.status}` },
-          { status: 400 }
-        );
-      }
-      nextStatus = 'SHIPPED';
-    } else if (action === 'mark_delivered') {
-      if (order.status !== 'SHIPPED') {
-        return NextResponse.json(
-          { error: `Order must be SHIPPED to mark delivered; current=${order.status}` },
-          { status: 400 }
-        );
-      }
-      nextStatus = 'DELIVERED';
-    }
-
-    if (!nextStatus) {
+  const nextStatus = nextStatusForSeller(order.status as OrderStatus, action as SellerAction, true);
+  if (!nextStatus) {
       return NextResponse.json({ error: 'Unsupported transition' }, { status: 400 });
     }
 
