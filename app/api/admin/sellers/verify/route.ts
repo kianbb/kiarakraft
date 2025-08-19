@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendEmail } from '@/lib/email';
+import SellerVerificationEmail from '@/lib/email-templates/SellerVerificationEmail';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 
@@ -70,7 +72,24 @@ export const POST = withRateLimit(adminRateLimit, withCSRF(async function(reques
     // Log the action for audit trail
     console.log(`Admin verification action: ${adminUser.email} ${action}ed seller ${sellerProfile.user.email} (${sellerProfile.shopName}). Notes: ${notes}`);
 
-    // In a real app, you might want to send an email notification to the seller here
+    // Notify seller via email (best-effort)
+    try {
+      const emailLocale: 'fa' | 'en' = 'fa';
+      await sendEmail({
+        to: sellerProfile.user.email,
+        subject: action === 'verify' ? 'تایید فروشندگی شما در کیارا کرافت' : 'نتیجه بررسی فروشندگی در کیارا کرافت',
+        react: SellerVerificationEmail({
+          sellerName: sellerProfile.user.name || sellerProfile.user.email.split('@')[0],
+          shopName: updatedProfile.shopName,
+          action: action as 'verify' | 'reject',
+          notes: notes,
+          locale: emailLocale,
+          dashboardUrl: 'https://www.kiarakraft.com/fa/seller'
+        })
+      });
+    } catch (mailErr) {
+      console.error('Failed to send seller verification email:', mailErr);
+    }
     
     return NextResponse.json({
       success: true,
