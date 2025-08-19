@@ -195,6 +195,9 @@ The app supports Persian (fa) and English (en) locales:
 - [ ] `NEXTAUTH_URL` - Canonical production domain
 - [ ] `PUBLIC_APP_BASE` - Canonical app origin used to build payment callback URLs
 - [ ] `ALLOWED_APP_BASE_HOSTS` - Comma-separated host allowlist for selecting PUBLIC_APP_BASE
+ - [ ] `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` - Set to enable Plausible analytics script
+ - [ ] `SENTRY_DSN` - Sentry DSN for error reporting
+ - [ ] `LHCI_BASE_URL` (GitHub Secret) - Base URL for Lighthouse CI (e.g., https://www.kiarakraft.com)
 
 #### ✅ Domain & Redirects  
 - [ ] Primary domain: `www.kiarakraft.com`
@@ -239,6 +242,21 @@ npm start
 
 # Or export as static files
 npm run build && npm run export
+```
+
+## 📊 Lighthouse CI (Performance Budgets)
+
+This repo includes Lighthouse CI to track performance/accessibility on `/en` and `/fa`.
+
+- Config: `lighthouserc.json`
+- GitHub Action: `.github/workflows/lighthouse-ci.yml`
+- Required secret: `LHCI_BASE_URL` (e.g., production preview or prod URL)
+
+Run locally:
+
+```bash
+npm i -g @lhci/cli
+LHCI_BASE_URL=http://localhost:3000 lhci autorun --config=lighthouserc.json --collect.url="$LHCI_BASE_URL/en" --collect.url="$LHCI_BASE_URL/fa"
 ```
 
 ## 🔧 Development

@@ -70,14 +70,14 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
         className
       )} aria-labelledby={`product-title-${product.id}`}>
         {/* Image Section */}
-        <div className="relative aspect-square overflow-hidden bg-muted">
+    <div className="relative aspect-square overflow-hidden bg-muted">
           <Image
             src={mainImage}
             alt={product.images[0]?.alt || product.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-200"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={false}
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+      priority={false}
             quality={75}
             placeholder="blur"
             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="

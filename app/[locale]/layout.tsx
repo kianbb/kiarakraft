@@ -185,9 +185,13 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   return (
     <html lang={locale} dir={locale === 'fa' ? 'rtl' : 'ltr'} className={`${inter.variable} ${vazirmatn.variable}`}>
       <head>
-        {/* Preconnect to external domains for performance */}
+  {/* Preconnect to external domains for performance */}
   <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+  <link rel="dns-prefetch" href="https://images.unsplash.com" />
+  <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+  <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+  <link rel="preconnect" href="https://plausible.io" crossOrigin="anonymous" />
+  <link rel="dns-prefetch" href="https://plausible.io" />
         
         {/* Plausible Analytics (respects DNT by default). Configure NEXT_PUBLIC_PLAUSIBLE_DOMAIN in env to enable. */}
         {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
