@@ -184,7 +184,7 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     const offsetParam = `$${paramIndex + 2}`;
     
     // Advanced search query with multiple ranking factors
-    const searchSql = `
+  const searchSql = `
       SELECT 
         p.*,
         sp.id as seller_id,
@@ -196,7 +196,7 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         c.slug as category_slug,
         (
           -- Use the new PostgreSQL function for optimized search ranking
-          product_search_rank(${searchQueryParam}, p.title, p.description) +
+      product_search_rank(unaccent(${searchQueryParam}), unaccent(p.title), unaccent(p.description)) +
           -- Add business logic bonuses
           CASE 
             WHEN sp.verified THEN 0.3  -- Verified seller bonus
@@ -215,13 +215,13 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       LEFT JOIN "Category" c ON p."categoryId" = c.id
       ${whereClause}
       AND (
-        SIMILARITY(p.title, ${searchQueryParam}) > 0.08 OR       -- Lower trigram threshold for better recall
-        SIMILARITY(p.description, ${searchQueryParam}) > 0.08 OR
-        to_tsvector('english', p.title || ' ' || p.description) @@ plainto_tsquery('english', ${searchQueryParam}) OR -- FTS match
-        p.title ILIKE '%' || ${searchQueryParam} || '%' OR       -- Partial title match
-        p.description ILIKE '%' || ${searchQueryParam} || '%' OR -- Partial description match
-        p.title ILIKE ${searchQueryParam} || '%' OR              -- Title starts with query
-        LOWER(p.title) = LOWER(${searchQueryParam})              -- Exact title match
+        SIMILARITY(unaccent(p.title), unaccent(${searchQueryParam})) > 0.2 OR
+        SIMILARITY(unaccent(p.description), unaccent(${searchQueryParam})) > 0.2 OR
+        to_tsvector('english', unaccent(p.title || ' ' || p.description)) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR -- FTS match
+        unaccent(p.title) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+        unaccent(p.description) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+        unaccent(p.title) ILIKE unaccent(${searchQueryParam}) || '%' OR
+        LOWER(unaccent(p.title)) = LOWER(unaccent(${searchQueryParam}))
       )
       ${orderBy}
       LIMIT ${limitParam} OFFSET ${offsetParam}
@@ -232,20 +232,20 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     const rawProducts = await prisma.$queryRawUnsafe(searchSql, ...params);
 
     // Count total results
-    const countSql = `
+  const countSql = `
       SELECT COUNT(*) as total
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
       LEFT JOIN "Category" c ON p."categoryId" = c.id
       ${whereClause}
       AND (
-        SIMILARITY(p.title, ${searchQueryParam}) > 0.08 OR
-        SIMILARITY(p.description, ${searchQueryParam}) > 0.08 OR
-        to_tsvector('english', p.title || ' ' || p.description) @@ plainto_tsquery('english', ${searchQueryParam}) OR
-        p.title ILIKE '%' || ${searchQueryParam} || '%' OR
-        p.description ILIKE '%' || ${searchQueryParam} || '%' OR
-        p.title ILIKE ${searchQueryParam} || '%' OR
-        LOWER(p.title) = LOWER(${searchQueryParam})
+    SIMILARITY(unaccent(p.title), unaccent(${searchQueryParam})) > 0.2 OR
+    SIMILARITY(unaccent(p.description), unaccent(${searchQueryParam})) > 0.2 OR
+    to_tsvector('english', unaccent(p.title || ' ' || p.description)) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR
+    unaccent(p.title) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+    unaccent(p.description) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+    unaccent(p.title) ILIKE unaccent(${searchQueryParam}) || '%' OR
+    LOWER(unaccent(p.title)) = LOWER(unaccent(${searchQueryParam}))
       )
     `;
 
