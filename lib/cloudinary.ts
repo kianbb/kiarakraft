@@ -120,3 +120,59 @@ export async function deleteImageFromCloudinary(publicIdOrUrl: string): Promise<
     return false;
   }
 }
+
+// List assets within a folder. Useful for admin reviewing seller documents.
+type CloudinaryResource = {
+  secure_url: string;
+  public_id: string;
+  bytes: number;
+  format?: string;
+  created_at: string;
+};
+
+export async function listAssetsInFolder(folder: string, maxResults = 100): Promise<{
+  secure_url: string;
+  resource_type: 'image' | 'raw';
+  public_id: string;
+  bytes: number;
+  format?: string;
+  created_at: string;
+}[]> {
+  try {
+    const prefix = folder.endsWith('/') ? folder : `${folder}/`;
+    const [images, raws] = await Promise.all([
+      // Images
+      cloudinary.api.resources({
+        type: 'upload',
+        prefix,
+        resource_type: 'image',
+        max_results: Math.min(maxResults, 500)
+      }) as Promise<{ resources: Array<CloudinaryResource> }> ,
+      // Raw (e.g., PDFs)
+      cloudinary.api.resources({
+        type: 'upload',
+        prefix,
+        resource_type: 'raw',
+        max_results: Math.min(maxResults, 500)
+      }) as Promise<{ resources: Array<CloudinaryResource> }>
+    ]);
+
+    const mapRes = (r: CloudinaryResource[], resource_type: 'image' | 'raw') =>
+      r.map((it) => ({
+        secure_url: it.secure_url as string,
+        resource_type,
+        public_id: it.public_id as string,
+        bytes: it.bytes as number,
+        format: it.format as string | undefined,
+        created_at: it.created_at as string,
+      }));
+
+    return [
+      ...mapRes(images.resources || [], 'image'),
+      ...mapRes(raws.resources || [], 'raw')
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  } catch (e) {
+    console.error('Cloudinary list assets error:', e);
+    return [];
+  }
+}

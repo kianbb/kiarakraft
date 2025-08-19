@@ -58,6 +58,8 @@ export default function AdminSellersPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'verified'>('all');
   const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [docs, setDocs] = useState<{ secure_url: string; resource_type: 'image' | 'raw'; bytes: number; created_at: string }[] | null>(null);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -118,6 +120,26 @@ export default function AdminSellersPage() {
       toast.error(`Failed to ${action} seller`);
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const loadDocuments = async (sellerId: string) => {
+    setLoadingDocs(true);
+    setDocs(null);
+    try {
+      const res = await fetch(`/api/admin/sellers/${sellerId}/documents`);
+      if (res.ok) {
+        const data = await res.json();
+        setDocs(data.documents || []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || 'Failed to load documents');
+      }
+    } catch (e) {
+      console.error('Load documents error', e);
+      toast.error('Failed to load documents');
+    } finally {
+      setLoadingDocs(false);
     }
   };
 
@@ -281,7 +303,7 @@ export default function AdminSellersPage() {
                   </Button>
                   
                   {seller.docsFolder && (
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedSeller(seller); loadDocuments(seller.id); }}>
                       <FileText className="h-4 w-4 mr-2" />
                       {t('documents')}
                     </Button>
@@ -301,7 +323,7 @@ export default function AdminSellersPage() {
         </div>
 
         {/* Review Modal */}
-        {selectedSeller && (
+  {selectedSeller && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
@@ -368,6 +390,30 @@ export default function AdminSellersPage() {
                     <div>
                       <h3 className="font-medium mb-2">{t('notes')}</h3>
                       <p className="text-sm bg-gray-50 p-3 rounded">{selectedSeller.verificationNotes}</p>
+                    </div>
+                  )}
+
+                  {selectedSeller.docsFolder && (
+                    <div>
+                      <h3 className="font-medium mb-2">{t('documents')}</h3>
+                      {loadingDocs ? (
+                        <p className="text-sm text-muted-foreground">{t('loading')}...</p>
+                      ) : docs && docs.length > 0 ? (
+                        <ul className="space-y-2">
+                          {docs.map((d, idx) => (
+                            <li key={idx} className="text-sm flex items-center justify-between gap-3">
+                              <a href={d.secure_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                                {d.secure_url.split('/').pop()}
+                              </a>
+                              <span className="text-xs text-muted-foreground">
+                                {d.resource_type.toUpperCase()} • {(d.bytes / 1024).toFixed(0)} KB
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{t('noDocuments')}</p>
+                      )}
                     </div>
                   )}
                   
