@@ -6,6 +6,7 @@ import { adapter } from '@/lib/payments';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import { collectPreflightIssues } from '@/lib/orderPreflight';
+import { parseOrderId } from '@/lib/validation';
 
 export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(request: NextRequest) {
   try {
@@ -23,10 +24,11 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { orderId } = await request.json();
+  const { orderId: rawOrderId } = await request.json();
+  const orderId = parseOrderId(rawOrderId);
 
     // Verify order belongs to user and is in PENDING status
-    const order = await prisma.order.findFirst({
+  const order = await prisma.order.findFirst({
       where: {
         id: orderId,
         userId: user.id,
@@ -89,13 +91,18 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
       );
     }
 
-    // Check if payment already exists
-    const existingPayment = await prisma.payment.findUnique({
-      where: { orderId }
-    });
+    // Check if payment already exists and the order is still pending
+    const [existingPayment, freshOrder] = await Promise.all([
+      prisma.payment.findUnique({ where: { orderId } }),
+      prisma.order.findUnique({ where: { id: orderId } })
+    ]);
 
     if (existingPayment) {
       return NextResponse.json({ error: 'Payment already exists for this order' }, { status: 400 });
+    }
+
+    if (!freshOrder || freshOrder.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Order no longer pending' }, { status: 409 });
     }
 
   // Build callback URL with allowlist validation
