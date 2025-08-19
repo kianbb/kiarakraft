@@ -25,12 +25,14 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-        working-directory: ./kiarakraft
+        run: |
+          cd kiarakraft
+          npm ci
 
       - name: Build application
-        run: npm run build
-        working-directory: ./kiarakraft
+        run: |
+          cd kiarakraft
+          npm run build
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
           DIRECT_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
@@ -38,8 +40,9 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
 
       - name: Run Lighthouse CI
-        run: npx -y @lhci/cli@0.13.0 autorun --config=.lighthouserc.json
-        working-directory: ./kiarakraft
+        run: |
+          cd kiarakraft
+          npx -y @lhci/cli@0.13.0 autorun --config=.lighthouserc.json
         timeout-minutes: 10
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test?sslmode=disable
