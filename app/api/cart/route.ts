@@ -3,14 +3,18 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
+import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import * as Sentry from '@sentry/nextjs';
 
-export async function GET() {
+export const GET = withRateLimit(orderRateLimit, async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  // Attach user context for observability
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -43,23 +47,26 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(cartItems);
+  return NextResponse.json(cartItems);
   } catch (error) {
-    console.error('Error fetching cart:', error);
+  console.error('Error fetching cart:', error);
+  Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to fetch cart' },
       { status: 500 }
     );
   }
-}
+});
 
-export const POST = withCSRF(async function(request: NextRequest) {
+export const POST = withRateLimit(orderRateLimit, withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  // Attach user context for observability
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -150,9 +157,10 @@ export const POST = withCSRF(async function(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error adding to cart:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to add to cart' },
       { status: 500 }
     );
   }
-});
+}));

@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
+import * as Sentry from '@sentry/nextjs';
 
-export async function GET() {
+export const GET = withRateLimit(sellerRateLimit, async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -22,20 +25,22 @@ export async function GET() {
     return NextResponse.json(user);
   } catch (error) {
     console.error('Error fetching seller profile:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to fetch profile' },
       { status: 500 }
     );
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withRateLimit(sellerRateLimit, async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -78,9 +83,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(updatedUser);
   } catch (error) {
     console.error('Error updating seller profile:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }
     );
   }
-}
+});
