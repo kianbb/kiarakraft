@@ -193,6 +193,8 @@ The app supports Persian (fa) and English (en) locales:
 - [ ] `DIRECT_URL` - Neon direct connection for migrations
 - [ ] `NEXTAUTH_SECRET` - Strong random secret (32+ chars)
 - [ ] `NEXTAUTH_URL` - Canonical production domain
+- [ ] `PUBLIC_APP_BASE` - Canonical app origin used to build payment callback URLs
+- [ ] `ALLOWED_APP_BASE_HOSTS` - Comma-separated host allowlist for selecting PUBLIC_APP_BASE
 
 #### ✅ Domain & Redirects  
 - [ ] Primary domain: `www.kiarakraft.com`
