@@ -5,18 +5,20 @@ import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import { listAssetsInFolder } from '@/lib/cloudinary';
+import * as Sentry from '@sentry/nextjs';
 
 export const GET = withRateLimit(adminRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+  if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const adminUser = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!adminUser || adminUser.role !== 'ADMIN') {
+  if (!adminUser || adminUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Access denied - Admin required' }, { status: 403 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const seller = await prisma.sellerProfile.findUnique({ where: { id: params.id } });
     if (!seller) {
@@ -31,6 +33,7 @@ export const GET = withRateLimit(adminRateLimit, withCSRF(async function(request
     return NextResponse.json({ documents: docs, folder: seller.docsFolder });
   } catch (error) {
     console.error('Error fetching seller documents:', error);
+    Sentry.captureException(error);
     return NextResponse.json({ error: 'Failed to fetch seller documents' }, { status: 500 });
   }
 }));

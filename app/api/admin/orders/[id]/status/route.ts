@@ -5,14 +5,16 @@ import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import { nextStatusForAdmin, type OrderStatus, type AdminAction } from '@/lib/orderStatus';
+import * as Sentry from '@sentry/nextjs';
 
 // Admin can set status to SHIPPED, DELIVERED, or CANCELED, with guards
 export const PATCH = withRateLimit(adminRateLimit, withCSRF(async function(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || session.user.role !== 'ADMIN') {
+  if (!session?.user?.email || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const { id } = params;
     const body = await request.json().catch(() => ({}));
@@ -36,6 +38,7 @@ export const PATCH = withRateLimit(adminRateLimit, withCSRF(async function(reque
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Error updating order status (admin):', error);
+    Sentry.captureException(error);
     return NextResponse.json({ error: 'Failed to update order status' }, { status: 500 });
   }
 }));

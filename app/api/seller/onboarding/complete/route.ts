@@ -5,14 +5,16 @@ import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
 import { createHash } from 'crypto';
+import * as Sentry from '@sentry/nextjs';
 
 export const POST = withRateLimit(authRateLimit, withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email) {
+  if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -107,6 +109,7 @@ export const POST = withRateLimit(authRateLimit, withCSRF(async function(request
 
   } catch (error) {
     console.error('Error completing onboarding:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to complete onboarding' },
       { status: 500 }

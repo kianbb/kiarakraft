@@ -68,6 +68,7 @@ model SellerProfile {
   verifiedBy        String?  // Admin user ID who verified
 
   products Product[]
+  documents SellerDocument[]
 }
 
 model Category {
@@ -214,4 +215,18 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   used      Boolean  @default(false)
+}
+
+// Stores metadata of seller KYC documents uploaded to Cloudinary
+model SellerDocument {
+  id               String         @id @default(cuid())
+  seller           SellerProfile  @relation(fields: [sellerId], references: [id])
+  sellerId         String
+  publicId         String
+  url              String
+  mime             String
+  bytes            Int
+  createdAt        DateTime       @default(now())
+
+  @@index([sellerId])
 }

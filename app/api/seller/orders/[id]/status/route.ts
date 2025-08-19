@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
 import { nextStatusForSeller, type OrderStatus, type SellerAction } from '@/lib/orderStatus';
+import * as Sentry from '@sentry/nextjs';
 
 // Allowed transitions for sellers (whole-order level only when the order is single-seller)
 // - PAID -> SHIPPED
@@ -13,9 +14,10 @@ export const PATCH = withRateLimit(sellerRateLimit, withCSRF(async function(requ
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email || session.user.role !== 'SELLER') {
+  if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) {
@@ -67,6 +69,7 @@ export const PATCH = withRateLimit(sellerRateLimit, withCSRF(async function(requ
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Error updating order status (seller):', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to update order status' },
       { status: 500 }

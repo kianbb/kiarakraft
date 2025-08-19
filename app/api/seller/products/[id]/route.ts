@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
 import crypto from 'crypto';
+import * as Sentry from '@sentry/nextjs';
 
 export async function GET(
   request: NextRequest,
@@ -13,9 +14,10 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email || session.user.role !== 'SELLER') {
+  if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -39,6 +41,7 @@ export async function GET(
     return NextResponse.json(product);
   } catch (error) {
     console.error('Error fetching product:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to fetch product' },
       { status: 500 }
@@ -53,9 +56,10 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email || session.user.role !== 'SELLER') {
+  if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -145,12 +149,14 @@ export async function PUT(
         });
       } catch (e) {
         console.error('Failed to update eligibility', e);
+        Sentry.captureException(e);
       }
     }).catch((e) => console.error('Eligibility error (update)', e));
 
     return NextResponse.json(updatedProduct);
   } catch (error) {
     console.error('Error updating product:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to update product' },
       { status: 500 }
@@ -165,9 +171,10 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email || session.user.role !== 'SELLER') {
+  if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -195,6 +202,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to delete product' },
       { status: 500 }

@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { uploadImageToCloudinary, UPLOAD_FOLDER } from '@/lib/cloudinary';
+import { uploadImageToCloudinary, UPLOAD_FOLDER, listAssetsInFolder } from '@/lib/cloudinary';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
+import * as Sentry from '@sentry/nextjs';
 
 export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email) {
+  if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  // Attach user context for observability
+  Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -42,12 +45,10 @@ export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(reque
       return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'File too large. Maximum 10MB allowed.' }, { status: 400 });
     }
 
-    // Enforce a maximum number of documents per seller (e.g., 5)
-  const folderPath = `${UPLOAD_FOLDER}/sellers/${user.sellerProfile.id}/documents`;
-    // We don’t list files from Cloudinary; we approximate with count tracked in notes or let client limit uploads.
-    // As a simple server-side cap, reject if client already reports >=5 in querystring (?count=)
-    const clientCount = Number((new URL(request.url)).searchParams.get('count') || '0');
-    if (!Number.isNaN(clientCount) && clientCount >= 5) {
+    // Enforce a maximum number of documents per seller (5) by listing Cloudinary folder
+    const folderPath = `${UPLOAD_FOLDER}/sellers/${user.sellerProfile.id}/documents`;
+    const existing = await listAssetsInFolder(folderPath, 200);
+    if (existing.length >= 5) {
       return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Maximum 5 documents allowed' }, { status: 400 });
     }
 
@@ -106,16 +107,42 @@ export const POST = withRateLimit(uploadRateLimit, withCSRF(async function(reque
       });
     }
 
+    // Persist document metadata in DB for audit/cleanup
+    const uploaded = uploadResult as { public_id: string; secure_url: string; bytes: number };
+    // Narrow type to avoid editor errors before Prisma types regenerate
+    type SDClient = {
+      sellerDocument: {
+        create: (args: { data: { sellerId: string; publicId: string; url: string; mime: string; bytes: number } }) => Promise<unknown>;
+      };
+    };
+    const sd = prisma as unknown as SDClient;
+    try {
+      await sd.sellerDocument.create({
+        data: {
+          sellerId: user.sellerProfile.id,
+          publicId: uploaded.public_id,
+          url: uploaded.secure_url,
+          mime: file.type,
+          bytes: uploaded.bytes,
+        }
+      });
+    } catch (e) {
+      // Best-effort: don’t fail the upload if audit table isn’t available yet
+      console.warn('Persist SellerDocument failed (non-fatal):', e);
+    }
+
     return NextResponse.json({
       success: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       url: (uploadResult as any).secure_url,
-      type: file.type,
-      size: file.size,
+  type: file.type,
+  size: file.size,
+  total: existing.length + 1
     });
 
   } catch (error) {
     console.error('Error uploading document:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Upload failed' },
       { status: 500 }

@@ -184,6 +184,11 @@ export default function SellerProductsPage() {
                       ) : (
                         <Badge variant="outline">{t('inactive')}</Badge>
                       )}
+                      {product.eligibilityStatus && (
+                        <Badge variant={product.eligibilityStatus === 'APPROVED' ? 'default' : product.eligibilityStatus === 'REJECTED' ? 'destructive' : 'secondary'}>
+                          {t(`eligibility_${product.eligibilityStatus.toLowerCase()}`) || product.eligibilityStatus}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   

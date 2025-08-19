@@ -8,6 +8,7 @@ import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import { collectPreflightIssues } from '@/lib/orderPreflight';
 import { cancelOrderAndRestoreCart } from '@/lib/paymentsPreflight';
 import { parseOrderId } from '@/lib/validation';
+import * as Sentry from '@sentry/nextjs';
 
 // Test overrides (noop in production). Allows injecting fakes in tests.
 type TestOverrides = {
@@ -28,9 +29,10 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
 
   const session = await getSession(authOptions);
     
-    if (!session?.user?.email) {
+  if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  Sentry.setUser({ email: session.user.email });
 
   const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -162,6 +164,7 @@ export const POST = withRateLimit(paymentRateLimit, withCSRF(async function(requ
     return NextResponse.json({ redirectUrl: result.redirectUrl });
   } catch (error) {
     console.error('Error creating payment:', error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: 'Failed to create payment' },
       { status: 500 }

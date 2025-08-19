@@ -60,6 +60,7 @@ export default function AdminSellersPage() {
   const [verifying, setVerifying] = useState(false);
   const [docs, setDocs] = useState<{ secure_url: string; resource_type: 'image' | 'raw'; bytes: number; created_at: string }[] | null>(null);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -247,12 +248,12 @@ export default function AdminSellersPage() {
                       {seller.verified ? (
                         <>
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          {t('verified')}
+                          {t('statusVerified')}
                         </>
                       ) : (
                         <>
                           <Clock className="h-3 w-3 mr-1" />
-                          {t('pending')}
+                          {t('statusPending')}
                         </>
                       )}
                     </Badge>
@@ -421,10 +422,8 @@ export default function AdminSellersPage() {
                     <div className="flex gap-3 pt-4 border-t">
                       <Button
                         onClick={() => {
-                          const notes = prompt(t('verificationNotes'));
-                          if (notes !== null) {
-                            handleVerifyAction(selectedSeller.id, 'verify', notes);
-                          }
+                          const n = notesDraft.trim();
+                          handleVerifyAction(selectedSeller.id, 'verify', n || t('verifiedByAdmin'));
                         }}
                         disabled={verifying}
                         className="flex-1"
@@ -436,10 +435,8 @@ export default function AdminSellersPage() {
                       <Button
                         variant="destructive"
                         onClick={() => {
-                          const notes = prompt(t('rejectionReason'));
-                          if (notes !== null && notes.trim()) {
-                            handleVerifyAction(selectedSeller.id, 'reject', notes);
-                          }
+                          const n = notesDraft.trim();
+                          if (n) handleVerifyAction(selectedSeller.id, 'reject', n);
                         }}
                         disabled={verifying}
                         className="flex-1"
@@ -456,6 +453,20 @@ export default function AdminSellersPage() {
                         {t('verifiedOn')} {new Date(selectedSeller.verifiedAt).toLocaleDateString()}
                         {selectedSeller.verifiedBy && ` ${t('by')} ${selectedSeller.verifiedBy}`}
                       </p>
+                    </div>
+                  )}
+
+                  {!selectedSeller.verified && (
+                    <div className="pt-2">
+                      <label className="text-sm font-medium mb-1 block">{t('verificationNotes')}</label>
+                      <textarea
+                        value={notesDraft}
+                        onChange={(e) => setNotesDraft(e.target.value)}
+                        rows={3}
+                        placeholder={t('addNotesPlaceholder')}
+                        className="w-full border rounded p-2 text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">{t('notesHelp')}</p>
                     </div>
                   )}
                 </div>
