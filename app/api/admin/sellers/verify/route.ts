@@ -58,7 +58,8 @@ export const POST = withRateLimit(adminRateLimit, withCSRF(async function(reques
       verified: action === 'verify',
       verificationNotes: notes.trim(),
       verifiedAt: action === 'verify' ? new Date() : null,
-      verifiedBy: adminUser.email,
+      // Only attribute verification to the admin when action is 'verify'
+      verifiedBy: action === 'verify' ? adminUser.email : null,
     };
 
     const updatedProfile = await prisma.sellerProfile.update({
