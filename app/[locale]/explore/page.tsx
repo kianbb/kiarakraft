@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { searchProducts, SearchFilters } from '@/lib/search';
+import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
@@ -28,9 +29,15 @@ const PRODUCTS_PER_PAGE = 12;
 
 async function getSearchResults(locale: string, searchParams: PageProps['searchParams']) {
   try {
+    // Translate category slug (from URL) to the actual Category ID used in DB
+    let categoryIdFromSlug: string | undefined;
+    if (searchParams.category && searchParams.category !== 'all') {
+      const cat = await prisma.category.findUnique({ where: { slug: searchParams.category } });
+      categoryIdFromSlug = cat?.id;
+    }
     const filters: SearchFilters = {
       query: searchParams.q?.trim(),
-      categoryId: searchParams.category && searchParams.category !== 'all' ? searchParams.category : undefined,
+      categoryId: categoryIdFromSlug,
       minPrice: searchParams.minPrice ? parseInt(searchParams.minPrice) : undefined,
       maxPrice: searchParams.maxPrice ? parseInt(searchParams.maxPrice) : undefined,
       verifiedOnly: searchParams.verified === 'true',
