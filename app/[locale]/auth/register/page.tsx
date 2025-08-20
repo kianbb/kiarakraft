@@ -187,6 +187,9 @@ export default function RegisterPage() {
                 {...register('password')}
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('passwordMin12')}: {t('passwordComplexity')} — {t('passwordExample')}
+              </p>
               {errors.password && (
                 <p className="mt-1 text-sm text-destructive">
                   {errors.password.message}
