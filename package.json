@@ -28,9 +28,10 @@
     "images:generate:products": "tsx scripts/generate-product-images.ts",
     "images:generate:products:missing": "tsx scripts/generate-product-images.ts --only-missing",
     "images:generate:products:replace": "tsx scripts/generate-product-images.ts --replace",
-    "images:generate:categories": "tsx scripts/generate-category-images.ts",
+  "images:generate:categories": "tsx scripts/generate-category-images.ts",
   "images:fill:curated": "tsx scripts/fill-images-with-curated-urls.ts",
-  "images:replace:curated-cloudinary": "tsx scripts/replace-images-with-curated-cloudinary.ts"
+  "images:replace:curated-cloudinary": "tsx scripts/replace-images-with-curated-cloudinary.ts",
+  "images:upload:categories:curated": "tsx scripts/upload-category-images-curated.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
