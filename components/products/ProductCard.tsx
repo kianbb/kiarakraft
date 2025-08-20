@@ -4,6 +4,8 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RatingStars } from '@/components/products/RatingStars';
@@ -33,11 +35,16 @@ interface ProductCardProps {
 export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
   // Keep hook order stable: call hooks unconditionally and use safe fallback until hydrated
   const [isHydrated, setIsHydrated] = React.useState(false);
+  const [addingToCart, setAddingToCart] = React.useState(false);
   React.useEffect(() => setIsHydrated(true), []);
   const _locale = useLocale();
   const _t = useTranslations('common');
+  const _tProduct = useTranslations('product');
+  const { data: session } = useSession();
+  const router = useRouter();
   const locale = isHydrated ? _locale : 'en';
   const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const tProduct = isHydrated ? _tProduct : ((k: string) => k) as (k: string) => string;
   // If we're on EN and the description is Persian, suppress it until translation exists
   const isPersian = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
   const displayDescription = locale === 'en' && isPersian(product.description)
@@ -48,11 +55,43 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
   const isOutOfStock = product.stock === 0;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Implement add to cart functionality
-    // Will be implemented when AddToCartButton is integrated
+    
+    if (!session) {
+      router.push(`/${locale}/auth/login`);
+      return;
+    }
+
+    setAddingToCart(true);
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: 1
+        })
+      });
+
+      if (response.ok) {
+        // Show success message - could be replaced with a toast
+        alert(tProduct('addedToCart') || 'Added to cart!');
+        // Dispatch cart update event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('cart:updated'));
+        }
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add to cart');
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Failed to add item to cart. Please try again.');
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -155,11 +194,11 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
             <Button
               size="sm"
               onClick={handleAddToCart}
-              disabled={isOutOfStock}
+              disabled={isOutOfStock || addingToCart}
               className="min-w-[40px]"
               aria-label={`Add ${product.title} to cart`}
             >
-              <ShoppingCart className="w-4 h-4" aria-hidden="true" />
+              <ShoppingCart className={cn("w-4 h-4", addingToCart && "animate-pulse")} aria-hidden="true" />
             </Button>
           </div>
         </div>
