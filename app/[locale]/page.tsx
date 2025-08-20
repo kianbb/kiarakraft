@@ -75,44 +75,54 @@ async function getFeaturedProducts() {
 
 // Build category tiles with a representative image per category
 async function getCategoryTiles() {
-  // Fetch all categories (small fixed set)
-  const categories = await prisma.category.findMany({
-    select: { id: true, slug: true }
-  });
+  // Safe fallbacks to avoid build-time DB dependency
+  const staticFallback = [
+    { nameKey: 'ceramics', slug: 'ceramics', image: '/kk-logo-original.png' },
+    { nameKey: 'textiles', slug: 'textiles', image: '/kk-logo-original.png' },
+    { nameKey: 'jewelry', slug: 'jewelry', image: '/kk-logo-original.png' },
+    { nameKey: 'woodwork', slug: 'woodwork', image: '/kk-logo-original.png' },
+    { nameKey: 'painting', slug: 'painting', image: '/kk-logo-original.png' }
+  ] as const;
 
-  // For each category, pick the most recent approved product's first image
-  const tiles = await Promise.all(
-    categories.map(async (c) => {
-      const product = await prisma.product.findFirst({
-        where: {
-          active: true,
-          eligibilityStatus: 'APPROVED',
-          categoryId: c.id,
-          images: { some: {} }
-        },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          images: { select: { url: true }, orderBy: { sortOrder: 'asc' }, take: 1 }
-        }
-      });
-      const fallbackBySlug: Record<string, string> = {
-        ceramics: '/kk-logo-original.png',
-        textiles: '/kk-logo-original.png',
-        jewelry: '/kk-logo-original.png',
-        woodwork: '/kk-logo-original.png',
-        painting: '/kk-logo-original.png'
-      };
-      return {
-        nameKey: c.slug,
-        slug: c.slug,
-        image: product?.images?.[0]?.url || fallbackBySlug[c.slug] || '/kk-logo-original.png'
-      };
-    })
-  );
+  try {
+    // Fetch all categories (small fixed set)
+    const categories = await prisma.category.findMany({
+      select: { id: true, slug: true }
+    });
 
-  // Preserve the desired display order
-  const order = ['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting'];
-  return tiles.sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
+    // For each category, pick the most recent approved product's first image
+    const tiles = await Promise.all(
+      categories.map(async (c) => {
+        const product = await prisma.product.findFirst({
+          where: {
+            active: true,
+            eligibilityStatus: 'APPROVED',
+            categoryId: c.id,
+            images: { some: {} }
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            images: { select: { url: true }, orderBy: { sortOrder: 'asc' }, take: 1 }
+          }
+        });
+        const fallbackBySlug: Record<string, string> = Object.fromEntries(
+          staticFallback.map((f) => [f.slug, f.image])
+        );
+        return {
+          nameKey: c.slug,
+          slug: c.slug,
+          image: product?.images?.[0]?.url || fallbackBySlug[c.slug] || '/kk-logo-original.png'
+        };
+      })
+    );
+
+    // Preserve the desired display order
+    const order = ['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting'];
+    return tiles.sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
+  } catch (e) {
+    // If DB is not reachable at build time, use fallbacks
+    return staticFallback as unknown as Array<{ nameKey: string; slug: string; image: string }>;
+  }
 }
 
 export default async function Home({ params }: { params: { locale: string } }) {
