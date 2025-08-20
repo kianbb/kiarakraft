@@ -77,11 +77,11 @@ async function getFeaturedProducts() {
 async function getCategoryTiles() {
   // Safe fallbacks to avoid build-time DB dependency
   const staticFallback = [
-    { nameKey: 'ceramics', slug: 'ceramics', image: '/kk-logo-original.png' },
-    { nameKey: 'textiles', slug: 'textiles', image: '/kk-logo-original.png' },
-    { nameKey: 'jewelry', slug: 'jewelry', image: '/kk-logo-original.png' },
-    { nameKey: 'woodwork', slug: 'woodwork', image: '/kk-logo-original.png' },
-    { nameKey: 'painting', slug: 'painting', image: '/kk-logo-original.png' }
+    { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=400&fit=crop&q=80' }
   ] as const;
 
   try {
@@ -105,9 +105,13 @@ async function getCategoryTiles() {
             images: { select: { url: true }, orderBy: { sortOrder: 'asc' }, take: 1 }
           }
         });
-        const fallbackBySlug: Record<string, string> = Object.fromEntries(
-          staticFallback.map((f) => [f.slug, f.image])
-        );
+        const fallbackBySlug: Record<string, string> = {
+          ceramics: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop&q=80',
+          textiles: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=400&h=400&fit=crop&q=80',
+          jewelry: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&q=80',
+          woodwork: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80',
+          painting: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=400&fit=crop&q=80'
+        };
         return {
           nameKey: c.slug,
           slug: c.slug,
