@@ -3,10 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
-import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import { withRateLimit, cartRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 
-export const GET = withRateLimit(orderRateLimit, async function GET() {
+export const GET = withRateLimit(cartRateLimit, async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
@@ -58,7 +58,7 @@ export const GET = withRateLimit(orderRateLimit, async function GET() {
   }
 });
 
-export const POST = withRateLimit(orderRateLimit, withCSRF(async function(request: NextRequest) {
+export const POST = withRateLimit(cartRateLimit, withCSRF(async function(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     

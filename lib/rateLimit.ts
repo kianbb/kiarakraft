@@ -143,3 +143,8 @@ export const sellerRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 20 // 20 seller actions per minute
 });
+
+export const cartRateLimit = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 30 // 30 cart operations per minute
+});
