@@ -224,7 +224,8 @@
     "adding": "Adding...",
     "addedToCart": "Added to cart",
     "addToWishlist": "Add to Wishlist",
-    "reviews": "reviews"
+    "reviews": "reviews",
+    "demoProductNotice": "This is a demo product. Please visit our explore page to see real products!"
   },
   "auth": {
     "login": "Login",

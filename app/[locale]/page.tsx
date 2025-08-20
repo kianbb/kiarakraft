@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Metadata } from 'next';
+import { searchProducts } from '@/lib/search';
 
 // Pre-render both locales for the dynamic [locale] segment to ensure correct SSG per-locale
 export const dynamicParams = false;
@@ -39,37 +40,36 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   };
 }
 
-// Sample product data for demo - in real app this would come from API/database
-// Updated to use proper translations instead of hardcoded text
-function getSampleProducts(t: Awaited<ReturnType<typeof getTranslations<'home'>>>) {
-  return [
-    {
-      id: "1",
-      title: t('sampleProducts.ceramicBowl.title'),
-      slug: "handmade-ceramic-bowl",
-      description: t('sampleProducts.ceramicBowl.description'),
-      priceToman: 450000,
-      stock: 12,
-      images: [{ url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=500&h=500&fit=crop", alt: t('sampleProducts.ceramicBowl.title') }],
+// Fetch real featured products from database
+async function getFeaturedProducts() {
+  try {
+    const results = await searchProducts({
+      sortBy: 'newest',
+      limit: 4 // Show 4 featured products
+    });
+    
+    return results.products.map(product => ({
+      id: product.id,
+      title: product.title,
+      slug: product.slug,
+      description: product.description,
+      priceToman: product.priceToman,
+      stock: product.stock,
+      images: product.images.map(img => ({
+        url: img.url,
+        alt: img.alt || product.title
+      })),
       seller: {
-        displayName: t('sampleProducts.shopName'),
-        shopName: "Atelier Kiara"
+        displayName: product.seller.displayName,
+        shopName: product.seller.shopName,
+        verified: product.seller.verified
       }
-    },
-    {
-      id: "2",
-      title: t('sampleProducts.silverNecklace.title'),
-      slug: "silver-turquoise-necklace",
-      description: t('sampleProducts.silverNecklace.description'),
-      priceToman: 1250000,
-      stock: 8,
-      images: [{ url: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=500&fit=crop", alt: t('sampleProducts.silverNecklace.title') }],
-      seller: {
-        displayName: t('sampleProducts.shopName'),
-        shopName: "Atelier Kiara"
-      }
-    }
-  ];
+    }));
+  } catch (error) {
+    console.error('Error fetching featured products:', error);
+    // Return empty array if there's an error
+    return [];
+  }
 }
 
 export default async function Home({ params }: { params: { locale: string } }) {
@@ -78,7 +78,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
   // Use explicit locale to avoid default-locale bleed during SSG/ISR
   const t = await getTranslations({ locale, namespace: 'home' });
   const tCategories = await getTranslations({ locale, namespace: 'categories' });
-  const sampleProducts = getSampleProducts(t);
+  const featuredProducts = await getFeaturedProducts();
   
 
   return (
@@ -163,11 +163,24 @@ export default async function Home({ params }: { params: { locale: string } }) {
             <h3 className="text-3xl font-bold text-center mb-12">
               {t('featured.products')}
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sampleProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {featuredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {featuredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">
+                  {t('noFeaturedProducts') || 'No featured products available at the moment.'}
+                </p>
+                <Link href={`/${locale}/explore`} prefetch={false}>
+                  <Button variant="outline">
+                    {t('viewAllProducts')}
+                  </Button>
+                </Link>
+              </div>
+            )}
             <div className="text-center mt-12">
               <Link href={`/${locale}/explore`} prefetch={false}>
                 <Button variant="outline" size="lg">
