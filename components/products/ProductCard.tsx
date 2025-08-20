@@ -36,6 +36,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   // Keep hook order stable: call hooks unconditionally and use safe fallback until hydrated
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [addingToCart, setAddingToCart] = React.useState(false);
+  const [imageError, setImageError] = React.useState(false);
   React.useEffect(() => setIsHydrated(true), []);
   const _locale = useLocale();
   const _t = useTranslations('common');
@@ -52,7 +53,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
     : product.description;
   
   const productUrl = `/${locale}/product/${product.slug}`;
-  const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
+  const mainImage = imageError ? '/kk-logo-original.png' : (product.images[0]?.url || '/kk-logo-original.png');
   const isOutOfStock = product.stock === 0;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -124,11 +125,12 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
             alt={product.images[0]?.alt || product.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-200"
-      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-      priority={false}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            priority={false}
             quality={75}
             placeholder="blur"
             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+            onError={() => setImageError(true)}
           />
           
           {/* Overlay Actions */}
