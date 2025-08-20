@@ -50,11 +50,13 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
           window.dispatchEvent(new Event('cart:updated'));
         }
       } else {
-        throw new Error('Failed to add to cart');
+        const payload = await response.json().catch(() => ({} as any));
+        const msg = (payload && (payload.error || payload.message)) || `Failed to add to cart (${response.status})`;
+        throw new Error(msg);
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('Failed to add item to cart');
+      alert((error as Error)?.message || 'Failed to add item to cart');
     } finally {
       setAddingToCart(false);
     }

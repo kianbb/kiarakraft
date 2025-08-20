@@ -99,7 +99,8 @@ export const POST = withRateLimit(orderRateLimit, withCSRF(async function(reques
     }
 
     // Check if product exists and is active
-    const product = await prisma.product.findUnique({
+    // Note: findUnique only accepts unique fields; using findFirst for compound filters
+    const product = await prisma.product.findFirst({
       where: { id: productId, active: true }
     });
 
