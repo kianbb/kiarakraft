@@ -32,6 +32,10 @@
   "images:fill:curated": "tsx scripts/fill-images-with-curated-urls.ts",
   "images:replace:curated-cloudinary": "tsx scripts/replace-images-with-curated-cloudinary.ts",
   "images:upload:categories:curated": "tsx scripts/upload-category-images-curated.ts"
+  ,
+  "moderation:approve:all": "tsx scripts/approve-products.ts --all --status=APPROVED",
+  "moderation:approve:id": "tsx scripts/approve-products.ts --id=ID --status=APPROVED",
+  "moderation:approve:slug": "tsx scripts/approve-products.ts --slug=SLUG --status=APPROVED"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
