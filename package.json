@@ -24,7 +24,13 @@
     "search:smoke": "tsx scripts/search-smoke.ts",
     "prisma:baseline:clear": "tsx scripts/prisma-reset-migrations-table.ts",
     "prisma:baseline:resolve": "prisma migrate resolve --applied 202508191343_init",
-    "prisma:baseline:status": "prisma migrate status && prisma migrate deploy"
+    "prisma:baseline:status": "prisma migrate status && prisma migrate deploy",
+    "images:generate:products": "tsx scripts/generate-product-images.ts",
+    "images:generate:products:missing": "tsx scripts/generate-product-images.ts --only-missing",
+    "images:generate:products:replace": "tsx scripts/generate-product-images.ts --replace",
+    "images:generate:categories": "tsx scripts/generate-category-images.ts",
+  "images:fill:curated": "tsx scripts/fill-images-with-curated-urls.ts",
+  "images:replace:curated-cloudinary": "tsx scripts/replace-images-with-curated-cloudinary.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
@@ -40,6 +46,7 @@
     "cloudinary": "^2.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.1",
     "lucide-react": "^0.539.0",
     "next": "14.2.31",
     "next-auth": "^4.24.11",

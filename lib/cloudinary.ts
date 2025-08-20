@@ -48,9 +48,6 @@ export async function uploadImageToCloudinary(
     const uploadOptions = {
       folder: options.folder || UPLOAD_FOLDER,
       resource_type: 'image' as const,
-      format: 'auto',
-      quality: 'auto:good',
-      fetch_format: 'auto',
       secure: true,
       ...options,
     };

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Metadata } from 'next';
 import { searchProducts } from '@/lib/search';
+import { CATEGORY_IMAGE_FALLBACKS } from '@/lib/assets';
 import { prisma } from '@/lib/prisma';
 
 // Pre-render both locales for the dynamic [locale] segment to ensure correct SSG per-locale
@@ -78,11 +79,11 @@ async function getFeaturedProducts(locale: string) {
 async function getCategoryTiles() {
   // Safe fallbacks to avoid build-time DB dependency
   const staticFallback = [
-    { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1542319375-a5bb87543ad7?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=400&fit=crop&q=80' }
+    { nameKey: 'ceramics', slug: 'ceramics', image: CATEGORY_IMAGE_FALLBACKS.ceramics },
+    { nameKey: 'textiles', slug: 'textiles', image: CATEGORY_IMAGE_FALLBACKS.textiles },
+    { nameKey: 'jewelry', slug: 'jewelry', image: CATEGORY_IMAGE_FALLBACKS.jewelry },
+    { nameKey: 'woodwork', slug: 'woodwork', image: CATEGORY_IMAGE_FALLBACKS.woodwork },
+    { nameKey: 'painting', slug: 'painting', image: CATEGORY_IMAGE_FALLBACKS.painting }
   ] as const;
 
   try {
@@ -106,13 +107,7 @@ async function getCategoryTiles() {
             images: { select: { url: true }, orderBy: { sortOrder: 'asc' }, take: 1 }
           }
         });
-        const fallbackBySlug: Record<string, string> = {
-          ceramics: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400&h=400&fit=crop&q=80',
-          textiles: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=400&h=400&fit=crop&q=80',
-          jewelry: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop&q=80',
-          woodwork: 'https://images.unsplash.com/photo-1542319375-a5bb87543ad7?w=400&h=400&fit=crop&q=80',
-          painting: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=400&fit=crop&q=80'
-        };
+  const fallbackBySlug: Record<string, string> = CATEGORY_IMAGE_FALLBACKS as Record<string, string>;
         return {
           nameKey: c.slug,
           slug: c.slug,

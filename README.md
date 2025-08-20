@@ -349,3 +349,27 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Built with ❤️ for Iranian artisans and craftspeople.
+ 
+## 🖼️ AI Image Generation (optional)
+
+You can generate category-accurate images for all products and categories and upload them to Cloudinary.
+
+Environment variables required:
+
+```
+OPENAI_API_KEY=sk-...
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+```
+
+Scripts:
+
+- Generate product images for all active products:
+   - `npm run images:generate:products`
+   - Only missing: `npm run images:generate:products:missing`
+   - Replace existing: `npm run images:generate:products:replace`
+- Generate category tile images:
+   - `npm run images:generate:categories`
+
+Curated category fallbacks live in `lib/assets.ts` and are used by the homepage if no product image is available per category.
