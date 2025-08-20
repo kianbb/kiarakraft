@@ -170,7 +170,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           {/* Seller Info */}
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs text-muted-foreground">
-              {product.seller.displayName}
+              {locale === 'en' ? product.seller.shopName : product.seller.displayName}
             </span>
             <VerifiedBadge 
               verified={product.seller.verified || false} 
