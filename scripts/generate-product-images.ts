@@ -33,7 +33,8 @@ async function main(opts: Options) {
     where,
     include: {
       images: true,
-      category: { select: { slug: true, name: true } }
+      category: { select: { slug: true, name: true } },
+      translations: { where: { locale: 'en' } }
     },
     orderBy: { createdAt: 'asc' },
     take: opts.limit,
@@ -44,17 +45,29 @@ async function main(opts: Options) {
     if (opts.onlyMissing && p.images.length > 0) continue;
     if (!opts.replace && p.images.some(img => img.url.includes('res.cloudinary.com'))) continue; // already have cloudinary
 
-    const category = inferCategoryFromSlugOrName(p.category?.slug || p.category?.name);
-    const title = p.title;
-    const description = p.description;
+  const category = inferCategoryFromSlugOrName(p.category?.slug || p.category?.name);
+  const enTitle = p.translations?.[0]?.title || p.title;
+  const enDescription = p.translations?.[0]?.description || p.description;
 
     try {
-      console.log(`→ ${title}`);
+      console.log(`→ ${enTitle}`);
       if (opts.dryRun) {
         processed++;
         continue;
       }
-  const buf = await generateProductImageBuffer({ title, description, category, size: '1024x1024' });
+      // OpenAI call with simple retry (3 attempts)
+      const buf = await (async () => {
+        let lastErr: unknown;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            return await generateProductImageBuffer({ title: enTitle, description: enDescription, category, size: '1024x1024' });
+          } catch (e) {
+            lastErr = e;
+            if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+          }
+        }
+        throw lastErr;
+      })();
       const upload = await uploadImageToCloudinary(buf, {
         folder: `kiarakraft/products/${p.id}`,
         public_id: 'main',
@@ -72,18 +85,20 @@ async function main(opts: Options) {
         data: {
           productId: p.id,
           url: upload.secure_url,
-          alt: p.title,
+          alt: enTitle,
           sortOrder: 0,
         }
       });
 
-      // normalize others to start at 1
-      const others = p.images;
-      for (let i = 0; i < others.length; i++) {
-        await prisma.listingImage.update({
-          where: { id: others[i].id },
-          data: { sortOrder: i + 1 }
-        });
+      // normalize others to start at 1 (only when not replacing)
+      if (!opts.replace) {
+        const others = p.images;
+        for (let i = 0; i < others.length; i++) {
+          await prisma.listingImage.update({
+            where: { id: others[i].id },
+            data: { sortOrder: i + 1 }
+          });
+        }
       }
 
       processed++;

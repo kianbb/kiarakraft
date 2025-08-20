@@ -16,7 +16,7 @@ function buildPrompt(title: string, description: string, category?: ProductCateg
   const detail = description?.slice(0, 300) || '';
   const cat = category ? (categoryHints[category] || category) : '';
 
-  return `${base}\nSubject: ${subject}.\nDetails: ${detail}.\nStyle: ${cat}.\nCultural context: ${localeHint}.`;
+  return `${base}\nLanguage: English.\nSubject: ${subject}.\nDetails: ${detail}.\nStyle: ${cat}.\nCultural context: ${localeHint}.`;
 }
 
 export async function generateProductImageBuffer(params: {
@@ -24,35 +24,61 @@ export async function generateProductImageBuffer(params: {
   description: string;
   category?: ProductCategory;
   size?: '512x512' | '1024x1024' | '2048x2048';
+  model?: string;
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_BETA;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not set');
   }
   const prompt = buildPrompt(params.title, params.description, params.category);
+  const endpoint = 'https://api.openai.com/v1/images/generations';
+  const tryModel = async (model: string) => {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        size: params.size || '1024x1024',
+        n: 1
+      }),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      const err = new Error(`OpenAI image generation failed: ${resp.status} ${text}`);
+      // Attach raw for caller
+      // @ts-ignore
+      err.__raw = text;
+      throw err;
+    }
+    const data = (await resp.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
+    const item = data?.data?.[0];
+    if (!item) throw new Error('Image generation returned no data');
+    if (item.b64_json) return Buffer.from(item.b64_json, 'base64');
+    if (item.url) {
+      const imgResp = await fetch(item.url);
+      if (!imgResp.ok) throw new Error(`Fetch image URL failed: ${imgResp.status}`);
+      const ab = await imgResp.arrayBuffer();
+      return Buffer.from(ab);
+    }
+    throw new Error('Image generation returned no data');
+  };
 
-  const resp = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-1',
-      prompt,
-      size: params.size || '1024x1024',
-      n: 1
-    }),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(`OpenAI image generation failed: ${resp.status} ${text}`);
+  const preferred = params.model || process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+  try {
+    return await tryModel(preferred);
+  } catch (e: any) {
+    const raw = String(e?.__raw || e?.message || '');
+    const needsVerification = /must be verified to use the model `gpt-image-1`/i.test(raw);
+    if (preferred === 'gpt-image-1' && needsVerification) {
+      // Fallback to dall-e-3 automatically
+      return await tryModel('dall-e-3');
+    }
+    throw e;
   }
-  const data = (await resp.json()) as { data?: Array<{ b64_json?: string }> };
-  const b64 = data?.data?.[0]?.b64_json;
-  if (!b64) throw new Error('Image generation returned no data');
-  return Buffer.from(b64, 'base64');
 }
 
 export function inferCategoryFromSlugOrName(slugOrName?: string): ProductCategory | undefined {
