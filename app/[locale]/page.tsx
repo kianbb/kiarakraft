@@ -119,7 +119,7 @@ async function getCategoryTiles() {
     // Preserve the desired display order
     const order = ['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting'];
     return tiles.sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
-  } catch (e) {
+  } catch {
     // If DB is not reachable at build time, use fallbacks
     return staticFallback as unknown as Array<{ nameKey: string; slug: string; image: string }>;
   }
