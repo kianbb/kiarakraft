@@ -48,9 +48,8 @@ export async function generateProductImageBuffer(params: {
     });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      const err = new Error(`OpenAI image generation failed: ${resp.status} ${text}`);
+      const err: Error & { __raw?: string } = new Error(`OpenAI image generation failed: ${resp.status} ${text}`);
       // Attach raw for caller
-      // @ts-ignore
       err.__raw = text;
       throw err;
     }
@@ -70,8 +69,13 @@ export async function generateProductImageBuffer(params: {
   const preferred = params.model || process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
   try {
     return await tryModel(preferred);
-  } catch (e: any) {
-    const raw = String(e?.__raw || e?.message || '');
+  } catch (e: unknown) {
+    let raw = '';
+    if (typeof e === 'object' && e !== null && '__raw' in e) {
+      raw = String((e as { __raw?: unknown }).__raw ?? '');
+    } else if (e instanceof Error) {
+      raw = String(e.message || '');
+    }
     const needsVerification = /must be verified to use the model `gpt-image-1`/i.test(raw);
     if (preferred === 'gpt-image-1' && needsVerification) {
       // Fallback to dall-e-3 automatically
