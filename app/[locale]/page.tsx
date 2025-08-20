@@ -111,7 +111,9 @@ async function getCategoryTiles() {
         return {
           nameKey: c.slug,
           slug: c.slug,
-          image: product?.images?.[0]?.url || fallbackBySlug[c.slug] || '/kk-logo-original.png'
+          // Prefer the category hero image we generated (Cloudinary via CATEGORY_IMAGE_FALLBACKS).
+          // If not available for any reason, fall back to the most recent product image, then to logo.
+          image: fallbackBySlug[c.slug] || product?.images?.[0]?.url || '/kk-logo-original.png'
         };
       })
     );
