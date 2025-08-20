@@ -42,11 +42,12 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 }
 
 // Fetch real featured products from database
-async function getFeaturedProducts() {
+async function getFeaturedProducts(locale: string) {
   try {
     const results = await searchProducts({
       sortBy: 'newest',
-      limit: 4 // Show 4 featured products
+      limit: 4, // Show 4 featured products
+      locale
     });
     
     return results.products.map(product => ({
@@ -135,7 +136,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
   // Use explicit locale to avoid default-locale bleed during SSG/ISR
   const t = await getTranslations({ locale, namespace: 'home' });
   const tCategories = await getTranslations({ locale, namespace: 'categories' });
-  const featuredProducts = await getFeaturedProducts();
+  const featuredProducts = await getFeaturedProducts(locale);
   const categoryTiles = await getCategoryTiles();
   
 
