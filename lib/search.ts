@@ -32,6 +32,7 @@ export interface SearchFilters {
   sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'oldest';
   page?: number;
   limit?: number;
+  locale?: string;
 }
 
 export interface SearchResult {
@@ -87,7 +88,8 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     verifiedOnly,
     sortBy = 'relevance',
     page = 1,
-    limit = 20
+    limit = 20,
+    locale = 'fa'
   } = filters;
 
   const offset = (page - 1) * limit;
@@ -280,6 +282,31 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       images: [], // Will be populated separately
     }));
 
+    // Apply translations for search results if needed
+    if (locale === 'en' && products.length > 0) {
+      const productIds = products.map(p => p.id);
+      const translations = await prisma.productTranslation.findMany({
+        where: {
+          productId: { in: productIds },
+          locale: 'en'
+        }
+      });
+      
+      const translationMap = new Map(translations.map(t => [t.productId, { title: t.title, description: t.description }]));
+      
+      products = products.map(product => {
+        const translation = translationMap.get(product.id);
+        if (translation) {
+          return {
+            ...product,
+            title: translation.title,
+            description: translation.description
+          };
+        }
+        return product;
+      });
+    }
+
   } else {
     // Simple filtering without search query
     let orderBy: Prisma.ProductOrderByWithRelationInput[] = [];
@@ -329,6 +356,9 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
             orderBy: {
               sortOrder: 'asc'
             }
+          },
+          translations: {
+            where: { locale }
           }
         },
         orderBy,
@@ -338,7 +368,18 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       prisma.product.count({ where: baseConditions })
     ]);
 
-    products = productsResult;
+    // Apply translations if available
+    products = productsResult.map(product => {
+      if (locale === 'en' && product.translations.length > 0) {
+        const translation = product.translations[0];
+        return {
+          ...product,
+          title: translation.title,
+          description: translation.description
+        };
+      }
+      return product;
+    });
     total = totalResult;
   }
 

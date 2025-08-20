@@ -46,7 +46,7 @@ async function getSearchResults(locale: string, searchParams: PageProps['searchP
       limit: PRODUCTS_PER_PAGE
     };
 
-    const results = await searchProducts(filters);
+    const results = await searchProducts({ ...filters, locale });
     
     // Transform results to include seller verification status
     const transformedProducts = results.products.map(product => ({
