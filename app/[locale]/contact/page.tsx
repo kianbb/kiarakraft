@@ -1,27 +1,39 @@
 import { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import ContactForm from '@/components/contact/ContactForm';
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations({ locale: params.locale, namespace: 'footer' });
+interface ContactPageProps {
+  params: { locale: string };
+}
+
+export async function generateMetadata({ params }: ContactPageProps): Promise<Metadata> {
+  const { locale } = params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'contact' });
+  
   return {
-    title: `${t('contact')} – Kiara Kraft`,
-    description: 'Get in touch with Kiara Kraft. We would love to hear from you.'
+    title: `${t('title')} – Kiara Kraft`,
+    description: t('description')
   };
 }
 
-export default function ContactPage() {
+export default async function ContactPage({ params }: ContactPageProps) {
+  const { locale } = params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'contact' });
+  
   const mail = process.env.CONTACT_RECIPIENT || 'info@kiarakraft.com';
+  
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Contact Us</h1>
+      <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-muted-foreground mb-6">
-        We’d love to hear from you. Send us a message and we’ll get back as soon as we can.
+        {t('subtitle')}
       </p>
       <div className="rounded-lg border p-6 bg-card">
-        <ContactForm />
+        <ContactForm locale={locale} />
         <div className="mt-6 text-sm text-muted-foreground">
-          Or email us directly at{' '}
+          {t('emailDirectly')}{' '}
           <a className="text-primary underline" href={`mailto:${mail}`}>{mail}</a>.
         </div>
       </div>

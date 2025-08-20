@@ -578,5 +578,41 @@
     "emergency": "Emergency",
     "supportHours": "Sunday-Thursday, 9 AM - 6 PM",
     "supportResponseTime": "Within 6 hours"
+  },
+  "about": {
+    "title": "About Kiara Kraft",
+    "description": "Learn about Kiara Kraft and our mission to support Iranian artisans.",
+    "subtitle": "We are a marketplace dedicated to celebrating and supporting Iranian artisans and their craft.",
+    "content": "Kiara Kraft connects buyers with authentic, handmade Iranian goods, ensuring fair opportunities for artisans while providing buyers with quality and meaningful products.",
+    "lastUpdated": "Last updated"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "description": "Get in touch with Kiara Kraft. We would love to hear from you.",
+    "subtitle": "We'd love to hear from you. Send us a message and we'll get back as soon as we can.",
+    "name": "Name",
+    "email": "Email",
+    "message": "Message",
+    "send": "Send",
+    "sending": "Sending…",
+    "successMessage": "Message sent! We'll be in touch.",
+    "errorMessage": "Failed to send message",
+    "emailDirectly": "Or email us directly at"
+  },
+  "help": {
+    "title": "Help",
+    "description": "Help center: FAQs and support options for Kiara Kraft.",
+    "subtitle": "Find answers to common questions and ways to contact support.",
+    "lastUpdated": "Last updated",
+    "faq": {
+      "howToOrder": {
+        "question": "How do I place an order?",
+        "answer": "Browse products, add to cart, and follow checkout steps."
+      },
+      "paymentMethods": {
+        "question": "What payment methods are supported?",
+        "answer": "See options on the checkout page; offline transfer may be available."
+      }
+    }
   }
 }

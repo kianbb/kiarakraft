@@ -1,32 +1,45 @@
 import { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const t = await getTranslations({ locale: params.locale, namespace: 'footer' });
+interface HelpPageProps {
+  params: { locale: string };
+}
+
+export async function generateMetadata({ params }: HelpPageProps): Promise<Metadata> {
+  const { locale } = params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'help' });
+  
   return {
-    title: `${t('help')} – Kiara Kraft`,
-    description: 'Help center: FAQs and support options for Kiara Kraft.'
+    title: `${t('title')} – Kiara Kraft`,
+    description: t('description')
   };
 }
 
-export default function HelpPage() {
+export default async function HelpPage({ params }: HelpPageProps) {
+  const { locale } = params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'help' });
+  
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Help</h1>
+      <h1 className="text-3xl font-bold mb-2">{t('title')}</h1>
       <p className="text-muted-foreground mb-6">
-        Find answers to common questions and ways to contact support.
+        {t('subtitle')}
       </p>
       <div className="space-y-4">
         <details className="rounded-md border p-4">
-          <summary className="font-medium">How do I place an order?</summary>
-          <p className="mt-2 text-sm text-muted-foreground">Browse products, add to cart, and follow checkout steps.</p>
+          <summary className="font-medium">{t('faq.howToOrder.question')}</summary>
+          <p className="mt-2 text-sm text-muted-foreground">{t('faq.howToOrder.answer')}</p>
         </details>
         <details className="rounded-md border p-4">
-          <summary className="font-medium">What payment methods are supported?</summary>
-          <p className="mt-2 text-sm text-muted-foreground">See options on the checkout page; offline transfer may be available.</p>
+          <summary className="font-medium">{t('faq.paymentMethods.question')}</summary>
+          <p className="mt-2 text-sm text-muted-foreground">{t('faq.paymentMethods.answer')}</p>
         </details>
       </div>
-      <p className="mt-8 text-xs text-muted-foreground">Last updated: August 20, 2025</p>
+      <p className="mt-8 text-xs text-muted-foreground">
+        {t('lastUpdated')}: {locale === 'fa' ? '۲۰ آگوست ۲۰۲۵' : 'August 20, 2025'}
+      </p>
     </div>
   );
 }
