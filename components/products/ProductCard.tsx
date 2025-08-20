@@ -90,12 +90,14 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
         } catch {
           payload = null;
         }
-        const msg = payload?.error || payload?.message || `Failed to add to cart (${response.status})`;
+        const serverMsg = payload?.error || payload?.message;
+        const msg = serverMsg ? `${serverMsg} (${response.status})` : `Failed to add to cart (${response.status})`;
         throw new Error(msg);
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('Failed to add item to cart. Please try again.');
+      const message = (error as Error)?.message || 'Failed to add item to cart. Please try again.';
+      alert(message);
     } finally {
       setAddingToCart(false);
     }

@@ -1,8 +1,44 @@
 import { NextRequest } from 'next/server';
 
+// Normalize host for comparisons: strip port and leading www.
+function normalizeHost(input?: string | null): string | null {
+  if (!input) return null;
+  const raw = input.split(':')[0].trim().toLowerCase();
+  return raw.startsWith('www.') ? raw.slice(4) : raw;
+}
+
+function buildAllowedHosts(currentHost: string | null): Set<string> {
+  const allowed = new Set<string>();
+  const norm = normalizeHost(currentHost);
+  if (norm) {
+    allowed.add(norm);
+    allowed.add(`www.${norm}`); // accept both apex and www
+  }
+
+  // Allow configured extra hosts, e.g., preview domains or alternate domains
+  const envHosts = process.env.ALLOWED_CSRF_HOSTS || process.env.NEXT_PUBLIC_ALLOWED_CSRF_HOSTS;
+  if (envHosts) {
+    envHosts
+      .split(',')
+      .map(h => h.trim())
+      .filter(Boolean)
+      .forEach(h => {
+        const n = normalizeHost(h);
+        if (n) {
+          allowed.add(n);
+          allowed.add(`www.${n}`);
+        }
+      });
+  }
+
+  // Common allowance for Vercel preview/production domains if applicable
+  // We don't know the exact subdomain; accept *.vercel.app only if explicitly added via env
+  return allowed;
+}
+
 /**
- * Basic CSRF protection by validating origin and referer headers
- * For production, consider using a more robust CSRF token system
+ * Basic CSRF protection by validating origin or referer hosts against an allowed list.
+ * For production, consider synchronizer tokens if making cross-site POSTs.
  */
 export function validateCSRF(request: NextRequest): boolean {
   // Skip CSRF check for GET requests (they should be idempotent)
@@ -14,27 +50,22 @@ export function validateCSRF(request: NextRequest): boolean {
   const referer = request.headers.get('referer');
   const host = request.headers.get('host');
 
-  // Check if request has origin header
-  if (origin) {
-    const originHost = new URL(origin).host;
-    if (originHost !== host) {
-      console.warn(`CSRF: Origin mismatch - Origin: ${originHost}, Host: ${host}`);
-      return false;
-    }
-  }
-
-  // Check referer header as fallback
-  if (referer) {
-    const refererHost = new URL(referer).host;
-    if (refererHost !== host) {
-      console.warn(`CSRF: Referer mismatch - Referer: ${refererHost}, Host: ${host}`);
-      return false;
-    }
-  }
+  const originHost = origin ? normalizeHost(new URL(origin).host) : null;
+  const refererHost = referer ? normalizeHost(new URL(referer).host) : null;
+  const hostNorm = normalizeHost(host);
+  const allowed = buildAllowedHosts(hostNorm);
 
   // If neither origin nor referer is present for non-GET requests, it's suspicious
-  if (!origin && !referer) {
+  if (!originHost && !refererHost) {
     console.warn('CSRF: Missing both origin and referer headers');
+    return false;
+  }
+
+  const originOk = originHost ? allowed.has(originHost) : false;
+  const refererOk = refererHost ? allowed.has(refererHost) : false;
+
+  if (!originOk && !refererOk) {
+    console.warn(`CSRF: Host mismatch - Origin: ${originHost ?? 'n/a'}, Referer: ${refererHost ?? 'n/a'}, Allowed: ${Array.from(allowed).join(', ')}`);
     return false;
   }
 
