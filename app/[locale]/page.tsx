@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Metadata } from 'next';
 import { searchProducts } from '@/lib/search';
+import { prisma } from '@/lib/prisma';
 
 // Pre-render both locales for the dynamic [locale] segment to ensure correct SSG per-locale
 export const dynamicParams = false;
@@ -72,6 +73,48 @@ async function getFeaturedProducts() {
   }
 }
 
+// Build category tiles with a representative image per category
+async function getCategoryTiles() {
+  // Fetch all categories (small fixed set)
+  const categories = await prisma.category.findMany({
+    select: { id: true, slug: true }
+  });
+
+  // For each category, pick the most recent approved product's first image
+  const tiles = await Promise.all(
+    categories.map(async (c) => {
+      const product = await prisma.product.findFirst({
+        where: {
+          active: true,
+          eligibilityStatus: 'APPROVED',
+          categoryId: c.id,
+          images: { some: {} }
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          images: { select: { url: true }, orderBy: { sortOrder: 'asc' }, take: 1 }
+        }
+      });
+      const fallbackBySlug: Record<string, string> = {
+        ceramics: '/kk-logo-original.png',
+        textiles: '/kk-logo-original.png',
+        jewelry: '/kk-logo-original.png',
+        woodwork: '/kk-logo-original.png',
+        painting: '/kk-logo-original.png'
+      };
+      return {
+        nameKey: c.slug,
+        slug: c.slug,
+        image: product?.images?.[0]?.url || fallbackBySlug[c.slug] || '/kk-logo-original.png'
+      };
+    })
+  );
+
+  // Preserve the desired display order
+  const order = ['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting'];
+  return tiles.sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
+}
+
 export default async function Home({ params }: { params: { locale: string } }) {
   const { locale } = params;
   setRequestLocale(locale);
@@ -79,6 +122,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
   const t = await getTranslations({ locale, namespace: 'home' });
   const tCategories = await getTranslations({ locale, namespace: 'categories' });
   const featuredProducts = await getFeaturedProducts();
+  const categoryTiles = await getCategoryTiles();
   
 
   return (
@@ -124,14 +168,8 @@ export default async function Home({ params }: { params: { locale: string } }) {
             <h3 className="text-3xl font-bold text-center mb-12">
               {t('featured.categories')}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-        {[
-                { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=128&h=128&fit=crop&q=80' },
-                { nameKey: 'textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=128&h=128&fit=crop&q=80' },
-                { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=128&h=128&fit=crop&q=80' },
-                { nameKey: 'woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=128&h=128&fit=crop&q=80' },
-                { nameKey: 'painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=128&h=128&fit=crop&q=80' }
-              ].map((category) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+    {categoryTiles.map((category) => (
                 <Link
                   key={category.slug}
           href={`/${locale}/explore?category=${category.slug}`}
@@ -152,7 +190,7 @@ export default async function Home({ params }: { params: { locale: string } }) {
                     <p className="font-medium text-foreground">{tCategories(category.nameKey)}</p>
                   </div>
                 </Link>
-              ))}
+        ))}
             </div>
           </div>
         </section>
