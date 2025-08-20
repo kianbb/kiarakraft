@@ -614,5 +614,184 @@
         "answer": "See options on the checkout page; offline transfer may be available."
       }
     }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "description": "Terms of Service for Kiara Kraft handcrafted marketplace",
+    "lastUpdated": "Last Updated",
+    "effectiveDate": "Effective Date",
+    "acceptance": {
+      "title": "Acceptance of Terms",
+      "content": "By accessing and using Kiara Kraft, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service."
+    },
+    "definitions": {
+      "title": "Definitions",
+      "platform": "Kiara Kraft marketplace and all related services",
+      "user": "Any person who accesses or uses the platform",
+      "seller": "Verified artisan who lists products on the platform",
+      "buyer": "User who purchases products through the platform",
+      "content": "All text, images, and other materials on the platform"
+    },
+    "sellerTerms": {
+      "title": "Seller Terms",
+      "verification": {
+        "title": "Verification Process",
+        "content": "All sellers must complete our verification process, including identity verification and quality assessment of their crafts."
+      },
+      "quality": {
+        "title": "Product Quality",
+        "content": "Sellers must ensure all products meet our quality standards and accurately represent handcrafted Iranian items."
+      },
+      "commission": {
+        "title": "Commission Structure",
+        "content": "Platform commission is deducted from successful sales as outlined in the seller agreement."
+      }
+    },
+    "paymentTerms": {
+      "title": "Payment Terms",
+      "methods": {
+        "title": "Payment Methods",
+        "content": "We accept bank transfers, cash on delivery, and approved online payment gateways."
+      },
+      "processing": {
+        "title": "Processing Time",
+        "content": "Payments are processed within 1-3 business days of order confirmation."
+      },
+      "refunds": {
+        "title": "Refunds",
+        "content": "Refund eligibility is subject to our refund policy and must be initiated within 7 days of delivery."
+      }
+    },
+    "userConduct": {
+      "title": "User Conduct",
+      "intro": "Users agree not to engage in:",
+      "fraud": "Fraudulent activities or false representations",
+      "infringement": "Copyright or trademark infringement",
+      "harassment": "Harassment or inappropriate behavior",
+      "spam": "Spam or unauthorized marketing",
+      "illegal": "Any illegal activities"
+    },
+    "intellectualProperty": {
+      "title": "Intellectual Property",
+      "content": "All content on Kiara Kraft, including logos, designs, and text, is protected by intellectual property laws. Users may not reproduce, distribute, or create derivative works without explicit permission."
+    },
+    "privacyPolicy": {
+      "title": "Privacy Policy",
+      "content": "Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the platform, to understand our practices."
+    },
+    "limitation": {
+      "title": "Limitation of Liability",
+      "content": "Kiara Kraft shall not be liable for any indirect, incidental, special, or consequential damages resulting from your use of the platform."
+    },
+    "governingLaw": {
+      "title": "Governing Law",
+      "content": "These terms shall be governed by and construed in accordance with the laws of the Islamic Republic of Iran."
+    },
+    "changes": {
+      "title": "Changes to Terms",
+      "content": "We reserve the right to modify these terms at any time. Users will be notified of significant changes via email or platform notification."
+    },
+    "contact": {
+      "title": "Contact Information",
+      "intro": "For questions about these Terms of Service, please contact us:",
+      "email": "Email",
+      "address": "Address",
+      "responseTime": "Response Time",
+      "responseTimeValue": "Within 48 hours during business days",
+      "addressValue": "Tehran, Islamic Republic of Iran"
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "description": "Privacy Policy for Kiara Kraft handcrafted marketplace",
+    "lastUpdated": "Last Updated",
+    "effectiveDate": "Effective Date",
+    "informationCollect": {
+      "title": "Information We Collect",
+      "personal": {
+        "title": "Personal Information",
+        "content": "Name, email address, phone number, shipping address, and payment information when you create an account or make a purchase."
+      },
+      "usage": {
+        "title": "Usage Information",
+        "content": "How you interact with our platform, including pages visited, products viewed, and search queries."
+      },
+      "device": {
+        "title": "Device Information",
+        "content": "IP address, browser type, device type, and operating system for security and analytics purposes."
+      }
+    },
+    "howWeUse": {
+      "title": "How We Use Your Information",
+      "process": "Process orders and payments",
+      "communicate": "Communicate about your account and orders",
+      "improve": "Improve our platform and services",
+      "prevent": "Prevent fraud and ensure security",
+      "marketing": "Send marketing communications (with your consent)",
+      "comply": "Comply with legal obligations"
+    },
+    "informationSharing": {
+      "title": "Information Sharing",
+      "intro": "We may share your information with:",
+      "sellers": "Order and shipping information necessary to fulfill purchases",
+      "serviceProviders": "Payment processors, shipping companies, and analytics services",
+      "legal": "When required by law or to protect our rights",
+      "business": "In the event of a merger, acquisition, or sale"
+    },
+    "dataSecurity": {
+      "title": "Data Security",
+      "intro": "We implement industry-standard security measures to protect your information:",
+      "ssl": "SSL encryption for data transmission",
+      "secure": "Secure data storage with access controls",
+      "monitoring": "Regular security monitoring and updates",
+      "training": "Employee training on data protection"
+    },
+    "yourRights": {
+      "title": "Your Rights",
+      "intro": "You have the right to:",
+      "access": "Access your personal information",
+      "correct": "Correct inaccurate information",
+      "delete": "Request deletion of your information",
+      "export": "Export your data",
+      "optOut": "Opt out of marketing communications",
+      "restrict": "Restrict processing of your information"
+    },
+    "cookies": {
+      "title": "Cookies and Tracking",
+      "essential": {
+        "title": "Essential Cookies",
+        "content": "Required for the platform to function properly, including authentication and security."
+      },
+      "analytics": {
+        "title": "Analytics Cookies",
+        "content": "Help us understand how users interact with our platform to improve the user experience."
+      },
+      "marketing": {
+        "title": "Marketing Cookies",
+        "content": "Used to deliver personalized advertisements and track campaign effectiveness."
+      }
+    },
+    "childrens": {
+      "title": "Children's Privacy",
+      "content": "Our platform is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13."
+    },
+    "international": {
+      "title": "International Transfers",
+      "content": "Your information may be transferred to and processed in countries other than Iran. We ensure appropriate safeguards are in place to protect your information."
+    },
+    "policyChanges": {
+      "title": "Changes to This Policy",
+      "content": "We may update this Privacy Policy from time to time. We will notify you of any material changes via email or platform notification."
+    },
+    "contact": {
+      "title": "Contact Our Data Protection Officer",
+      "intro": "For questions about this Privacy Policy or your personal information:",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "responseTime": "Response Time",
+      "responseTimeValue": "Within 30 days",
+      "addressValue": "Tehran, Islamic Republic of Iran"
+    }
   }
 }
