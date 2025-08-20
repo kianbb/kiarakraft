@@ -1,17 +1,215 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")   // Neon pooled URL
-  directUrl = env("DIRECT_URL")     // Neon direct URL
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// Payment enums for gateway integration
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  password            String
+  name                String?
+  role                String               @default("BUYER")
+  image               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  cart                Cart?
+  orders              Order[]
+  passwordResetTokens PasswordResetToken[]
+  reviews             Review[]
+  sellerProfile       SellerProfile?
+}
+
+model SellerProfile {
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  shopName          String
+  displayName       String
+  bio               String?
+  region            String?
+  avatarUrl         String?
+  createdAt         DateTime         @default(now())
+  phone             String?
+  address           String?
+  website           String?
+  city              String?
+  docsFolder        String?
+  nationalIdHash    String?
+  province          String?
+  verificationNotes String?
+  verified          Boolean          @default(false)
+  verifiedAt        DateTime?
+  verifiedBy        String?
+  products          Product[]
+  documents         SellerDocument[]
+  user              User             @relation(fields: [userId], references: [id])
+
+  @@index([shopName(ops: raw("gin_trgm_ops"))], map: "seller_shop_trgm_idx", type: Gin)
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  products Product[]
+
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "category_name_trgm_idx", type: Gin)
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Product {
+  id                    String               @id @default(cuid())
+  sellerId              String
+  categoryId            String?
+  title                 String
+  slug                  String               @unique
+  description           String
+  priceToman            Int
+  stock                 Int                  @default(0)
+  active                Boolean              @default(true)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  eligibilityConfidence Int?
+  eligibilityReasons    String?
+  eligibilityStatus     String               @default("PENDING")
+  cartItems             CartItem[]
+  images                ListingImage[]
+  orderItems            OrderItem[]
+  category              Category?            @relation(fields: [categoryId], references: [id])
+  seller                SellerProfile        @relation(fields: [sellerId], references: [id])
+  translations          ProductTranslation[]
+  reviews               Review[]
+
+  @@index([description(ops: raw("gin_trgm_ops"))], map: "product_desc_trgm_idx", type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], map: "product_title_trgm_idx", type: Gin)
+}
+
+model ProductTranslation {
+  id          String   @id @default(cuid())
+  productId   String
+  locale      String
+  title       String
+  description String
+  sourceHash  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@unique([productId, locale])
+}
+
+model ListingImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int     @default(1)
+  cart      Cart    @relation(fields: [cartId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  status     String      @default("PENDING")
+  totalToman Int
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  fullName   String
+  phone      String
+  address1   String
+  address2   String?
+  city       String
+  province   String
+  postalCode String
+  user       User        @relation(fields: [userId], references: [id])
+  items      OrderItem[]
+  payment    Payment?
+}
+
+model Payment {
+  id          String         @id @default(cuid())
+  orderId     String         @unique
+  gateway     PaymentGateway
+  status      PaymentStatus  @default(INITIATED)
+  amountToman Int
+  authority   String?
+  refId       String?
+  raw         Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  order       Order          @relation(fields: [orderId], references: [id])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  productId      String
+  unitPriceToman Int
+  quantity       Int
+  order          Order   @relation(fields: [orderId], references: [id])
+  product        Product @relation(fields: [productId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SellerDocument {
+  id        String        @id @default(cuid())
+  sellerId  String
+  publicId  String
+  url       String
+  mime      String
+  bytes     Int
+  createdAt DateTime      @default(now())
+  seller    SellerProfile @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId])
+}
+
 enum PaymentStatus {
   INITIATED
   PENDING
@@ -24,209 +222,4 @@ enum PaymentGateway {
   OFFLINE
   ZARINPAL
   IDPAY
-}
-
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      String   @default("BUYER") // BUYER, SELLER, ADMIN
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  sellerProfile    SellerProfile?
-  orders           Order[]
-  cart             Cart?
-  reviews          Review[]
-  passwordResetTokens PasswordResetToken[]
-}
-
-model SellerProfile {
-  id          String   @id @default(cuid())
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String   @unique
-  shopName    String
-  displayName String
-  bio         String?
-  region      String?
-  avatarUrl   String?
-  phone       String?
-  address     String?
-  website     String?
-  createdAt   DateTime @default(now())
-
-  // Trust & Safety fields
-  verified           Boolean  @default(false)
-  province          String?
-  city              String?
-  nationalIdHash    String?  // SHA-256 hash of national ID for verification
-  docsFolder        String?  // Cloudinary folder path for uploaded documents
-  verificationNotes String?  // Admin notes about verification process
-  verifiedAt        DateTime?
-  verifiedBy        String?  // Admin user ID who verified
-
-  products Product[]
-  documents SellerDocument[]
-}
-
-model Category {
-  id       String    @id @default(cuid())
-  slug     String    @unique
-  name     String
-  products Product[]
-}
-
-model Product {
-  id          String   @id @default(cuid())
-  seller      SellerProfile @relation(fields: [sellerId], references: [id])
-  sellerId    String
-  category    Category? @relation(fields: [categoryId], references: [id])
-  categoryId  String?
-  title       String
-  slug        String   @unique
-  description String
-  priceToman  Int
-  stock       Int      @default(0)
-  active      Boolean  @default(true)
-  // Handcrafted eligibility moderation
-  eligibilityStatus    String   @default("PENDING") // PENDING, APPROVED, REJECTED, REVIEW
-  eligibilityConfidence Int?
-  eligibilityReasons    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  images     ListingImage[]
-  orderItems OrderItem[]
-  reviews    Review[]
-  cartItems  CartItem[]
-  translations ProductTranslation[]
-}
-
-// Stores localized fields for products (e.g., English versions of Persian originals)
-model ProductTranslation {
-  id          String   @id @default(cuid())
-  product     Product  @relation(fields: [productId], references: [id])
-  productId   String
-  locale      String
-  title       String
-  description String
-  sourceHash  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([productId, locale])
-}
-
-model ListingImage {
-  id        String  @id @default(cuid())
-  product   Product @relation(fields: [productId], references: [id])
-  productId String
-  url       String
-  alt       String?
-  sortOrder Int     @default(0)
-}
-
-model Cart {
-  id        String     @id @default(cuid())
-  user      User       @relation(fields: [userId], references: [id])
-  userId    String     @unique
-  items     CartItem[]
-  updatedAt DateTime   @updatedAt
-  createdAt DateTime   @default(now())
-}
-
-model CartItem {
-  id        String  @id @default(cuid())
-  cart      Cart    @relation(fields: [cartId], references: [id])
-  cartId    String
-  product   Product @relation(fields: [productId], references: [id])
-  productId String
-  quantity  Int     @default(1)
-
-  @@unique([cartId, productId])
-}
-
-model Order {
-  id         String      @id @default(cuid())
-  user       User        @relation(fields: [userId], references: [id])
-  userId     String
-  status     String      @default("PENDING") // PENDING, PAID, SHIPPED, DELIVERED, CANCELED
-  totalToman Int
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-
-  // Shipping (simplified)
-  fullName   String
-  phone      String
-  address1   String
-  address2   String?
-  city       String
-  province   String
-  postalCode String
-
-  items   OrderItem[]
-  payment Payment?
-}
-
-model Payment {
-  id          String         @id @default(cuid())
-  order       Order          @relation(fields: [orderId], references: [id])
-  orderId     String         @unique
-  gateway     PaymentGateway
-  status      PaymentStatus  @default(INITIATED)
-  amountToman Int
-  authority   String?        // gateway token/authority
-  refId       String?        // gateway reference code
-  raw         Json?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-}
-
-model OrderItem {
-  id             String  @id @default(cuid())
-  order          Order   @relation(fields: [orderId], references: [id])
-  orderId        String
-  product        Product @relation(fields: [productId], references: [id])
-  productId      String
-  unitPriceToman Int
-  quantity       Int
-}
-
-model Review {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  product   Product  @relation(fields: [productId], references: [id])
-  productId String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-
-  @@unique([userId, productId])
-}
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  used      Boolean  @default(false)
-}
-
-// Stores metadata of seller KYC documents uploaded to Cloudinary
-model SellerDocument {
-  id               String         @id @default(cuid())
-  seller           SellerProfile  @relation(fields: [sellerId], references: [id])
-  sellerId         String
-  publicId         String
-  url              String
-  mime             String
-  bytes            Int
-  createdAt        DateTime       @default(now())
-
-  @@index([sellerId])
 }
