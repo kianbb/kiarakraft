@@ -77,11 +77,11 @@ async function getFeaturedProducts() {
 async function getCategoryTiles() {
   // Safe fallbacks to avoid build-time DB dependency
   const staticFallback = [
-    { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'ceramics', slug: 'ceramics', image: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400&h=400&fit=crop&q=80' },
     { nameKey: 'textiles', slug: 'textiles', image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80' },
-    { nameKey: 'painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=400&fit=crop&q=80' }
+    { nameKey: 'jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'woodwork', slug: 'woodwork', image: 'https://images.unsplash.com/photo-1542319375-a5bb87543ad7?w=400&h=400&fit=crop&q=80' },
+    { nameKey: 'painting', slug: 'painting', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=400&fit=crop&q=80' }
   ] as const;
 
   try {
@@ -106,11 +106,11 @@ async function getCategoryTiles() {
           }
         });
         const fallbackBySlug: Record<string, string> = {
-          ceramics: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop&q=80',
+          ceramics: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400&h=400&fit=crop&q=80',
           textiles: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=400&h=400&fit=crop&q=80',
-          jewelry: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&q=80',
-          woodwork: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop&q=80',
-          painting: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=400&fit=crop&q=80'
+          jewelry: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop&q=80',
+          woodwork: 'https://images.unsplash.com/photo-1542319375-a5bb87543ad7?w=400&h=400&fit=crop&q=80',
+          painting: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=400&fit=crop&q=80'
         };
         return {
           nameKey: c.slug,
