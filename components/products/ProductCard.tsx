@@ -83,8 +83,14 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           window.dispatchEvent(new Event('cart:updated'));
         }
       } else {
-        const error = await response.json().catch(() => ({} as any));
-        const msg = (error && (error.error || error.message)) || `Failed to add to cart (${response.status})`;
+        type ApiError = { error?: string; message?: string };
+        let payload: ApiError | null = null;
+        try {
+          payload = await response.json() as ApiError;
+        } catch {
+          payload = null;
+        }
+        const msg = payload?.error || payload?.message || `Failed to add to cart (${response.status})`;
         throw new Error(msg);
       }
     } catch (error) {
