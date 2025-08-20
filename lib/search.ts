@@ -418,8 +418,14 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     });
   }
 
-  // Generate facets for filtering UI
-  const facets = await generateSearchFacets(baseConditions);
+  // Generate facets for filtering UI (optimized, fewer queries)
+  const facets = await generateSearchFacets({
+    categoryId,
+    minPrice,
+    maxPrice,
+    sellerId,
+    verifiedOnly,
+  });
 
   return {
     products: products as SearchResult['products'],
@@ -433,79 +439,130 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
   };
 }
 
-async function generateSearchFacets(baseConditions: Prisma.ProductWhereInput) {
-  // Get category facets
-  const categoryFacets = await prisma.product.groupBy({
-    by: ['categoryId'],
-    where: baseConditions,
-    _count: {
-      id: true
-    }
-  });
+async function generateSearchFacets(
+  {
+    categoryId,
+    minPrice,
+    maxPrice,
+    sellerId,
+    verifiedOnly,
+  }: Pick<SearchFilters, 'categoryId' | 'minPrice' | 'maxPrice' | 'sellerId' | 'verifiedOnly'>
+) {
+  // Build WHERE clause and params once for reuse across facet queries
+  const whereParts: string[] = [
+    'p.active = true',
+    `p."eligibilityStatus" = 'APPROVED'`,
+  ];
+  const params: (string | number | boolean)[] = [];
+  let idx = 1;
 
-  const categoryDetails = await prisma.category.findMany({
-    where: {
-      id: { in: categoryFacets.map(f => f.categoryId).filter(Boolean) as string[] }
-    },
-    select: { id: true, name: true }
-  });
-
-  const categories = categoryFacets
-    .filter(f => f.categoryId)
-    .map(f => ({
-      id: f.categoryId!,
-      name: categoryDetails.find(c => c.id === f.categoryId)?.name || 'Unknown',
-      count: f._count.id
-    }));
-
-  // Get price range distribution
-  const priceStats = await prisma.product.aggregate({
-    where: baseConditions,
-    _min: { priceToman: true },
-    _max: { priceToman: true }
-  });
-
-  const minPrice = priceStats._min.priceToman || 0;
-  const maxPrice = priceStats._max.priceToman || 1000000;
-  const priceStep = Math.ceil((maxPrice - minPrice) / 5); // 5 price ranges
-
-  const priceRanges = [];
-  for (let i = 0; i < 5; i++) {
-    const rangeMin = minPrice + (i * priceStep);
-    const rangeMax = i === 4 ? maxPrice : minPrice + ((i + 1) * priceStep);
-    
-    const count = await prisma.product.count({
-      where: {
-        ...baseConditions,
-        priceToman: {
-          gte: rangeMin,
-          lte: rangeMax
-        }
-      }
-    });
-
-    if (count > 0) {
-      priceRanges.push({
-        min: rangeMin,
-        max: rangeMax,
-        count
-      });
-    }
+  if (categoryId) {
+    whereParts.push(`p."categoryId" = $${idx++}`);
+    params.push(categoryId);
+  }
+  if (sellerId) {
+    whereParts.push(`p."sellerId" = $${idx++}`);
+    params.push(sellerId);
+  }
+  if (typeof minPrice === 'number') {
+    whereParts.push(`p."priceToman" >= $${idx++}`);
+    params.push(minPrice);
+  }
+  if (typeof maxPrice === 'number') {
+    whereParts.push(`p."priceToman" <= $${idx++}`);
+    params.push(maxPrice);
+  }
+  if (verifiedOnly) {
+    whereParts.push(`sp.verified = true`);
   }
 
-  // Count verified sellers
-  const verifiedSellers = await prisma.product.count({
-    where: {
-      ...baseConditions,
-      seller: {
-        verified: true
-      }
-    }
-  });
+  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  // 1) Category facets in a single query
+  const categoriesPromise = prisma.$queryRawUnsafe<
+    Array<{ id: string; name: string; count: number }>
+  >(
+    `
+    SELECT c.id, c.name, COUNT(*)::int AS count
+    FROM "Product" p
+    LEFT JOIN "Category" c ON c.id = p."categoryId"
+    LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
+    ${whereClause}
+    AND p."categoryId" IS NOT NULL
+    GROUP BY c.id, c.name
+    ORDER BY count DESC
+    `,
+    ...params
+  );
+
+  // 2) Price ranges using width_bucket in a single query (up to 5 buckets)
+  const priceRangesPromise = prisma.$queryRawUnsafe<
+    Array<{ bucket: number; count: number; min: number; max: number }>
+  >(
+    `
+    WITH bounds AS (
+      SELECT MIN(p."priceToman")::float AS min_price, MAX(p."priceToman")::float AS max_price
+      FROM "Product" p
+      LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
+      ${whereClause}
+    ),
+    buckets AS (
+      SELECT
+        CASE 
+          WHEN (SELECT max_price FROM bounds) IS NULL OR (SELECT min_price FROM bounds) IS NULL OR (SELECT max_price FROM bounds) = (SELECT min_price FROM bounds)
+            THEN NULL
+          ELSE width_bucket(p."priceToman", (SELECT min_price FROM bounds), (SELECT max_price FROM bounds), 5)
+        END AS bucket
+      FROM "Product" p
+      LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
+      ${whereClause}
+    )
+    SELECT 
+      b.bucket,
+      COUNT(*)::int AS count,
+      (SELECT min_price FROM bounds) + ((b.bucket - 1) * ((SELECT max_price FROM bounds) - (SELECT min_price FROM bounds)) / 5.0) AS min,
+      CASE WHEN b.bucket = 5 THEN (SELECT max_price FROM bounds)
+           ELSE (SELECT min_price FROM bounds) + (b.bucket * ((SELECT max_price FROM bounds) - (SELECT min_price FROM bounds)) / 5.0)
+      END AS max
+    FROM buckets b
+    WHERE b.bucket IS NOT NULL
+    GROUP BY b.bucket
+    ORDER BY b.bucket
+    `,
+    ...params
+  );
+
+  // 3) Verified sellers count
+  const verifiedSellersPromise = prisma.$queryRawUnsafe<
+    Array<{ count: bigint }>
+  >(
+    `
+    SELECT COUNT(*) AS count
+    FROM "Product" p
+    LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
+    ${whereClause}
+    AND sp.verified = true
+    `,
+    ...params
+  );
+
+  const [categories, priceBuckets, verifiedSellersRaw] = await Promise.all([
+    categoriesPromise,
+    priceRangesPromise,
+    verifiedSellersPromise,
+  ]);
+
+  const priceRanges = priceBuckets.map((b) => ({
+    min: Math.floor(b.min),
+    max: Math.ceil(b.max),
+    count: b.count,
+  }));
+
+  const verifiedSellers = Number(verifiedSellersRaw[0]?.count || 0);
 
   return {
     categories,
     priceRanges,
-    verifiedSellers
+    verifiedSellers,
   };
 }
