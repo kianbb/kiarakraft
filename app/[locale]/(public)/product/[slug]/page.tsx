@@ -125,7 +125,7 @@ export default async function Page({ params }: { params: Params }) {
   if (!product) {
     console.log(`[DEBUG] Calling notFound() for: ${params.slug}`);
     // Ensure this throws a proper 404 by calling notFound()
-    notFound();
+    return notFound();
   }
 
   // Convert Toman to IRR for schema (1 Toman = 10 IRR)
