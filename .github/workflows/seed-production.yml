@@ -32,10 +32,7 @@ jobs:
 
       - name: Checkout code
 
-
-
         uses: actions/checkout@v5
-
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
