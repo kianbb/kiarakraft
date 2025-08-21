@@ -39,7 +39,7 @@ async function main(opts: Options) {
   if (!opts.dryRun) envGuard();
   console.log('🖼️  Generating product images...', opts);
 
-  const where: any = { active: true };
+  const where: { active: boolean } = { active: true };
   const products = await prisma.product.findMany({
     where,
     include: {
@@ -54,11 +54,19 @@ async function main(opts: Options) {
   let processed = 0;
   for (const p of products) {
     if (opts.onlyMissing && p.images.length > 0) continue;
-    if (
-      !opts.replace &&
-      p.images.some(img => img.url.includes('res.cloudinary.com'))
-    )
-      continue; // already have cloudinary
+    if (!opts.replace) {
+      const hasCloudinary = p.images.some(img => {
+        try {
+          const host = new URL(img.url).hostname;
+          return (
+            host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com')
+          );
+        } catch {
+          return false;
+        }
+      });
+      if (hasCloudinary) continue; // already have cloudinary-hosted image
+    }
 
     const category = inferCategoryFromSlugOrName(
       p.category?.slug || p.category?.name

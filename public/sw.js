@@ -15,13 +15,21 @@ const PRECACHE_ASSETS = [
   '/offline.html', // fallback page
 ];
 
-// Cache patterns for different resource types
-const CACHE_STRATEGIES = {
-  images: 'CacheFirst',
-  api: 'NetworkFirst',
-  pages: 'NetworkFirst',
-  static: 'StaleWhileRevalidate',
-};
+// Explicit allow‑list of external hosts we cache (avoid substring 'includes' checks)
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  'unsplash.com', // root (rarely used directly)
+  'images.unsplash.com',
+  'cloudinary.com',
+  'res.cloudinary.com',
+]);
+
+function isAllowedExternalHost(hostname) {
+  if (ALLOWED_EXTERNAL_HOSTS.has(hostname)) return true;
+  // Allow subdomains of unsplash.com or cloudinary.com explicitly
+  return (
+    hostname.endsWith('.unsplash.com') || hostname.endsWith('.cloudinary.com')
+  );
+}
 
 // Install event - pre-cache critical assets
 self.addEventListener('install', event => {
@@ -85,13 +93,9 @@ self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // Skip cross-origin requests (unless it's our CDN)
-  if (
-    url.origin !== location.origin &&
-    !url.hostname.includes('unsplash.com') &&
-    !url.hostname.includes('cloudinary.com')
-  ) {
-    return;
+  // Skip cross-origin unless in explicit allow-list
+  if (url.origin !== location.origin && !isAllowedExternalHost(url.hostname)) {
+    return; // Not cached / intercepted
   }
 
   event.respondWith(handleRequest(request));
@@ -265,14 +269,32 @@ async function networkFirstWithOffline(request) {
 
 // Message handling for cache updates
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+
+  if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
   }
 
-  if (event.data && event.data.type === 'CACHE_URLS') {
-    event.waitUntil(
-      caches.open(CACHE_NAME).then(cache => cache.addAll(event.data.payload))
-    );
+  if (data.type === 'CACHE_URLS') {
+    // Sanitize list: only same-origin or relative paths; ignore others
+    const payload = Array.isArray(data.payload) ? data.payload : [];
+    const sanitized = payload.filter(item => {
+      if (typeof item !== 'string') return false;
+      try {
+        if (item.startsWith('/')) return true; // relative path
+        const u = new URL(item, self.location.origin);
+        return u.origin === self.location.origin;
+      } catch {
+        return false;
+      }
+    });
+    if (sanitized.length) {
+      event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => cache.addAll(sanitized))
+      );
+    }
   }
 });
 
