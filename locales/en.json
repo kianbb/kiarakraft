@@ -376,7 +376,30 @@
     "email": "Email",
     "memberSince": "Member Since",
     "profileUpdated": "Profile updated successfully",
-    "errorUpdatingProfile": "Error updating profile"
+    "errorUpdatingProfile": "Error updating profile",
+    "shopSettings": "Shop Settings",
+    "manageYourStorefront": "Manage your storefront",
+    "shopIdentity": "Shop Identity",
+    "shopHandle": "Shop Handle",
+    "visualBranding": "Visual Branding",
+    "profileImage": "Profile Image",
+    "bannerImage": "Banner Image",
+    "recommendedSize": "Recommended size",
+    "contactInfo": "Contact Information",
+    "shopPreview": "Shop Preview",
+    "viewYourShop": "View your shop",
+    "preview": "Preview",
+    "saveSettings": "Save Settings"
+  },
+  "shop": {
+    "verified": "Verified",
+    "seller": "Seller",
+    "memberSince": "Member since",
+    "products": "Products",
+    "productsFrom": "Products from",
+    "productsFound": "products found",
+    "noProducts": "No products available",
+    "checkBackLater": "Check back later for new products"
   },
   "categories": {
     "ceramics": "Ceramics",

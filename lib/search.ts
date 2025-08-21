@@ -100,13 +100,9 @@ export async function searchProducts(
   const baseConditions: Prisma.ProductWhereInput = {
     active: true,
     eligibilityStatus: 'APPROVED',
-    // Exclude known test/demo items
-    NOT: [
-      { slug: { startsWith: 'test-' } },
-      { seller: { shopName: 'Test Shop' } },
-      { seller: { displayName: 'Test Seller' } },
-      { seller: { displayName: 'Search Test Seller' } },
-    ],
+    isTest: false,
+    // Exclude only explicit test-slug products; other legacy name-based exclusions removed to avoid hiding legitimate seeded test data
+    NOT: [{ slug: { startsWith: 'test-' } }],
     ...(categoryId && { categoryId }),
     ...(sellerId && { sellerId }),
     ...(minPrice && { priceToman: { gte: minPrice } }),
@@ -140,13 +136,9 @@ export async function searchProducts(
     // Add base conditions
     whereConditions.push(`p.active = true`);
     whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
-    // Exclude known test/demo items
+    whereConditions.push(`p."isTest" = false`);
+    // Exclude explicit test slug products only
     whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
-    whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
-    whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
-    whereConditions.push(
-      `COALESCE(sp."displayName", '') <> 'Search Test Seller'`
-    );
 
     if (categoryId) {
       whereConditions.push(`p."categoryId" = $${paramIndex}`);
@@ -503,11 +495,8 @@ async function generateSearchFacets({
   const whereParts: string[] = [
     'p.active = true',
     `p."eligibilityStatus" = 'APPROVED'`,
-    // Exclude known test/demo items
+    `p."isTest" = false`,
     `p."slug" NOT LIKE 'test-%'`,
-    `COALESCE(sp."shopName", '') <> 'Test Shop'`,
-    `COALESCE(sp."displayName", '') <> 'Test Seller'`,
-    `COALESCE(sp."displayName", '') <> 'Search Test Seller'`,
   ];
   const params: (string | number | boolean)[] = [];
   let idx = 1;
