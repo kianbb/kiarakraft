@@ -1,6 +1,31 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 
+// Build a CSP string. Start with Report-Only, then enforce after verification.
+const makeCsp = () => {
+  const PLAUSIBLE = 'https://plausible.io';
+  const CLOUDINARY_IMG = 'https://res.cloudinary.com';
+  const CLOUDINARY_API = 'https://api.cloudinary.com';
+  const UNSPLASH = 'https://images.unsplash.com';
+  const PICSUM = 'https://picsum.photos';
+
+  const policy = `
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' ${PLAUSIBLE};
+    connect-src 'self' ${PLAUSIBLE} ${CLOUDINARY_API};
+    img-src 'self' data: blob: ${UNSPLASH} ${PICSUM} ${CLOUDINARY_IMG};
+    style-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
+    manifest-src 'self';
+    worker-src 'self';
+    frame-ancestors 'self';
+    base-uri 'self';
+    form-action 'self';
+    upgrade-insecure-requests;
+  `;
+  return policy.replace(/\s{2,}/g, ' ').trim();
+};
+
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
@@ -63,9 +88,10 @@ const nextConfig = {
           key: 'Referrer-Policy',
           value: 'origin-when-cross-origin'
         },
+        // Enforced CSP (switched from Report-Only after validation)
         {
           key: 'Content-Security-Policy',
-          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://images.unsplash.com https://picsum.photos https://res.cloudinary.com; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+          value: makeCsp()
         },
         {
           key: 'Strict-Transport-Security',
