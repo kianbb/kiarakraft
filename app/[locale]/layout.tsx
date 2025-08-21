@@ -7,7 +7,7 @@ import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from '@vercel/analytics/react';
-import PlausibleAnalytics from '@/components/Analytics';
+// Note: We inline the Plausible script using a plain <script> for SSR visibility in HTML source
 import { inter, vazirmatn } from '@/lib/fonts';
 import { Metadata } from 'next';
 
@@ -194,6 +194,13 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   <link rel="dns-prefetch" href="https://res.cloudinary.com" />
   <link rel="preconnect" href="https://plausible.io" crossOrigin="anonymous" />
   <link rel="dns-prefetch" href="https://plausible.io" />
+  {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
+    <script
+      defer
+      data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+      src="https://plausible.io/js/script.js"
+    ></script>
+  ) : null}
         
         
         
@@ -228,7 +235,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           <PWAInstallPrompt />
           </div>
         </Providers>
-        <PlausibleAnalytics />
+  {/* Plausible script is injected in <head> above for SSR visibility */}
       </body>
     </html>
   );

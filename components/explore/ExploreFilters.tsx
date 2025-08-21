@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -46,13 +46,8 @@ export function ExploreFilters({
   facets,
   precomputed 
 }: ExploreFiltersProps) {
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-
-  const _t = useTranslations('explore');
-  const _tCategories = useTranslations('categories');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
-  const tCategories = isHydrated ? _tCategories : ((k: string) => k) as (k: string) => string;
+  const t = useTranslations('explore');
+  const tCategories = useTranslations('categories');
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -65,26 +60,22 @@ export function ExploreFilters({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Build categories and sort options
-  const categories = isHydrated || !precomputed
-    ? [
-        { value: 'all', label: t('filters.allCategories') },
-        { value: 'ceramics', label: tCategories('ceramics') },
-        { value: 'textiles', label: tCategories('textiles') },
-        { value: 'jewelry', label: tCategories('jewelry') },
-        { value: 'woodwork', label: tCategories('woodwork') },
-        { value: 'painting', label: tCategories('painting') }
-      ]
-    : precomputed.categories;
+  const categories = precomputed?.categories ?? [
+    { value: 'all', label: t('filters.allCategories') },
+    { value: 'ceramics', label: tCategories('ceramics') },
+    { value: 'textiles', label: tCategories('textiles') },
+    { value: 'jewelry', label: tCategories('jewelry') },
+    { value: 'woodwork', label: tCategories('woodwork') },
+    { value: 'painting', label: tCategories('painting') }
+  ];
 
-  const sortOptions = isHydrated || !precomputed
-    ? [
-        { value: 'newest', label: t('filters.newest') },
-        { value: 'oldest', label: t('filters.oldest') },
-        { value: 'price_asc', label: t('filters.priceLowToHigh') },
-        { value: 'price_desc', label: t('filters.priceHighToLow') },
-        { value: 'relevance', label: t('filters.relevance') }
-      ]
-    : precomputed.sortOptions;
+  const sortOptions = precomputed?.sortOptions ?? [
+    { value: 'newest', label: t('filters.newest') },
+    { value: 'oldest', label: t('filters.oldest') },
+    { value: 'price_asc', label: t('filters.priceLowToHigh') },
+    { value: 'price_desc', label: t('filters.priceHighToLow') },
+    { value: 'relevance', label: t('filters.relevance') }
+  ];
 
   const updateFilters = (updates: Record<string, string | boolean | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -163,7 +154,7 @@ export function ExploreFilters({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             type="text"
-            placeholder={isHydrated || !precomputed ? t('searchPlaceholder') : precomputed?.searchPlaceholder}
+            placeholder={precomputed?.searchPlaceholder ?? t('searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2"
@@ -190,7 +181,7 @@ export function ExploreFilters({
         <div className="flex-1">
           <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger>
-              <SelectValue placeholder={isHydrated || !precomputed ? t('filters.selectCategory') : precomputed?.selectCategory} />
+              <SelectValue placeholder={precomputed?.selectCategory ?? t('filters.selectCategory')} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
@@ -239,7 +230,7 @@ export function ExploreFilters({
         {hasActiveFilters && (
           <Button variant="outline" onClick={clearAllFilters} className="shrink-0">
             <X className="h-4 w-4 mr-2" />
-            {isHydrated || !precomputed ? t('clearFilters') : precomputed?.clearFilters}
+            {precomputed?.clearFilters ?? t('clearFilters')}
           </Button>
         )}
       </div>
