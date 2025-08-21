@@ -159,7 +159,7 @@
     "loading": "در حال بارگذاری محصولات...",
     "searchPlaceholder": "جستجو در نام، توضیحات یا برچسب‌ها...",
     "searchResults": "نتایج جستجو",
-    "searchResultsFor": "نتایج برای '{query}'",
+  "searchResultsFor": "نتایج برای «{query}»",
     "filters": {
       "allCategories": "همه دسته‌بندی‌ها",
       "selectCategory": "انتخاب دسته‌بندی",
@@ -180,7 +180,7 @@
       "advanced": "فیلترهای پیشرفته"
     },
     "resultsCount": "{count} محصول یافت شد",
-    "searchResultsCount": "{count} نتیجه برای '{query}' یافت شد",
+  "searchResultsCount": "{count} نتیجه برای «{query}» یافت شد",
     "filtersApplied": "فیلترها اعمال شده",
     "searchTime": "جستجو در {time} ثانیه تکمیل شد",
     "exactMatch": "تطبیق کامل یافت شد",

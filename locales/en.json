@@ -159,7 +159,7 @@
     "loading": "Loading products...",
     "searchPlaceholder": "Search in names, descriptions, or tags...",
     "searchResults": "Search Results",
-    "searchResultsFor": "Results for '{query}'",
+  "searchResultsFor": "Results for “{query}”",
     "filters": {
       "allCategories": "All Categories",
       "selectCategory": "Select Category",
@@ -180,7 +180,7 @@
       "advanced": "Advanced Filters"
     },
     "resultsCount": "{count} products found",
-    "searchResultsCount": "Found {count} results for '{query}'",
+  "searchResultsCount": "Found {count} results for “{query}”",
     "filtersApplied": "Filters applied",
     "searchTime": "Search completed in {time}s",
     "exactMatch": "Perfect match found",
