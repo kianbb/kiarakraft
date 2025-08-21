@@ -14,6 +14,7 @@ import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
+// Updated: Force deployment refresh for 404 fix
 export const revalidate = 0;
 export const dynamicParams = false;
 
@@ -107,7 +108,8 @@ export default async function Page({ params }: { params: Params }) {
   });
   
   if (!product) {
-    return notFound();
+    // Ensure this throws a proper 404 by calling notFound()
+    notFound();
   }
 
   // Convert Toman to IRR for schema (1 Toman = 10 IRR)
