@@ -29,7 +29,7 @@ export async function generateStaticParams() {
   } catch (error) {
     // During CI builds or when DB is unavailable, return empty array
     // This allows the build to complete, and pages will be generated on-demand
-    console.warn('Database unavailable during static generation, falling back to dynamic rendering');
+    console.warn('Database unavailable during static generation, falling back to dynamic rendering:', error);
     return [];
   }
 }
