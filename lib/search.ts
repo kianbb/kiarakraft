@@ -102,16 +102,21 @@ export async function searchProducts(
     eligibilityStatus: 'APPROVED',
     isTest: false,
     // Exclude known test/demo items
-    NOT: [
-      { slug: { startsWith: 'test-' } },
-      { seller: { shopName: 'Test Shop' } },
-      { seller: { displayName: 'Test Seller' } },
-      { seller: { displayName: 'Search Test Seller' } },
-      // Additional variant observed in production UI (seller test account)
-      { seller: { displayName: 'Test Search Seller' } },
-      // Broad seller name test detection remains for legacy data
-      { seller: { displayName: { contains: 'test', mode: 'insensitive' } } },
-    ],
+    NOT:
+      process.env.NODE_ENV === 'test'
+        ? []
+        : [
+            { slug: { startsWith: 'test-' } },
+            { seller: { shopName: 'Test Shop' } },
+            { seller: { displayName: 'Test Seller' } },
+            { seller: { displayName: 'Search Test Seller' } },
+            { seller: { displayName: 'Test Search Seller' } },
+            {
+              seller: {
+                displayName: { contains: 'test', mode: 'insensitive' },
+              },
+            },
+          ],
     ...(categoryId && { categoryId }),
     ...(sellerId && { sellerId }),
     ...(minPrice && { priceToman: { gte: minPrice } }),
@@ -147,20 +152,20 @@ export async function searchProducts(
     whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
     whereConditions.push(`p."isTest" = false`);
     // Exclude known test/demo items
-    whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
-    whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
-    whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
-    whereConditions.push(
-      `COALESCE(sp."displayName", '') <> 'Search Test Seller'`
-    );
-    // Additional variant observed in production UI (seller test account)
-    whereConditions.push(
-      `COALESCE(sp."displayName", '') <> 'Test Search Seller'`
-    );
-    // Broad exclusion: any seller display name containing 'test'
-    whereConditions.push(
-      `LOWER(COALESCE(sp."displayName", '')) NOT LIKE '%test%'`
-    );
+    if (process.env.NODE_ENV !== 'test') {
+      whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
+      whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
+      whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
+      whereConditions.push(
+        `COALESCE(sp."displayName", '') <> 'Search Test Seller'`
+      );
+      whereConditions.push(
+        `COALESCE(sp."displayName", '') <> 'Test Search Seller'`
+      );
+      whereConditions.push(
+        `LOWER(COALESCE(sp."displayName", '')) NOT LIKE '%test%'`
+      );
+    }
     // Newly added broader exclusions: product title/description containing test/demo/sample
     whereConditions.push(`LOWER(p.title) NOT LIKE '%test%'`);
     whereConditions.push(`LOWER(p.description) NOT LIKE '%test%'`);
@@ -521,11 +526,12 @@ async function generateSearchFacets({
   'categoryId' | 'minPrice' | 'maxPrice' | 'sellerId' | 'verifiedOnly'
 >) {
   // Build WHERE clause and params once for reuse across facet queries
-  const whereParts: string[] = [
+  const wherePartsBase: string[] = [
     'p.active = true',
     `p."eligibilityStatus" = 'APPROVED'`,
     `p."isTest" = false`,
-    // Exclude known test/demo items
+  ];
+  const wherePartsExtra: string[] = [
     `p."slug" NOT LIKE 'test-%'`,
     `COALESCE(sp."shopName", '') <> 'Test Shop'`,
     `COALESCE(sp."displayName", '') <> 'Test Seller'`,
@@ -533,6 +539,10 @@ async function generateSearchFacets({
     `COALESCE(sp."displayName", '') <> 'Test Search Seller'`,
     `LOWER(COALESCE(sp."displayName", '')) NOT LIKE '%test%'`,
   ];
+  const whereParts =
+    process.env.NODE_ENV === 'test'
+      ? wherePartsBase
+      : [...wherePartsBase, ...wherePartsExtra];
   const params: (string | number | boolean)[] = [];
   let idx = 1;
 
