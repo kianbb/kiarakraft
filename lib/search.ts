@@ -106,6 +106,10 @@ export async function searchProducts(
       { seller: { shopName: 'Test Shop' } },
       { seller: { displayName: 'Test Seller' } },
       { seller: { displayName: 'Search Test Seller' } },
+      // Additional variant observed in production UI (seller test account)
+      { seller: { displayName: 'Test Search Seller' } },
+      // Broad catch-all: exclude any seller display name containing 'test'
+      { seller: { displayName: { contains: 'test', mode: 'insensitive' } } },
     ],
     ...(categoryId && { categoryId }),
     ...(sellerId && { sellerId }),
@@ -146,6 +150,14 @@ export async function searchProducts(
     whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
     whereConditions.push(
       `COALESCE(sp."displayName", '') <> 'Search Test Seller'`
+    );
+    // Additional variant observed in production UI (seller test account)
+    whereConditions.push(
+      `COALESCE(sp."displayName", '') <> 'Test Search Seller'`
+    );
+    // Broad exclusion: any seller display name containing 'test'
+    whereConditions.push(
+      `LOWER(COALESCE(sp."displayName", '')) NOT LIKE '%test%'`
     );
 
     if (categoryId) {
@@ -508,6 +520,8 @@ async function generateSearchFacets({
     `COALESCE(sp."shopName", '') <> 'Test Shop'`,
     `COALESCE(sp."displayName", '') <> 'Test Seller'`,
     `COALESCE(sp."displayName", '') <> 'Search Test Seller'`,
+    `COALESCE(sp."displayName", '') <> 'Test Search Seller'`,
+    `LOWER(COALESCE(sp."displayName", '')) NOT LIKE '%test%'`,
   ];
   const params: (string | number | boolean)[] = [];
   let idx = 1;

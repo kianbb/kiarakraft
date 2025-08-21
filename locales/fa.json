@@ -376,7 +376,30 @@
     "email": "ایمیل",
     "memberSince": "عضو از",
     "profileUpdated": "پروفایل با موفقیت به‌روزرسانی شد",
-    "errorUpdatingProfile": "خطا در به‌روزرسانی پروفایل"
+    "errorUpdatingProfile": "خطا در به‌روزرسانی پروفایل",
+    "shopSettings": "تنظیمات فروشگاه",
+    "manageYourStorefront": "مدیریت ویترین فروشگاه",
+    "shopIdentity": "هویت فروشگاه",
+    "shopHandle": "نام کاربری فروشگاه",
+    "visualBranding": "برندسازی بصری",
+    "profileImage": "تصویر پروفایل",
+    "bannerImage": "تصویر بنر",
+    "recommendedSize": "اندازه پیشنهادی",
+    "contactInfo": "اطلاعات تماس",
+    "shopPreview": "پیش‌نمایش فروشگاه",
+    "viewYourShop": "مشاهده فروشگاه شما",
+    "preview": "پیش‌نمایش",
+    "saveSettings": "ذخیره تنظیمات"
+  },
+  "shop": {
+    "verified": "تایید شده",
+    "seller": "فروشنده",
+    "memberSince": "عضو از",
+    "products": "محصولات",
+    "productsFrom": "محصولات از",
+    "productsFound": "محصول یافت شد",
+    "noProducts": "محصولی موجود نیست",
+    "checkBackLater": "برای محصولات جدید بعداً مراجعه کنید"
   },
   "categories": {
     "ceramics": "سرامیک",

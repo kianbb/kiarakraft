@@ -134,6 +134,12 @@ async function getCategoryTiles() {
               { seller: { shopName: 'Test Shop' } },
               { seller: { displayName: 'Test Seller' } },
               { seller: { displayName: 'Search Test Seller' } },
+              { seller: { displayName: 'Test Search Seller' } },
+              {
+                seller: {
+                  displayName: { contains: 'test', mode: 'insensitive' },
+                },
+              },
             ],
           },
           orderBy: { createdAt: 'desc' },

@@ -16,13 +16,25 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      include: {
+        sellerProfile: true,
+      },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    // Return combined user and seller profile data
+    const profileData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      ...user.sellerProfile,
+    };
+
+    return NextResponse.json(profileData);
   } catch (error) {
     console.error('Error fetching seller profile:', error);
     Sentry.captureException(error);
@@ -46,6 +58,9 @@ export const PUT = withRateLimit(
 
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
+        include: {
+          sellerProfile: true,
+        },
       });
 
       if (!user) {
@@ -54,35 +69,50 @@ export const PUT = withRateLimit(
 
       const data = await request.json();
 
-      // Update user name
-      const updatedUser = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          name: data.name,
-        },
-      });
+      // Handle and banner validation will be added in V3-S1 implementation
+
+      // Update user name if provided
+      if (data.displayName) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name: data.displayName,
+          },
+        });
+      }
 
       // Update or create seller profile
-      await prisma.sellerProfile.upsert({
+      const updatedProfile = await prisma.sellerProfile.upsert({
         where: { userId: user.id },
         create: {
           userId: user.id,
-          shopName: data.shopName || '',
-          displayName: data.displayName || data.name,
+          shopName: data.shopName || 'My Shop',
+          displayName: data.displayName || user.name || 'Seller',
           bio: data.bio,
+          avatarUrl: data.avatarUrl,
           phone: data.phone,
           address: data.address,
           website: data.website,
         },
         update: {
+          ...(data.shopName && { shopName: data.shopName }),
+          ...(data.displayName && { displayName: data.displayName }),
           bio: data.bio,
+          avatarUrl: data.avatarUrl,
           phone: data.phone,
           address: data.address,
           website: data.website,
         },
       });
 
-      return NextResponse.json(updatedUser);
+      // Return combined data
+      const profileData = {
+        ...updatedProfile,
+        email: user.email,
+        name: data.displayName || user.name,
+      };
+
+      return NextResponse.json(profileData);
     } catch (error) {
       console.error('Error updating seller profile:', error);
       Sentry.captureException(error);
