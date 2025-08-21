@@ -16,7 +16,7 @@ import type { Metadata } from 'next';
 // Disable caching temporarily to ensure locale fixes take effect immediately
 // Updated: Force deployment refresh for 404 fix
 export const revalidate = 0;
-export const dynamicParams = true; // Temporarily enable to test 404 behavior
+export const dynamicParams = false; // Force 404 for routes not in generateStaticParams
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
@@ -123,9 +123,8 @@ export default async function Page({ params }: { params: Params }) {
   console.log(`[DEBUG] Product found: ${!!product}`);
   
   if (!product) {
-    console.log(`[DEBUG] Calling notFound() for: ${params.slug}`);
-    // Ensure this throws a proper 404 by calling notFound()
-    return notFound();
+    console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
+    notFound();
   }
 
   // Convert Toman to IRR for schema (1 Toman = 10 IRR)
