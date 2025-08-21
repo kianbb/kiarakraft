@@ -19,10 +19,11 @@ jobs:
 
     steps:
       - name: Checkout code
+
         dependabot/github_actions/actions/checkout-5
         uses: actions/checkout@v5
-        
-        main
+       
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
