@@ -8,8 +8,8 @@ async function seedProduct() {
       user: {
         create: { email: `test_${Date.now()}@example.com`, password: 'x' },
       },
-      shopName: 'Search Test Shop',
-      displayName: 'Search Test Seller',
+      shopName: 'Test Search Shop',
+      displayName: 'Test Search Seller',
       verified: true,
     },
     include: { user: true },
