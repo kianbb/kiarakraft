@@ -64,7 +64,7 @@ export const POST = withRateLimit(
         );
       }
 
-      // uploadedDocs: optional but if present must be an array of Cloudinary URLs within the seller docs folder and <= 5 items
+      // uploadedDocs: optional but if present must be an array of strict Cloudinary doc URLs (<=5)
       const docs: unknown = uploadedDocs;
       if (docs !== undefined) {
         if (!Array.isArray(docs)) {
@@ -85,24 +85,34 @@ export const POST = withRateLimit(
             { status: 400 }
           );
         }
-        const expectedPathPart = `/sellers/${user.sellerProfile.id}/documents`;
-        const invalid = docs.find(u => {
-          if (typeof u !== 'string') return true;
+
+        const sellerId = user.sellerProfile.id;
+        const isValidDocUrl = (u: string): boolean => {
           try {
             const url = new URL(u);
-            if (!url.hostname.includes('res.cloudinary.com')) return true;
-            // ensure folder path appears in pathname
-            return !url.pathname.includes(expectedPathPart);
-          } catch {
+            if (url.protocol !== 'https:') return false;
+            if (url.hostname !== 'res.cloudinary.com') return false; // exact host match
+            // Path segments e.g.: /<cloud>/image/upload/v123/kiarakraft/sellers/<id>/documents/filename.pdf
+            const segments = url.pathname.split('/').filter(Boolean);
+            const sellersIdx = segments.indexOf('sellers');
+            if (sellersIdx === -1) return false;
+            if (segments[sellersIdx + 1] !== sellerId) return false;
+            if (segments[sellersIdx + 2] !== 'documents') return false;
             return true;
+          } catch {
+            return false;
           }
-        });
+        };
+
+        const invalid = docs.find(
+          u => typeof u !== 'string' || !isValidDocUrl(u)
+        );
         if (invalid) {
           return NextResponse.json(
             {
               error: 'VALIDATION_ERROR',
               message:
-                'uploadedDocs must be Cloudinary URLs within your documents folder',
+                'uploadedDocs must be HTTPS Cloudinary URLs within your documents folder',
             },
             { status: 400 }
           );
