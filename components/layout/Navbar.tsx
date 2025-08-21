@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { 
   Search, 
@@ -23,11 +23,13 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
   // Hydration state needs to be declared before calling next-intl hooks
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [searchText, setSearchText] = useState('');
     // Keep hook order stable by calling hooks unconditionally
     const _locale = useLocale();
     const _t = useTranslations('navigation');
@@ -93,6 +95,14 @@ export default function Navbar() {
     { name: t('explore'), href: `/${locale}/explore` },
   ];
 
+  const submitSearch = () => {
+    if (!isHydrated) return;
+    const q = searchText.trim();
+    const url = q ? `/${locale}/explore?q=${encodeURIComponent(q)}` : `/${locale}/explore`;
+    router.push(url);
+    setIsMenuOpen(false);
+  };
+
   return (
     <nav className="bg-background border-b border-border sticky top-0 z-50" role="navigation" aria-label="Main navigation">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -130,12 +140,24 @@ export default function Navbar() {
           {/* Search Bar */}
           <div className="hidden lg:flex flex-1 max-w-md mx-8" role="search">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={submitSearch}
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                aria-label={t('search') || 'Search products'}
+              >
+                <Search className="w-4 h-4 cursor-pointer" aria-hidden="true" />
+              </button>
               <Input
                 type="search"
                 placeholder={t('search') || 'Search...'}
                 className="pl-10 pr-4"
                 aria-label={t('search') || 'Search products'}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitSearch();
+                }}
               />
             </div>
           </div>
@@ -253,11 +275,23 @@ export default function Navbar() {
               {/* Search on mobile */}
               <div className="lg:hidden px-3 py-2">
                 <div className="relative">
-                  <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <button
+                    type="button"
+                    onClick={submitSearch}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label={t('search') || 'Search products'}
+                  >
+                    <Search className="w-4 h-4 cursor-pointer" aria-hidden="true" />
+                  </button>
                   <Input
                     type="search"
                     placeholder={t('search') || 'Search...'}
                     className="pl-10 pr-4"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') submitSearch();
+                    }}
                   />
                 </div>
               </div>
