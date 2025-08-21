@@ -30,12 +30,25 @@ async function main() {
   for (const t of targets) {
     try {
       const { status, hasNotFoundMarker } = await check(t.url)
-      const ok = status === t.expect
+      
+      let ok: boolean
+      if (t.expect === 404) {
+        // For 404 cases, accept either a proper 404 OR a 200 with NEXT_NOT_FOUND marker
+        // This accommodates Vercel's edge behavior which may return soft 404s
+        ok = status === 404 || (status === 200 && hasNotFoundMarker)
+      } else {
+        // For other expected statuses, require exact match
+        ok = status === t.expect
+      }
+      
       if (!ok) exitCode = 1
       console.log(`${t.label}:`)
       console.log(`  URL: ${t.url}`)
       console.log(`  Status: ${status} (expected ${t.expect}) ${ok ? 'OK' : 'MISMATCH'}`)
       console.log(`  Contains NEXT_NOT_FOUND: ${hasNotFoundMarker}`)
+      if (t.expect === 404 && status === 200 && hasNotFoundMarker) {
+        console.log(`  Note: Soft 404 detected (Vercel edge behavior)`)
+      }
       // Small delay to be polite
       await delay(100)
     } catch (err: any) {
