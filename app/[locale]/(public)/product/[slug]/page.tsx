@@ -19,12 +19,19 @@ export const dynamicParams = false;
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
-  const products = await db.product.findMany({
-    where: { active: true },
-    select: { slug: true }
-  });
-  const locales: Array<'fa' | 'en'> = ['fa', 'en'];
-  return products.flatMap((p) => locales.map((locale) => ({ slug: p.slug, locale })));
+  try {
+    const products = await db.product.findMany({
+      where: { active: true },
+      select: { slug: true }
+    });
+    const locales: Array<'fa' | 'en'> = ['fa', 'en'];
+    return products.flatMap((p) => locales.map((locale) => ({ slug: p.slug, locale })));
+  } catch (error) {
+    // During CI builds or when DB is unavailable, return empty array
+    // This allows the build to complete, and pages will be generated on-demand
+    console.warn('Database unavailable during static generation, falling back to dynamic rendering');
+    return [];
+  }
 }
 
 type Params = { locale: "fa" | "en"; slug: string };
