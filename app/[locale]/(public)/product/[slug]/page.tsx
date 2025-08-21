@@ -16,7 +16,7 @@ import type { Metadata } from 'next';
 // Disable caching temporarily to ensure locale fixes take effect immediately
 // Updated: Force deployment refresh for 404 fix
 export const revalidate = 0;
-export const dynamicParams = false;
+export const dynamicParams = true; // Temporarily enable to test 404 behavior
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
@@ -113,12 +113,17 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function Page({ params }: { params: Params }) {
   setRequestLocale(params.locale);
   
+  console.log(`[DEBUG] Product page: ${params.locale}/${params.slug}`);
+  
   const product = await db.product.findUnique({
     where: { slug: params.slug },
     include: { images: true, seller: true, category: true, reviews: true }
   });
   
+  console.log(`[DEBUG] Product found: ${!!product}`);
+  
   if (!product) {
+    console.log(`[DEBUG] Calling notFound() for: ${params.slug}`);
     // Ensure this throws a proper 404 by calling notFound()
     notFound();
   }
