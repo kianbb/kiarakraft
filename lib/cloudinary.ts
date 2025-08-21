@@ -19,18 +19,29 @@ export interface UploadResult {
   bytes: number;
 }
 
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+export const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+];
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export function validateImageFile(file: File): { valid: boolean; error?: string } {
+export function validateImageFile(file: File): {
+  valid: boolean;
+  error?: string;
+} {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return { valid: false, error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' };
+    return {
+      valid: false,
+      error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.',
+    };
   }
-  
+
   if (file.size > MAX_FILE_SIZE) {
     return { valid: false, error: 'File size too large. Maximum 5MB allowed.' };
   }
-  
+
   return { valid: true };
 }
 
@@ -52,9 +63,8 @@ export async function uploadImageToCloudinary(
       ...options,
     };
 
-    cloudinary.uploader.upload_stream(
-      uploadOptions,
-      (error, result) => {
+    cloudinary.uploader
+      .upload_stream(uploadOptions, (error, result) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
           reject(new Error('Image upload failed'));
@@ -70,8 +80,8 @@ export async function uploadImageToCloudinary(
         } else {
           reject(new Error('Upload failed: No result'));
         }
-      }
-    ).end(buffer);
+      })
+      .end(buffer);
   });
 }
 
@@ -104,13 +114,17 @@ export function extractPublicIdFromUrl(url: string): string | null {
   }
 }
 
-export async function deleteImageFromCloudinary(publicIdOrUrl: string): Promise<boolean> {
+export async function deleteImageFromCloudinary(
+  publicIdOrUrl: string
+): Promise<boolean> {
   try {
     const publicId = publicIdOrUrl.includes('/upload/')
-      ? extractPublicIdFromUrl(publicIdOrUrl) ?? ''
+      ? (extractPublicIdFromUrl(publicIdOrUrl) ?? '')
       : publicIdOrUrl;
     if (!publicId) return false;
-    const res = await cloudinary.uploader.destroy(publicId, { invalidate: true });
+    const res = await cloudinary.uploader.destroy(publicId, {
+      invalidate: true,
+    });
     return res?.result === 'ok' || res?.result === 'not found';
   } catch (e) {
     console.error('Cloudinary destroy error:', e);
@@ -127,14 +141,19 @@ type CloudinaryResource = {
   created_at: string;
 };
 
-export async function listAssetsInFolder(folder: string, maxResults = 100): Promise<{
-  secure_url: string;
-  resource_type: 'image' | 'raw';
-  public_id: string;
-  bytes: number;
-  format?: string;
-  created_at: string;
-}[]> {
+export async function listAssetsInFolder(
+  folder: string,
+  maxResults = 100
+): Promise<
+  {
+    secure_url: string;
+    resource_type: 'image' | 'raw';
+    public_id: string;
+    bytes: number;
+    format?: string;
+    created_at: string;
+  }[]
+> {
   try {
     const prefix = folder.endsWith('/') ? folder : `${folder}/`;
     const [images, raws] = await Promise.all([
@@ -143,19 +162,19 @@ export async function listAssetsInFolder(folder: string, maxResults = 100): Prom
         type: 'upload',
         prefix,
         resource_type: 'image',
-        max_results: Math.min(maxResults, 500)
-      }) as Promise<{ resources: Array<CloudinaryResource> }> ,
+        max_results: Math.min(maxResults, 500),
+      }) as Promise<{ resources: Array<CloudinaryResource> }>,
       // Raw (e.g., PDFs)
       cloudinary.api.resources({
         type: 'upload',
         prefix,
         resource_type: 'raw',
-        max_results: Math.min(maxResults, 500)
-      }) as Promise<{ resources: Array<CloudinaryResource> }>
+        max_results: Math.min(maxResults, 500),
+      }) as Promise<{ resources: Array<CloudinaryResource> }>,
     ]);
 
     const mapRes = (r: CloudinaryResource[], resource_type: 'image' | 'raw') =>
-      r.map((it) => ({
+      r.map(it => ({
         secure_url: it.secure_url as string,
         resource_type,
         public_id: it.public_id as string,
@@ -166,8 +185,11 @@ export async function listAssetsInFolder(folder: string, maxResults = 100): Prom
 
     return [
       ...mapRes(images.resources || [], 'image'),
-      ...mapRes(raws.resources || [], 'raw')
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      ...mapRes(raws.resources || [], 'raw'),
+    ].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   } catch (e) {
     console.error('Cloudinary list assets error:', e);
     return [];

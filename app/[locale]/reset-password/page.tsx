@@ -9,16 +9,25 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Eye, EyeOff, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import {
+  Shield,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  XCircle,
+  ArrowLeft,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
-const resetPasswordSchema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters long'),
-  confirmPassword: z.string().min(1, 'Password confirmation is required'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters long'),
+    confirmPassword: z.string().min(1, 'Password confirmation is required'),
+  })
+  .refine(data => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
@@ -36,7 +45,7 @@ function ResetPasswordContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
-  
+
   const t = useTranslations('auth');
   const params = useParams();
   const router = useRouter();
@@ -50,7 +59,7 @@ function ResetPasswordContent() {
     formState: { errors },
     watch,
   } = useForm<ResetPasswordForm>({
-    resolver: zodResolver(resetPasswordSchema)
+    resolver: zodResolver(resetPasswordSchema),
   });
 
   const password = watch('password', '');
@@ -64,9 +73,11 @@ function ResetPasswordContent() {
 
     const validateToken = async () => {
       try {
-        const response = await fetch(`/api/auth/reset-password?token=${encodeURIComponent(token)}`);
+        const response = await fetch(
+          `/api/auth/reset-password?token=${encodeURIComponent(token)}`
+        );
         const result: TokenValidationResult = await response.json();
-        
+
         if (result.valid) {
           setTokenValid(true);
           setUserEmail(result.email || '');
@@ -164,7 +175,7 @@ function ResetPasswordContent() {
             >
               {t('requestNewResetLink')}
             </Button>
-            
+
             <Button
               type="button"
               variant="ghost"
@@ -197,11 +208,7 @@ function ResetPasswordContent() {
             </p>
           </div>
 
-          <Button
-            type="button"
-            className="w-full"
-            onClick={handleBackToLogin}
-          >
+          <Button type="button" className="w-full" onClick={handleBackToLogin}>
             {t('signInNow')}
           </Button>
         </div>
@@ -251,14 +258,16 @@ function ResetPasswordContent() {
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.password.message}
+                </p>
               )}
-              
+
               {/* Password strength indicator */}
               {password && (
                 <div className="mt-2">
                   <div className="flex space-x-1">
-                    {[1, 2, 3, 4].map((level) => (
+                    {[1, 2, 3, 4].map(level => (
                       <div
                         key={level}
                         className={`h-1 w-1/4 rounded ${
@@ -266,8 +275,8 @@ function ResetPasswordContent() {
                             ? level <= 2
                               ? 'bg-red-500'
                               : level === 3
-                              ? 'bg-yellow-500'
-                              : 'bg-green-500'
+                                ? 'bg-yellow-500'
+                                : 'bg-green-500'
                             : 'bg-gray-200'
                         }`}
                       />
@@ -275,7 +284,9 @@ function ResetPasswordContent() {
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
                     {password.length < 8 && t('passwordTooShort')}
-                    {password.length >= 8 && password.length < 12 && t('passwordWeak')}
+                    {password.length >= 8 &&
+                      password.length < 12 &&
+                      t('passwordWeak')}
                     {password.length >= 12 && t('passwordStrong')}
                   </p>
                 </div>
@@ -306,17 +317,15 @@ function ResetPasswordContent() {
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.confirmPassword.message}
+                </p>
               )}
             </div>
           </div>
 
           <div className="space-y-4">
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-            >
+            <Button type="submit" disabled={loading} className="w-full">
               {loading ? t('resetting') : t('resetPassword')}
             </Button>
 
@@ -338,11 +347,13 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
       <ResetPasswordContent />
     </Suspense>
   );

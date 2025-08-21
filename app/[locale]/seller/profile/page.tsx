@@ -31,7 +31,13 @@ const profileSchema = z.object({
   bio: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
-  website: z.string().optional().refine((val) => !val || val === '' || /^https?:\/\/.+/.test(val), 'Must be a valid URL')
+  website: z
+    .string()
+    .optional()
+    .refine(
+      val => !val || val === '' || /^https?:\/\/.+/.test(val),
+      'Must be a valid URL'
+    ),
 });
 
 type ProfileForm = z.infer<typeof profileSchema>;
@@ -43,7 +49,7 @@ export default function SellerProfilePage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<SellerProfileData | null>(null);
@@ -52,9 +58,9 @@ export default function SellerProfilePage() {
     register,
     handleSubmit,
     reset,
-    formState: { errors }
+    formState: { errors },
   } = useForm<ProfileForm>({
-    resolver: zodResolver(profileSchema)
+    resolver: zodResolver(profileSchema),
   });
 
   const fetchProfile = useCallback(async () => {
@@ -63,14 +69,14 @@ export default function SellerProfilePage() {
       if (response.ok) {
         const profileData = await response.json();
         setProfile(profileData);
-        
+
         // Populate form with existing data
         reset({
           name: profileData.name || '',
           bio: profileData.bio || '',
           phone: profileData.phone || '',
           address: profileData.address || '',
-          website: profileData.website || ''
+          website: profileData.website || '',
         });
       }
     } catch (error) {
@@ -82,7 +88,7 @@ export default function SellerProfilePage() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push('/auth/login');
       return;
@@ -119,7 +125,7 @@ export default function SellerProfilePage() {
       const response = await fetch('/api/seller/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
 
       if (response.ok) {
@@ -141,11 +147,14 @@ export default function SellerProfilePage() {
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="mb-8">
-          <Link href="/seller" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link
+            href="/seller"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
+          >
             <ArrowLeft className="h-4 w-4" />
             {t('backToDashboard')}
           </Link>
-          
+
           <div className="flex items-center gap-3">
             <User className="h-8 w-8 text-primary" />
             <div>
@@ -165,7 +174,9 @@ export default function SellerProfilePage() {
                 placeholder={t('fullNamePlaceholder')}
               />
               {errors.name && (
-                <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.name.message}
+                </p>
               )}
             </div>
 
@@ -178,7 +189,9 @@ export default function SellerProfilePage() {
                 className="w-full min-h-[120px] px-3 py-2 border border-input rounded-md resize-none"
               />
               {errors.bio && (
-                <p className="text-sm text-destructive mt-1">{errors.bio.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.bio.message}
+                </p>
               )}
             </div>
 
@@ -191,7 +204,9 @@ export default function SellerProfilePage() {
                   placeholder="+98 912 345 6789"
                 />
                 {errors.phone && (
-                  <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.phone.message}
+                  </p>
                 )}
               </div>
 
@@ -203,7 +218,9 @@ export default function SellerProfilePage() {
                   placeholder="https://example.com"
                 />
                 {errors.website && (
-                  <p className="text-sm text-destructive mt-1">{errors.website.message}</p>
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.website.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -216,7 +233,9 @@ export default function SellerProfilePage() {
                 placeholder={t('addressPlaceholder')}
               />
               {errors.address && (
-                <p className="text-sm text-destructive mt-1">{errors.address.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.address.message}
+                </p>
               )}
             </div>
           </div>
@@ -226,12 +245,18 @@ export default function SellerProfilePage() {
             <h3 className="font-semibold mb-4">{t('accountInfo')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="text-sm text-muted-foreground">{t('email')}</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('email')}
+                </div>
                 <div className="font-medium">{profile.email}</div>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="text-sm text-muted-foreground">{t('memberSince')}</div>
-                <div className="font-medium">{formatDate(profile.createdAt)}</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('memberSince')}
+                </div>
+                <div className="font-medium">
+                  {formatDate(profile.createdAt)}
+                </div>
               </div>
             </div>
           </div>

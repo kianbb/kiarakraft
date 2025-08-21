@@ -20,7 +20,7 @@ export default function OrderConfirmationPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('order');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +76,8 @@ export default function OrderConfirmationPage() {
           <CheckCircle className="h-16 w-16 mx-auto mb-6 text-green-500" />
           <h1 className="text-3xl font-bold mb-4">{t('success')}</h1>
           <p className="text-lg text-muted-foreground">
-            {t('orderNumber')}: <span className="font-mono font-semibold">{order.id}</span>
+            {t('orderNumber')}:{' '}
+            <span className="font-mono font-semibold">{order.id}</span>
           </p>
         </div>
 
@@ -92,13 +93,21 @@ export default function OrderConfirmationPage() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span>{t('status')}</span>
-                  <Badge variant={order.status === 'PENDING' ? 'secondary' : 'default'}>
+                  <Badge
+                    variant={
+                      order.status === 'PENDING' ? 'secondary' : 'default'
+                    }
+                  >
                     {t(`status_${order.status.toLowerCase()}`)}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
                   <span>{t('paymentStatus')}</span>
-                  <Badge variant={order.status === 'PENDING' ? 'secondary' : 'default'}>
+                  <Badge
+                    variant={
+                      order.status === 'PENDING' ? 'secondary' : 'default'
+                    }
+                  >
                     {t(`payment_${order.status.toLowerCase()}`)}
                   </Badge>
                 </div>
@@ -117,10 +126,17 @@ export default function OrderConfirmationPage() {
               </div>
 
               <div className="space-y-2 text-sm">
-                <div><strong>{order.fullName}</strong></div>
+                <div>
+                  <strong>{order.fullName}</strong>
+                </div>
                 <div>{order.phone}</div>
-                <div>{order.address1}{order.address2 ? `, ${order.address2}` : ''}</div>
-                <div>{order.city}, {order.province}</div>
+                <div>
+                  {order.address1}
+                  {order.address2 ? `, ${order.address2}` : ''}
+                </div>
+                <div>
+                  {order.city}, {order.province}
+                </div>
                 <div>{order.postalCode}</div>
               </div>
             </div>
@@ -132,28 +148,29 @@ export default function OrderConfirmationPage() {
                 <h2 className="text-xl font-semibold">{t('paymentMethod')}</h2>
               </div>
 
-              <div className="text-sm">
-                {t('cashOnDelivery')}
-              </div>
+              <div className="text-sm">{t('cashOnDelivery')}</div>
             </div>
           </div>
 
           {/* Order Items */}
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">{t('orderItems')}</h2>
-            
+
             <div className="space-y-4">
               {order.items?.map((item: OrderWithItems['items'][0]) => (
                 <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                   <div className="relative w-16 h-16 rounded overflow-hidden bg-gray-100">
                     <Image
-                      src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
+                      src={
+                        item.product.images?.[0]?.url ||
+                        '/placeholder-product.jpg'
+                      }
                       alt={item.product.images?.[0]?.alt || item.product.title}
                       fill
                       className="object-cover"
                     />
                   </div>
-                  
+
                   <div className="flex-1">
                     <div className="font-semibold">{item.product.title}</div>
                     <div className="text-sm text-muted-foreground">
@@ -172,7 +189,15 @@ export default function OrderConfirmationPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>{t('subtotal')}</span>
-                  <span>{formatPrice(order.items?.reduce((sum, item) => sum + (item.unitPriceToman * item.quantity), 0) || 0)}</span>
+                  <span>
+                    {formatPrice(
+                      order.items?.reduce(
+                        (sum, item) =>
+                          sum + item.unitPriceToman * item.quantity,
+                        0
+                      ) || 0
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t('shipping')}</span>
@@ -193,9 +218,7 @@ export default function OrderConfirmationPage() {
                 </Button>
               </Link>
               <Link href="/explore">
-                <Button className="w-full">
-                  {t('continueShopping')}
-                </Button>
+                <Button className="w-full">{t('continueShopping')}</Button>
               </Link>
             </div>
           </div>

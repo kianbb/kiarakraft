@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
@@ -12,7 +12,11 @@ interface FooterProps {
   serverCategories?: Record<string, string>;
 }
 
-export default function Footer({ serverLocale, serverFooter, serverCategories }: FooterProps) {
+export default function Footer({
+  serverLocale,
+  serverFooter,
+  serverCategories,
+}: FooterProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
 
@@ -24,11 +28,15 @@ export default function Footer({ serverLocale, serverFooter, serverCategories }:
   // in the initial HTML. After hydration prefer the hook translations.
   const t = isHydrated
     ? _t
-    : ((k: string) => (serverFooter && serverFooter[k]) ?? k) as (k: string) => string;
+    : (((k: string) => (serverFooter && serverFooter[k]) ?? k) as (
+        k: string
+      ) => string);
 
   const tCategories = isHydrated
     ? _tCategories
-    : ((k: string) => (serverCategories && serverCategories[k]) ?? k) as (k: string) => string;
+    : (((k: string) => (serverCategories && serverCategories[k]) ?? k) as (
+        k: string
+      ) => string);
 
   // Prefer serverLocale for SSR correctness, fall back to client locale after hydration
   const locale = serverLocale ?? (isHydrated ? _locale : 'en');
@@ -40,7 +48,7 @@ export default function Footer({ serverLocale, serverFooter, serverCategories }:
         { name: t('about'), href: `/${locale}/about` },
         { name: t('contact'), href: `/${locale}/contact` },
         { name: t('help'), href: `/${locale}/help` },
-      ]
+      ],
     },
     {
       title: t('legal'),
@@ -49,18 +57,33 @@ export default function Footer({ serverLocale, serverFooter, serverCategories }:
         { name: t('privacy'), href: `/${locale}/legal/privacy` },
         { name: t('refunds'), href: `/${locale}/legal/refunds` },
         { name: t('shipping'), href: `/${locale}/legal/shipping` },
-      ]
+      ],
     },
     {
       title: t('categories'),
       links: [
-        { name: tCategories('ceramics'), href: `/${locale}/explore?category=ceramics` },
-        { name: tCategories('textiles'), href: `/${locale}/explore?category=textiles` },
-        { name: tCategories('jewelry'), href: `/${locale}/explore?category=jewelry` },
-        { name: tCategories('woodwork'), href: `/${locale}/explore?category=woodwork` },
-        { name: tCategories('painting'), href: `/${locale}/explore?category=painting` }
-      ]
-    }
+        {
+          name: tCategories('ceramics'),
+          href: `/${locale}/explore?category=ceramics`,
+        },
+        {
+          name: tCategories('textiles'),
+          href: `/${locale}/explore?category=textiles`,
+        },
+        {
+          name: tCategories('jewelry'),
+          href: `/${locale}/explore?category=jewelry`,
+        },
+        {
+          name: tCategories('woodwork'),
+          href: `/${locale}/explore?category=woodwork`,
+        },
+        {
+          name: tCategories('painting'),
+          href: `/${locale}/explore?category=painting`,
+        },
+      ],
+    },
   ];
 
   return (
@@ -69,9 +92,14 @@ export default function Footer({ serverLocale, serverFooter, serverCategories }:
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="lg:col-span-1">
-            <Link href={`/${locale}`} className="flex items-center space-x-2 mb-4">
+            <Link
+              href={`/${locale}`}
+              className="flex items-center space-x-2 mb-4"
+            >
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
+                <span className="text-primary-foreground font-bold text-lg">
+                  K
+                </span>
               </div>
               <span className="text-xl font-bold text-foreground">
                 Kiara Kraft
@@ -99,13 +127,13 @@ export default function Footer({ serverLocale, serverFooter, serverCategories }:
           </div>
 
           {/* Footer Links */}
-          {footerLinks.map((section) => (
+          {footerLinks.map(section => (
             <div key={section.title}>
               <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
                 {section.title}
               </h3>
               <ul className="space-y-2">
-                {section.links.map((link) => (
+                {section.links.map(link => (
                   <li key={link.name}>
                     <Link
                       href={link.href}

@@ -27,18 +27,25 @@ async function main() {
   const dryRun = hasFlag('dry-run');
 
   if (!all && !id && !slug) {
-    console.log('Usage: tsx scripts/approve-products.ts [--all] [--id=<id>] [--slug=<slug>] [--status=APPROVED|REVIEW|REJECTED|PENDING] [--reason="..."] [--confidence=0..100] [--dry-run]');
+    console.log(
+      'Usage: tsx scripts/approve-products.ts [--all] [--id=<id>] [--slug=<slug>] [--status=APPROVED|REVIEW|REJECTED|PENDING] [--reason="..."] [--confidence=0..100] [--dry-run]'
+    );
     process.exit(1);
   }
 
-  if (!['APPROVED','REVIEW','REJECTED','PENDING'].includes(status)) {
+  if (!['APPROVED', 'REVIEW', 'REJECTED', 'PENDING'].includes(status)) {
     throw new Error(`Invalid status: ${status}`);
   }
 
-  const confidence = confidenceStr ? Math.max(0, Math.min(100, parseInt(confidenceStr))) : undefined;
+  const confidence = confidenceStr
+    ? Math.max(0, Math.min(100, parseInt(confidenceStr)))
+    : undefined;
 
   if (all) {
-    const where = { active: true, eligibilityStatus: { in: ['PENDING','REVIEW'] as Status[] } };
+    const where = {
+      active: true,
+      eligibilityStatus: { in: ['PENDING', 'REVIEW'] as Status[] },
+    };
     const toUpdate = await prisma.product.count({ where });
     if (dryRun) {
       console.log(JSON.stringify({ dryRun: true, matching: toUpdate }));
@@ -48,22 +55,36 @@ async function main() {
       where,
       data: {
         eligibilityStatus: status,
-        ...(confidence !== undefined ? { eligibilityConfidence: confidence } : {}),
-        eligibilityReasons: reason
-      }
+        ...(confidence !== undefined
+          ? { eligibilityConfidence: confidence }
+          : {}),
+        eligibilityReasons: reason,
+      },
     });
     console.log(JSON.stringify({ updated: res.count, status }));
     return;
   }
 
-  const product = await prisma.product.findFirst({ where: { OR: [ id ? { id } : undefined, slug ? { slug } : undefined ].filter(Boolean) as any } });
+  const product = await prisma.product.findFirst({
+    where: {
+      OR: [id ? { id } : undefined, slug ? { slug } : undefined].filter(
+        Boolean
+      ) as any,
+    },
+  });
   if (!product) {
     console.error('Product not found');
     process.exit(2);
   }
 
   if (dryRun) {
-    console.log(JSON.stringify({ dryRun: true, product: { id: product.id, slug: product.slug }, newStatus: status }));
+    console.log(
+      JSON.stringify({
+        dryRun: true,
+        product: { id: product.id, slug: product.slug },
+        newStatus: status,
+      })
+    );
     return;
   }
 
@@ -71,11 +92,21 @@ async function main() {
     where: { id: product.id },
     data: {
       eligibilityStatus: status,
-      ...(confidence !== undefined ? { eligibilityConfidence: confidence } : {}),
-      eligibilityReasons: reason
-    }
+      ...(confidence !== undefined
+        ? { eligibilityConfidence: confidence }
+        : {}),
+      eligibilityReasons: reason,
+    },
   });
-  console.log(JSON.stringify({ updated: { id: updated.id, slug: updated.slug, status: updated.eligibilityStatus } }));
+  console.log(
+    JSON.stringify({
+      updated: {
+        id: updated.id,
+        slug: updated.slug,
+        status: updated.eligibilityStatus,
+      },
+    })
+  );
 }
 
 main().finally(() => prisma.$disconnect());

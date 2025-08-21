@@ -19,7 +19,9 @@ async function main() {
   });
 
   console.log(`✅ Found test user: ${testUser.email} (${testUser.id})`);
-  console.log(`✅ Found test product: ${testProduct.title} (Stock: ${testProduct.stock})\n`);
+  console.log(
+    `✅ Found test product: ${testProduct.title} (Stock: ${testProduct.stock})\n`
+  );
 
   // Step 1: Create a PENDING order
   const order = await prisma.order.create({
@@ -39,26 +41,28 @@ async function main() {
             productId: testProduct.id,
             quantity: 2,
             unitPriceToman: testProduct.priceToman,
-          }
-        ]
-      }
+          },
+        ],
+      },
     },
-    include: { items: true }
+    include: { items: true },
   });
 
   console.log(`🔸 Created PENDING order:`);
   console.log(`   Order ID: ${order.id}`);
   console.log(`   Status: ${order.status}`);
   console.log(`   Total: ${order.totalToman} TMN`);
-  console.log(`   Items: ${order.items.length} (${order.items[0].quantity}x ${testProduct.title})\n`);
+  console.log(
+    `   Items: ${order.items.length} (${order.items[0].quantity}x ${testProduct.title})\n`
+  );
 
   // Step 2: Simulate calling /api/payments/create
   console.log('🔸 Simulating /api/payments/create call...');
-  
+
   // Mock the payment creation process
   const mockPaymentId = `audit-payment-${Date.now()}`;
   const mockRedirectUrl = `http://localhost:3000/mock-gateway?payment=${mockPaymentId}&order=${order.id}`;
-  
+
   console.log(`   Generated payment ID: ${mockPaymentId}`);
   console.log(`   Mock redirect URL: ${mockRedirectUrl}\n`);
 
@@ -73,9 +77,9 @@ async function main() {
       raw: {
         gateway: 'OFFLINE',
         mockPayment: true,
-        redirectUrl: mockRedirectUrl
-      }
-    }
+        redirectUrl: mockRedirectUrl,
+      },
+    },
   });
 
   console.log(`🔸 Created payment record:`);
@@ -86,9 +90,9 @@ async function main() {
 
   // Step 4: Check initial stock
   const productBeforePayment = await prisma.product.findUniqueOrThrow({
-    where: { id: testProduct.id }
+    where: { id: testProduct.id },
   });
-  
+
   console.log(`🔸 Stock before payment: ${productBeforePayment.stock}`);
 
   console.log('\n📦 Ready for payment callback simulation!');
@@ -100,7 +104,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch(e => {
     console.error(e);
     process.exit(1);
   })

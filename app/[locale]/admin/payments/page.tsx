@@ -5,7 +5,13 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
 import { CheckCircle, XCircle, Clock, AlertCircle, Eye } from 'lucide-react';
@@ -42,22 +48,27 @@ export default function AdminPaymentsPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('admin');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
   const [updating, setUpdating] = useState<string | null>(null);
 
   const fetchPayments = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '20'
+        limit: '20',
       });
-      
+
       if (statusFilter !== 'all') {
         params.append('status', statusFilter);
       }
@@ -77,27 +88,29 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     if (!session) return;
-    
+
     if (session.user?.role !== 'ADMIN') {
       router.push('/');
       return;
     }
-    
+
     fetchPayments();
   }, [session, statusFilter, page, router, fetchPayments]);
 
   const markAsPaid = async (paymentId: string) => {
-    const reason = prompt('Please provide a reason for marking this payment as paid (minimum 10 characters):');
-    
+    const reason = prompt(
+      'Please provide a reason for marking this payment as paid (minimum 10 characters):'
+    );
+
     if (!reason) return;
-    
+
     if (reason.trim().length < 10) {
       alert('Reason must be at least 10 characters long');
       return;
     }
-    
+
     if (!confirm(`Confirm marking payment as paid?\nReason: ${reason}`)) return;
-    
+
     setUpdating(paymentId);
     try {
       const response = await fetch('/api/admin/payments', {
@@ -106,8 +119,8 @@ export default function AdminPaymentsPage() {
         body: JSON.stringify({
           paymentId,
           action: 'mark_paid',
-          reason: reason.trim()
-        })
+          reason: reason.trim(),
+        }),
       });
 
       if (response.ok) {
@@ -126,7 +139,10 @@ export default function AdminPaymentsPage() {
     }
   };
 
-  const handleOrderAction = async (orderId: string, action: 'mark_shipped' | 'mark_delivered' | 'cancel') => {
+  const handleOrderAction = async (
+    orderId: string,
+    action: 'mark_shipped' | 'mark_delivered' | 'cancel'
+  ) => {
     if (action === 'cancel') {
       const confirmCancel = confirm(t('confirmCancelOrder'));
       if (!confirmCancel) return;
@@ -136,7 +152,7 @@ export default function AdminPaymentsPage() {
       const res = await fetch(`/api/admin/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action }),
       });
       if (!res.ok) {
         type ErrShape = { error?: string } | undefined;
@@ -156,13 +172,33 @@ export default function AdminPaymentsPage() {
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'PAID':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Paid</Badge>;
+        return (
+          <Badge className="bg-green-100 text-green-800">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Paid
+          </Badge>
+        );
       case 'FAILED':
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>;
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Failed
+          </Badge>
+        );
       case 'PENDING':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        );
       case 'INITIATED':
-        return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />Initiated</Badge>;
+        return (
+          <Badge variant="secondary">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Initiated
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -206,7 +242,7 @@ export default function AdminPaymentsPage() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">{t('paymentsManagement')}</h1>
-          
+
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder={t('filterByStatus')} />
@@ -222,7 +258,7 @@ export default function AdminPaymentsPage() {
         </div>
 
         <div className="space-y-4">
-          {payments.map((payment) => (
+          {payments.map(payment => (
             <div key={payment.id} className="border rounded-lg p-6 bg-white">
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-2">
@@ -230,13 +266,20 @@ export default function AdminPaymentsPage() {
                     <h3 className="font-semibold">Order #{payment.order.id}</h3>
                     {getPaymentStatusBadge(payment.status)}
                     {getGatewayBadge(payment.gateway)}
-                    <Badge variant="outline">{t('orderStatus')}: {payment.order.status}</Badge>
+                    <Badge variant="outline">
+                      {t('orderStatus')}: {payment.order.status}
+                    </Badge>
                   </div>
-                  
+
                   <div className="text-sm text-muted-foreground">
-                    <p>Customer: {payment.order.user.name || payment.order.user.email}</p>
+                    <p>
+                      Customer:{' '}
+                      {payment.order.user.name || payment.order.user.email}
+                    </p>
                     <p>Amount: {formatPrice(payment.amountToman)}</p>
-                    <p>Created: {new Date(payment.createdAt).toLocaleString()}</p>
+                    <p>
+                      Created: {new Date(payment.createdAt).toLocaleString()}
+                    </p>
                     {payment.authority && <p>Authority: {payment.authority}</p>}
                     {payment.refId && <p>Ref ID: {payment.refId}</p>}
                   </div>
@@ -261,21 +304,26 @@ export default function AdminPaymentsPage() {
                     {t('viewOrder')}
                   </Button>
 
-                  {payment.gateway === 'OFFLINE' && payment.status !== 'PAID' && (
-                    <Button
-                      size="sm"
-                      onClick={() => markAsPaid(payment.id)}
-                      disabled={updating === payment.id}
-                    >
-                      {updating === payment.id ? t('updating') : t('markAsPaid')}
-                    </Button>
-                  )}
+                  {payment.gateway === 'OFFLINE' &&
+                    payment.status !== 'PAID' && (
+                      <Button
+                        size="sm"
+                        onClick={() => markAsPaid(payment.id)}
+                        disabled={updating === payment.id}
+                      >
+                        {updating === payment.id
+                          ? t('updating')
+                          : t('markAsPaid')}
+                      </Button>
+                    )}
 
                   {payment.order.status === 'PENDING' && (
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleOrderAction(payment.order.id, 'cancel')}
+                      onClick={() =>
+                        handleOrderAction(payment.order.id, 'cancel')
+                      }
                       disabled={updating === payment.order.id}
                     >
                       {t('cancelOrder')}
@@ -287,14 +335,18 @@ export default function AdminPaymentsPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleOrderAction(payment.order.id, 'cancel')}
+                        onClick={() =>
+                          handleOrderAction(payment.order.id, 'cancel')
+                        }
                         disabled={updating === payment.order.id}
                       >
                         {t('cancelOrder')}
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleOrderAction(payment.order.id, 'mark_shipped')}
+                        onClick={() =>
+                          handleOrderAction(payment.order.id, 'mark_shipped')
+                        }
                         disabled={updating === payment.order.id}
                       >
                         {t('markShipped')}
@@ -305,7 +357,9 @@ export default function AdminPaymentsPage() {
                   {payment.order.status === 'SHIPPED' && (
                     <Button
                       size="sm"
-                      onClick={() => handleOrderAction(payment.order.id, 'mark_delivered')}
+                      onClick={() =>
+                        handleOrderAction(payment.order.id, 'mark_delivered')
+                      }
                       disabled={updating === payment.order.id}
                     >
                       {t('markDelivered')}
@@ -333,11 +387,11 @@ export default function AdminPaymentsPage() {
             >
               {t('previous')}
             </Button>
-            
+
             <span className="flex items-center px-4">
               {t('pageOf', { current: page, total: pagination.pages })}
             </span>
-            
+
             <Button
               variant="outline"
               onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}

@@ -17,7 +17,7 @@ A modern Iranian handmade marketplace inspired by Etsy, built with Next.js 14 an
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS + shadcn/ui components
-- **Database**: Prisma ORM with PostgreSQL (Neon) 
+- **Database**: Prisma ORM with PostgreSQL (Neon)
 - **Authentication**: NextAuth.js with Credentials provider
 - **Internationalization**: next-intl with RTL/LTR support
 - **Forms**: react-hook-form + Zod validation
@@ -60,6 +60,7 @@ kiarakraft/
 ### Installation
 
 1. **Clone and install dependencies**
+
    ```bash
    git clone <repository-url>
    cd kiarakraft
@@ -67,10 +68,13 @@ kiarakraft/
    ```
 
 2. **Set up environment variables**
+
    ```bash
    cp .env.example .env
    ```
+
    Edit `.env` and set your values (see `.env.example`):
+
    ```env
    DATABASE_URL="postgresql://user:pass@host-pooler.region.neon.tech/db?sslmode=require&pgbouncer=true&connection_limit=1"
    DIRECT_URL="postgresql://user:pass@host.region.neon.tech/db?sslmode=require"
@@ -79,12 +83,14 @@ kiarakraft/
    ```
 
 3. **Initialize database**
+
    ```bash
    npx prisma migrate dev
    npm run db:seed
    ```
 
 4. **Start development server**
+
    ```bash
    npm run dev
    ```
@@ -97,12 +103,14 @@ kiarakraft/
 After seeding, you can use these accounts:
 
 **Seller Account:**
+
 - Email: `seller@example.com`
 - Password: `password123`
 - Access: Seller dashboard at `/seller`
 
 **Buyer Account:**
-- Email: `buyer@example.com`  
+
+- Email: `buyer@example.com`
 - Password: `password123`
 - Access: Shopping and cart features
 
@@ -161,9 +169,10 @@ The app supports Persian (fa) and English (en) locales:
 
 1. Add keys to both `locales/fa.json` and `locales/en.json`
 2. Use in components:
+
    ```tsx
    import { useTranslations } from 'next-intl';
-   
+
    const t = useTranslations('namespace');
    return <h1>{t('title')}</h1>;
    ```
@@ -189,29 +198,33 @@ The app supports Persian (fa) and English (en) locales:
 ### Production Checklist
 
 #### ✅ Environment Variables
-- [ ] `DATABASE_URL` - Neon pooled connection string  
+
+- [ ] `DATABASE_URL` - Neon pooled connection string
 - [ ] `DIRECT_URL` - Neon direct connection for migrations
 - [ ] `NEXTAUTH_SECRET` - Strong random secret (32+ chars)
 - [ ] `NEXTAUTH_URL` - Canonical production domain
 - [ ] `PUBLIC_APP_BASE` - Canonical app origin used to build payment callback URLs
 - [ ] `ALLOWED_APP_BASE_HOSTS` - Comma-separated host allowlist for selecting PUBLIC_APP_BASE
- - [ ] `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` - Set to enable Plausible analytics script
- - [ ] `SENTRY_DSN` - Sentry DSN for error reporting
- - [ ] `LHCI_BASE_URL` (GitHub Secret) - Base URL for Lighthouse CI (e.g., https://www.kiarakraft.com)
+- [ ] `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` - Set to enable Plausible analytics script
+- [ ] `SENTRY_DSN` - Sentry DSN for error reporting
+- [ ] `LHCI_BASE_URL` (GitHub Secret) - Base URL for Lighthouse CI (e.g., https://www.kiarakraft.com)
 
-#### ✅ Domain & Redirects  
+#### ✅ Domain & Redirects
+
 - [ ] Primary domain: `www.kiarakraft.com`
 - [ ] Apex redirect: `kiarakraft.com` → `www.kiarakraft.com`
 - [ ] Geographic redirects: `kiarakraft.ir` → `www.kiarakraft.com`
 - [ ] SSL/TLS enabled with HTTPS redirects
 
 #### ✅ Database & Migrations
+
 - [ ] Neon PostgreSQL database provisioned
 - [ ] Connection pooling enabled (PgBouncer)
 - [ ] Production migrations deployed via GitHub Actions
 - [ ] Database backups configured
 
 #### ✅ SEO & Performance
+
 - [ ] Robots.txt configured for production indexing
 - [ ] XML sitemaps generated and submitted
 - [ ] Canonical URLs set correctly
@@ -219,13 +232,15 @@ The app supports Persian (fa) and English (en) locales:
 - [ ] Performance monitoring enabled
 
 #### ✅ Security
+
 - [ ] Security headers configured
-- [ ] CORS policies set appropriately  
+- [ ] CORS policies set appropriately
 - [ ] Rate limiting in place
 - [ ] Error pages don't leak sensitive info
 - [ ] All secrets rotated after git history purge
 
 #### ✅ Monitoring
+
 - [ ] Error tracking configured
 - [ ] Performance monitoring setup
 - [ ] Database query monitoring
@@ -266,7 +281,7 @@ LHCI_BASE_URL=http://localhost:3000 lhci autorun --config=lighthouserc.json --co
 - **TypeScript**: Strict mode enabled
 - **ESLint**: Next.js configuration
 - **Prettier**: Code formatting (recommended)
-- **Conventions**: 
+- **Conventions**:
   - Use Server Components by default
   - Client components only when needed
   - Server Actions for mutations
@@ -275,7 +290,7 @@ LHCI_BASE_URL=http://localhost:3000 lhci autorun --config=lighthouserc.json --co
 ### Adding Features
 
 1. **New pages**: Add to `app/[locale]/` directory
-2. **API endpoints**: Add to `app/api/` directory  
+2. **API endpoints**: Add to `app/api/` directory
 3. **Components**: Add to `components/` with proper subfolder
 4. **Database changes**: Update `prisma/schema.prisma` and migrate
 5. **Translations**: Update both locale JSON files
@@ -315,6 +330,7 @@ npm run build
 ### Common Issues
 
 1. **Database connection errors**:
+
    ```bash
    npx prisma generate
    npx prisma migrate deploy
@@ -349,7 +365,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Built with ❤️ for Iranian artisans and craftspeople.
- 
+
 ## 🖼️ AI Image Generation (optional)
 
 You can generate category-accurate images for all products and categories and upload them to Cloudinary.
@@ -366,10 +382,10 @@ CLOUDINARY_API_SECRET=...
 Scripts:
 
 - Generate product images for all active products:
-   - `npm run images:generate:products`
-   - Only missing: `npm run images:generate:products:missing`
-   - Replace existing: `npm run images:generate:products:replace`
+  - `npm run images:generate:products`
+  - Only missing: `npm run images:generate:products:missing`
+  - Replace existing: `npm run images:generate:products:replace`
 - Generate category tile images:
-   - `npm run images:generate:categories`
+  - `npm run images:generate:categories`
 
 Curated category fallbacks live in `lib/assets.ts` and are used by the homepage if no product image is available per category.

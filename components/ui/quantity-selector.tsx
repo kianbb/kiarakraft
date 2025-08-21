@@ -18,7 +18,7 @@ export function QuantitySelector({
   min = 1,
   max = 99,
   disabled = false,
-  className
+  className,
 }: QuantitySelectorProps) {
   const handleDecrease = () => {
     if (quantity > min && !disabled) {
@@ -39,7 +39,12 @@ export function QuantitySelector({
   };
 
   return (
-    <div className={cn('flex items-center border border-input rounded-md', className)}>
+    <div
+      className={cn(
+        'flex items-center border border-input rounded-md',
+        className
+      )}
+    >
       <Button
         variant="ghost"
         size="icon"
@@ -49,7 +54,7 @@ export function QuantitySelector({
       >
         <Minus className="w-3 h-3" />
       </Button>
-      
+
       <Input
         type="number"
         value={quantity}
@@ -59,7 +64,7 @@ export function QuantitySelector({
         disabled={disabled}
         className="h-8 w-16 text-center border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
-      
+
       <Button
         variant="ghost"
         size="icon"

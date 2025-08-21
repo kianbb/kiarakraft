@@ -6,13 +6,13 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -22,35 +22,35 @@ export async function GET() {
     // Get seller statistics
     const [totalProducts, totalOrders, revenue] = await Promise.all([
       prisma.product.count({
-        where: { sellerId: user.id }
+        where: { sellerId: user.id },
       }),
       prisma.orderItem.count({
         where: {
           product: {
-            sellerId: user.id
-          }
-        }
+            sellerId: user.id,
+          },
+        },
       }),
       prisma.orderItem.aggregate({
         where: {
           product: {
-            sellerId: user.id
+            sellerId: user.id,
           },
           order: {
-            status: { not: 'CANCELED' }
-          }
+            status: { not: 'CANCELED' },
+          },
         },
         _sum: {
-          unitPriceToman: true
-        }
-      })
+          unitPriceToman: true,
+        },
+      }),
     ]);
 
     const stats = {
       totalProducts,
       totalOrders,
       totalRevenue: revenue._sum?.unitPriceToman || 0,
-      averageRating: '4.8' // Placeholder - would calculate from reviews
+      averageRating: '4.8', // Placeholder - would calculate from reviews
     };
 
     return NextResponse.json(stats);
