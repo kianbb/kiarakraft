@@ -32,7 +32,6 @@ jobs:
 
       - name: Checkout code
 
-        dependabot/github_actions/actions/checkout-5
 
 
         uses: actions/checkout@v5
