@@ -41,10 +41,12 @@ jobs:
 
       - name: Check for SSR placeholder leaks
         run: |
-          if grep -R "Loading..." .next/server/ --include='*.html'; then
-            echo "Error: Found 'Loading...' in server-rendered HTML." >&2
+          # Only check actual HTML files, not JS files containing translations
+          if find .next/server/ -name "*.html" -exec grep -l "Loading\.\.\." {} \; | head -1; then
+            echo "Error: Found 'Loading...' placeholder in server-rendered HTML files." >&2
             exit 1
           fi
+          echo "✓ No SSR placeholder leaks found in HTML files"
 
       - name: Run Lighthouse CI
         run: npm run lhci
