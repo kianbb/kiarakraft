@@ -100,6 +100,7 @@ export async function searchProducts(
   const baseConditions: Prisma.ProductWhereInput = {
     active: true,
     eligibilityStatus: 'APPROVED',
+    isTest: false,
     // Exclude known test/demo items
     NOT: [
       { slug: { startsWith: 'test-' } },
@@ -108,7 +109,7 @@ export async function searchProducts(
       { seller: { displayName: 'Search Test Seller' } },
       // Additional variant observed in production UI (seller test account)
       { seller: { displayName: 'Test Search Seller' } },
-      // Broad catch-all: exclude any seller display name containing 'test'
+      // Broad seller name test detection remains for legacy data
       { seller: { displayName: { contains: 'test', mode: 'insensitive' } } },
     ],
     ...(categoryId && { categoryId }),
@@ -144,6 +145,7 @@ export async function searchProducts(
     // Add base conditions
     whereConditions.push(`p.active = true`);
     whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
+    whereConditions.push(`p."isTest" = false`);
     // Exclude known test/demo items
     whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
     whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
@@ -159,6 +161,13 @@ export async function searchProducts(
     whereConditions.push(
       `LOWER(COALESCE(sp."displayName", '')) NOT LIKE '%test%'`
     );
+    // Newly added broader exclusions: product title/description containing test/demo/sample
+    whereConditions.push(`LOWER(p.title) NOT LIKE '%test%'`);
+    whereConditions.push(`LOWER(p.description) NOT LIKE '%test%'`);
+    whereConditions.push(`LOWER(p.title) NOT LIKE '%demo%'`);
+    whereConditions.push(`LOWER(p.description) NOT LIKE '%demo%'`);
+    whereConditions.push(`LOWER(p.title) NOT LIKE '%sample%'`);
+    whereConditions.push(`LOWER(p.description) NOT LIKE '%sample%'`);
 
     if (categoryId) {
       whereConditions.push(`p."categoryId" = $${paramIndex}`);
@@ -515,6 +524,7 @@ async function generateSearchFacets({
   const whereParts: string[] = [
     'p.active = true',
     `p."eligibilityStatus" = 'APPROVED'`,
+    `p."isTest" = false`,
     // Exclude known test/demo items
     `p."slug" NOT LIKE 'test-%'`,
     `COALESCE(sp."shopName", '') <> 'Test Shop'`,

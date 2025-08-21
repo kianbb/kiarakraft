@@ -58,7 +58,6 @@ async function getFeaturedProducts(locale: string) {
       limit: 4, // Show 4 featured products
       locale,
     });
-
     return results.products.map(product => ({
       id: product.id,
       title: product.title,
@@ -129,6 +128,7 @@ async function getCategoryTiles() {
             eligibilityStatus: 'APPROVED',
             categoryId: c.id,
             images: { some: {} },
+            isTest: false,
             NOT: [
               { slug: { startsWith: 'test-' } },
               { seller: { shopName: 'Test Shop' } },
