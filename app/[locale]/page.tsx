@@ -133,6 +133,7 @@ async function getCategoryTiles() {
               { slug: { startsWith: 'test-' } },
               { seller: { shopName: 'Test Shop' } },
               { seller: { displayName: 'Test Seller' } },
+              { seller: { displayName: 'Search Test Seller' } },
             ],
           },
           orderBy: { createdAt: 'desc' },

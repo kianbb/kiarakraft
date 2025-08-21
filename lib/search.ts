@@ -105,6 +105,7 @@ export async function searchProducts(
       { slug: { startsWith: 'test-' } },
       { seller: { shopName: 'Test Shop' } },
       { seller: { displayName: 'Test Seller' } },
+      { seller: { displayName: 'Search Test Seller' } },
     ],
     ...(categoryId && { categoryId }),
     ...(sellerId && { sellerId }),
@@ -143,6 +144,9 @@ export async function searchProducts(
     whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
     whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
     whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
+    whereConditions.push(
+      `COALESCE(sp."displayName", '') <> 'Search Test Seller'`
+    );
 
     if (categoryId) {
       whereConditions.push(`p."categoryId" = $${paramIndex}`);
@@ -503,6 +507,7 @@ async function generateSearchFacets({
     `p."slug" NOT LIKE 'test-%'`,
     `COALESCE(sp."shopName", '') <> 'Test Shop'`,
     `COALESCE(sp."displayName", '') <> 'Test Seller'`,
+    `COALESCE(sp."displayName", '') <> 'Search Test Seller'`,
   ];
   const params: (string | number | boolean)[] = [];
   let idx = 1;
