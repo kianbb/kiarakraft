@@ -10,6 +10,7 @@ import { RatingStars } from '@/components/products/RatingStars';
 import { AddToCartButton } from '@/components/products/AddToCartButton';
 import { formatPrice } from '@/lib/utils';
 import { ArrowLeft, Heart, Share2, Store, MapPin } from 'lucide-react';
+import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
@@ -186,6 +187,7 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <>
+      <ProductViewTracker slug={params.slug} locale={params.locale} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <main>
   {/* render gallery + details */}
