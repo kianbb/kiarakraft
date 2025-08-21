@@ -7,17 +7,17 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Shield, 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
+import {
+  Shield,
+  CheckCircle,
+  XCircle,
+  Eye,
   Search,
   Clock,
   MapPin,
   Phone,
   Globe,
-  FileText
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -50,21 +50,31 @@ export default function AdminSellersPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('admin');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
 
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'verified'>('all');
-  const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(null);
+  const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(
+    null
+  );
   const [verifying, setVerifying] = useState(false);
-  const [docs, setDocs] = useState<{ secure_url: string; resource_type: 'image' | 'raw'; bytes: number; created_at: string }[] | null>(null);
+  const [docs, setDocs] = useState<
+    | {
+        secure_url: string;
+        resource_type: 'image' | 'raw';
+        bytes: number;
+        created_at: string;
+      }[]
+    | null
+  >(null);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push('/auth/login');
       return;
@@ -95,7 +105,11 @@ export default function AdminSellersPage() {
     }
   };
 
-  const handleVerifyAction = async (sellerId: string, action: 'verify' | 'reject', notes: string) => {
+  const handleVerifyAction = async (
+    sellerId: string,
+    action: 'verify' | 'reject',
+    notes: string
+  ) => {
     setVerifying(true);
     try {
       const response = await fetch('/api/admin/sellers/verify', {
@@ -104,12 +118,16 @@ export default function AdminSellersPage() {
         body: JSON.stringify({
           sellerId,
           action,
-          notes: notes.trim()
-        })
+          notes: notes.trim(),
+        }),
       });
 
       if (response.ok) {
-        toast.success(action === 'verify' ? 'Seller verified successfully' : 'Seller verification rejected');
+        toast.success(
+          action === 'verify'
+            ? 'Seller verified successfully'
+            : 'Seller verification rejected'
+        );
         await fetchSellers();
         setSelectedSeller(null);
       } else {
@@ -146,16 +164,16 @@ export default function AdminSellersPage() {
 
   const filteredSellers = sellers
     .filter(seller => {
-      const matchesSearch = 
+      const matchesSearch =
         seller.shopName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         seller.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         seller.user.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesFilter = 
-        filter === 'all' || 
+
+      const matchesFilter =
+        filter === 'all' ||
         (filter === 'pending' && !seller.verified) ||
         (filter === 'verified' && seller.verified);
-      
+
       return matchesSearch && matchesFilter;
     })
     .sort((a, b) => {
@@ -193,7 +211,9 @@ export default function AdminSellersPage() {
           <Shield className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold">{t('sellerVerification')}</h1>
-            <p className="text-muted-foreground">{t('verificationDescription')}</p>
+            <p className="text-muted-foreground">
+              {t('verificationDescription')}
+            </p>
           </div>
         </div>
 
@@ -205,12 +225,12 @@ export default function AdminSellersPage() {
               <Input
                 placeholder={t('searchSellers')}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             <Button
               variant={filter === 'all' ? 'default' : 'outline'}
@@ -238,7 +258,7 @@ export default function AdminSellersPage() {
 
         {/* Sellers List */}
         <div className="space-y-4">
-          {filteredSellers.map((seller) => (
+          {filteredSellers.map(seller => (
             <div key={seller.id} className="bg-white border rounded-lg p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -258,9 +278,11 @@ export default function AdminSellersPage() {
                       )}
                     </Badge>
                   </div>
-                  
-                  <p className="text-muted-foreground mb-3">{seller.displayName}</p>
-                  
+
+                  <p className="text-muted-foreground mb-3">
+                    {seller.displayName}
+                  </p>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{t('email')}:</span>
@@ -281,18 +303,24 @@ export default function AdminSellersPage() {
                     {seller.website && (
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
-                        <a href={seller.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        <a
+                          href={seller.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
                           {t('website')}
                         </a>
                       </div>
                     )}
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground mt-3">
-                    {t('registered')} {formatDistanceToNow(new Date(seller.createdAt))} {t('ago')}
+                    {t('registered')}{' '}
+                    {formatDistanceToNow(new Date(seller.createdAt))} {t('ago')}
                   </p>
                 </div>
-                
+
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
@@ -302,9 +330,16 @@ export default function AdminSellersPage() {
                     <Eye className="h-4 w-4 mr-2" />
                     {t('review')}
                   </Button>
-                  
+
                   {seller.docsFolder && (
-                    <Button variant="outline" size="sm" onClick={() => { setSelectedSeller(seller); loadDocuments(seller.id); }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSeller(seller);
+                        loadDocuments(seller.id);
+                      }}
+                    >
                       <FileText className="h-4 w-4 mr-2" />
                       {t('documents')}
                     </Button>
@@ -313,18 +348,20 @@ export default function AdminSellersPage() {
               </div>
             </div>
           ))}
-          
+
           {filteredSellers.length === 0 && (
             <div className="text-center py-12">
               <Shield className="h-12 w-12 mx-auto text-muted-foreground opacity-50 mb-4" />
               <h3 className="text-lg font-semibold mb-2">{t('noSellers')}</h3>
-              <p className="text-muted-foreground">{t('noSellersDescription')}</p>
+              <p className="text-muted-foreground">
+                {t('noSellersDescription')}
+              </p>
             </div>
           )}
         </div>
 
         {/* Review Modal */}
-  {selectedSeller && (
+        {selectedSeller && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
@@ -338,59 +375,78 @@ export default function AdminSellersPage() {
                     <XCircle className="h-4 w-4" />
                   </Button>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-medium mb-2">{t('basicInformation')}</h3>
+                    <h3 className="font-medium mb-2">
+                      {t('basicInformation')}
+                    </h3>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="font-medium">{t('shopName')}:</span> {selectedSeller.shopName}
+                        <span className="font-medium">{t('shopName')}:</span>{' '}
+                        {selectedSeller.shopName}
                       </div>
                       <div>
-                        <span className="font-medium">{t('displayName')}:</span> {selectedSeller.displayName}
+                        <span className="font-medium">{t('displayName')}:</span>{' '}
+                        {selectedSeller.displayName}
                       </div>
                       <div className="col-span-2">
-                        <span className="font-medium">{t('bio')}:</span> {selectedSeller.bio}
+                        <span className="font-medium">{t('bio')}:</span>{' '}
+                        {selectedSeller.bio}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <h3 className="font-medium mb-2">{t('contactInformation')}</h3>
+                    <h3 className="font-medium mb-2">
+                      {t('contactInformation')}
+                    </h3>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="font-medium">{t('email')}:</span> {selectedSeller.user.email}
+                        <span className="font-medium">{t('email')}:</span>{' '}
+                        {selectedSeller.user.email}
                       </div>
                       <div>
-                        <span className="font-medium">{t('phone')}:</span> {selectedSeller.phone || 'N/A'}
+                        <span className="font-medium">{t('phone')}:</span>{' '}
+                        {selectedSeller.phone || 'N/A'}
                       </div>
                       <div>
-                        <span className="font-medium">{t('location')}:</span> 
-                        {selectedSeller.city && selectedSeller.province 
+                        <span className="font-medium">{t('location')}:</span>
+                        {selectedSeller.city && selectedSeller.province
                           ? `${selectedSeller.city}, ${selectedSeller.province}`
                           : 'N/A'}
                       </div>
                       <div>
-                        <span className="font-medium">{t('website')}:</span> 
+                        <span className="font-medium">{t('website')}:</span>
                         {selectedSeller.website ? (
-                          <a href={selectedSeller.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                          <a
+                            href={selectedSeller.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
                             {selectedSeller.website}
                           </a>
-                        ) : 'N/A'}
+                        ) : (
+                          'N/A'
+                        )}
                       </div>
                     </div>
-                    
+
                     {selectedSeller.address && (
                       <div className="mt-2 text-sm">
-                        <span className="font-medium">{t('address')}:</span> {selectedSeller.address}
+                        <span className="font-medium">{t('address')}:</span>{' '}
+                        {selectedSeller.address}
                       </div>
                     )}
                   </div>
-                  
+
                   {selectedSeller.verificationNotes && (
                     <div>
                       <h3 className="font-medium mb-2">{t('notes')}</h3>
-                      <p className="text-sm bg-gray-50 p-3 rounded">{selectedSeller.verificationNotes}</p>
+                      <p className="text-sm bg-gray-50 p-3 rounded">
+                        {selectedSeller.verificationNotes}
+                      </p>
                     </div>
                   )}
 
@@ -398,32 +454,49 @@ export default function AdminSellersPage() {
                     <div>
                       <h3 className="font-medium mb-2">{t('documents')}</h3>
                       {loadingDocs ? (
-                        <p className="text-sm text-muted-foreground">{t('loading')}...</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('loading')}...
+                        </p>
                       ) : docs && docs.length > 0 ? (
                         <ul className="space-y-2">
                           {docs.map((d, idx) => (
-                            <li key={idx} className="text-sm flex items-center justify-between gap-3">
-                              <a href={d.secure_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                            <li
+                              key={idx}
+                              className="text-sm flex items-center justify-between gap-3"
+                            >
+                              <a
+                                href={d.secure_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline truncate"
+                              >
                                 {d.secure_url.split('/').pop()}
                               </a>
                               <span className="text-xs text-muted-foreground">
-                                {d.resource_type.toUpperCase()} • {(d.bytes / 1024).toFixed(0)} KB
+                                {d.resource_type.toUpperCase()} •{' '}
+                                {(d.bytes / 1024).toFixed(0)} KB
                               </span>
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-sm text-muted-foreground">{t('noDocuments')}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('noDocuments')}
+                        </p>
                       )}
                     </div>
                   )}
-                  
+
                   {!selectedSeller.verified && (
                     <div className="flex gap-3 pt-4 border-t">
                       <Button
                         onClick={() => {
                           const n = notesDraft.trim();
-                          handleVerifyAction(selectedSeller.id, 'verify', n || t('verifiedByAdmin'));
+                          handleVerifyAction(
+                            selectedSeller.id,
+                            'verify',
+                            n || t('verifiedByAdmin')
+                          );
                         }}
                         disabled={verifying}
                         className="flex-1"
@@ -431,12 +504,13 @@ export default function AdminSellersPage() {
                         <CheckCircle className="h-4 w-4 mr-2" />
                         {verifying ? t('verifying') : t('verify')}
                       </Button>
-                      
+
                       <Button
                         variant="destructive"
                         onClick={() => {
                           const n = notesDraft.trim();
-                          if (n) handleVerifyAction(selectedSeller.id, 'reject', n);
+                          if (n)
+                            handleVerifyAction(selectedSeller.id, 'reject', n);
                         }}
                         disabled={verifying}
                         className="flex-1"
@@ -446,27 +520,35 @@ export default function AdminSellersPage() {
                       </Button>
                     </div>
                   )}
-                  
+
                   {selectedSeller.verified && selectedSeller.verifiedAt && (
                     <div className="bg-green-50 border border-green-200 p-3 rounded">
                       <p className="text-sm text-green-800">
-                        {t('verifiedOn')} {new Date(selectedSeller.verifiedAt).toLocaleDateString()}
-                        {selectedSeller.verifiedBy && ` ${t('by')} ${selectedSeller.verifiedBy}`}
+                        {t('verifiedOn')}{' '}
+                        {new Date(
+                          selectedSeller.verifiedAt
+                        ).toLocaleDateString()}
+                        {selectedSeller.verifiedBy &&
+                          ` ${t('by')} ${selectedSeller.verifiedBy}`}
                       </p>
                     </div>
                   )}
 
                   {!selectedSeller.verified && (
                     <div className="pt-2">
-                      <label className="text-sm font-medium mb-1 block">{t('verificationNotes')}</label>
+                      <label className="text-sm font-medium mb-1 block">
+                        {t('verificationNotes')}
+                      </label>
                       <textarea
                         value={notesDraft}
-                        onChange={(e) => setNotesDraft(e.target.value)}
+                        onChange={e => setNotesDraft(e.target.value)}
                         rows={3}
                         placeholder={t('addNotesPlaceholder')}
                         className="w-full border rounded p-2 text-sm"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">{t('notesHelp')}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t('notesHelp')}
+                      </p>
                     </div>
                   )}
                 </div>

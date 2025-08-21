@@ -2,7 +2,11 @@ import { searchProducts } from '../lib/search';
 import { prisma } from '../lib/prisma';
 
 async function run(term: string) {
-  const res = await searchProducts({ query: term, limit: 5, sortBy: 'relevance' });
+  const res = await searchProducts({
+    query: term,
+    limit: 5,
+    sortBy: 'relevance',
+  });
   const items = res.products.map((p, i) => ({
     rank: i + 1,
     title: p.title,

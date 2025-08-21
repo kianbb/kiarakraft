@@ -19,8 +19,8 @@ export function formatPrice(price: number, locale: string = 'fa'): string {
 export function persianToEnglishDigits(str: string): string {
   const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
   const englishDigits = '0123456789';
-  
-  return str.replace(/[۰-۹]/g, (char) => {
+
+  return str.replace(/[۰-۹]/g, char => {
     return englishDigits[persianDigits.indexOf(char)];
   });
 }
@@ -31,8 +31,8 @@ export function persianToEnglishDigits(str: string): string {
 export function englishToPersianDigits(str: string): string {
   const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
   const englishDigits = '0123456789';
-  
-  return str.replace(/[0-9]/g, (char) => {
+
+  return str.replace(/[0-9]/g, char => {
     return persianDigits[englishDigits.indexOf(char)];
   });
 }

@@ -11,13 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { formatPrice, formatDate } from '@/lib/utils';
 import { OrderWithItems } from '@/types/database';
-import { 
-  Search, 
-  Package,
-  ArrowLeft,
-  Calendar,
-  User
-} from 'lucide-react';
+import { Search, Package, ArrowLeft, Calendar, User } from 'lucide-react';
 
 export default function SellerOrdersPage() {
   const { data: session, status } = useSession();
@@ -26,14 +20,14 @@ export default function SellerOrdersPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push('/auth/login');
       return;
@@ -61,17 +55,23 @@ export default function SellerOrdersPage() {
     }
   };
 
-  const handleAction = async (orderId: string, action: 'mark_shipped' | 'mark_delivered') => {
+  const handleAction = async (
+    orderId: string,
+    action: 'mark_shipped' | 'mark_delivered'
+  ) => {
     try {
       const res = await fetch(`/api/seller/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action }),
       });
       if (!res.ok) {
         type ErrShape = { error?: string } | undefined;
         const e: ErrShape = await res.json().catch(() => undefined);
-        console.error('Failed to update status', (e && e.error) || res.statusText);
+        console.error(
+          'Failed to update status',
+          (e && e.error) || res.statusText
+        );
         return;
       }
       // Refresh list
@@ -90,20 +90,25 @@ export default function SellerOrdersPage() {
       case 'SHIPPED':
         return <Badge variant="outline">{t('statusShipped')}</Badge>;
       case 'DELIVERED':
-        return <Badge className="bg-green-100 text-green-800">{t('statusDelivered')}</Badge>;
-  case 'CANCELED':
+        return (
+          <Badge className="bg-green-100 text-green-800">
+            {t('statusDelivered')}
+          </Badge>
+        );
+      case 'CANCELED':
         return <Badge variant="destructive">{t('statusCancelled')}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
   };
 
-  const filteredOrders = orders.filter((order: OrderWithItems) =>
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.items.some((item: OrderWithItems['items'][0]) => 
-      item.product.title.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  const filteredOrders = orders.filter(
+    (order: OrderWithItems) =>
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.items.some((item: OrderWithItems['items'][0]) =>
+        item.product.title.toLowerCase().includes(searchTerm.toLowerCase())
+      )
   );
 
   if (status === 'loading' || loading) {
@@ -132,11 +137,14 @@ export default function SellerOrdersPage() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/seller" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link
+            href="/seller"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
+          >
             <ArrowLeft className="h-4 w-4" />
             {t('backToDashboard')}
           </Link>
-          
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold">{t('orders')}</h1>
@@ -153,7 +161,7 @@ export default function SellerOrdersPage() {
               type="text"
               placeholder={t('searchOrders')}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -168,22 +176,35 @@ export default function SellerOrdersPage() {
                   <div className="flex items-center gap-3">
                     <Package className="h-6 w-6 text-primary" />
                     <div>
-                      <h3 className="font-semibold">{t('orderNumber')}: {order.id.slice(-8).toUpperCase()}</h3>
+                      <h3 className="font-semibold">
+                        {t('orderNumber')}: {order.id.slice(-8).toUpperCase()}
+                      </h3>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                         {formatDate(order.createdAt)}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     {getStatusBadge(order.status)}
                     <div className="text-right">
                       <div className="font-bold">
-                        {formatPrice(order.items.reduce((sum: number, item: OrderWithItems['items'][0]) => sum + item.unitPriceToman * item.quantity, 0))}
+                        {formatPrice(
+                          order.items.reduce(
+                            (sum: number, item: OrderWithItems['items'][0]) =>
+                              sum + item.unitPriceToman * item.quantity,
+                            0
+                          )
+                        )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {order.items.reduce((sum: number, item: OrderWithItems['items'][0]) => sum + item.quantity, 0)} {t('items')}
+                        {order.items.reduce(
+                          (sum: number, item: OrderWithItems['items'][0]) =>
+                            sum + item.quantity,
+                          0
+                        )}{' '}
+                        {t('items')}
                       </div>
                     </div>
                   </div>
@@ -200,26 +221,42 @@ export default function SellerOrdersPage() {
                 <div className="space-y-3">
                   <h4 className="font-medium">{t('orderItems')}:</h4>
                   {order.items.map((item: OrderWithItems['items'][0]) => (
-                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-4 p-3 border rounded-lg"
+                    >
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden">
                         <Image
-                          src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
-                          alt={item.product.images?.[0]?.alt || item.product.title}
+                          src={
+                            item.product.images?.[0]?.url ||
+                            '/placeholder-product.jpg'
+                          }
+                          alt={
+                            item.product.images?.[0]?.alt || item.product.title
+                          }
                           fill
                           className="object-cover"
                         />
                       </div>
-                      
+
                       <div className="flex-1">
-                        <h5 className="font-medium line-clamp-1">{item.product.title}</h5>
+                        <h5 className="font-medium line-clamp-1">
+                          {item.product.title}
+                        </h5>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>{t('quantity')}: {item.quantity}</span>
-                          <span>{t('price')}: {formatPrice(item.unitPriceToman)}</span>
+                          <span>
+                            {t('quantity')}: {item.quantity}
+                          </span>
+                          <span>
+                            {t('price')}: {formatPrice(item.unitPriceToman)}
+                          </span>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
-                        <div className="font-semibold">{formatPrice(item.unitPriceToman * item.quantity)}</div>
+                        <div className="font-semibold">
+                          {formatPrice(item.unitPriceToman * item.quantity)}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -230,21 +267,32 @@ export default function SellerOrdersPage() {
                   <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
                   <div className="text-sm text-muted-foreground">
                     <div>{order.fullName}</div>
-                    <div>{order.address1} {order.address2 ? `, ${order.address2}` : ''}</div>
-                    <div>{order.city}, {order.province} {order.postalCode}</div>
-                    <div>{t('phone')}: {order.phone}</div>
+                    <div>
+                      {order.address1}{' '}
+                      {order.address2 ? `, ${order.address2}` : ''}
+                    </div>
+                    <div>
+                      {order.city}, {order.province} {order.postalCode}
+                    </div>
+                    <div>
+                      {t('phone')}: {order.phone}
+                    </div>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="mt-4 flex gap-2 justify-end">
                   {order.status === 'PAID' && (
-                    <Button onClick={() => handleAction(order.id, 'mark_shipped')}>
+                    <Button
+                      onClick={() => handleAction(order.id, 'mark_shipped')}
+                    >
                       {t('markShipped')}
                     </Button>
                   )}
                   {order.status === 'SHIPPED' && (
-                    <Button onClick={() => handleAction(order.id, 'mark_delivered')}>
+                    <Button
+                      onClick={() => handleAction(order.id, 'mark_delivered')}
+                    >
                       {t('markDelivered')}
                     </Button>
                   )}

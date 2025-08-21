@@ -2,7 +2,12 @@
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { uploadProductImage, deleteProductImage, reorderProductImages, updateProductImageAlt } from '@/lib/actions/upload';
+import {
+  uploadProductImage,
+  deleteProductImage,
+  reorderProductImages,
+  updateProductImageAlt,
+} from '@/lib/actions/upload';
 import { Upload, X, GripVertical, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
@@ -21,11 +26,11 @@ interface ImageUploadManagerProps {
   maxImages?: number;
 }
 
-export default function ImageUploadManager({ 
-  productId, 
-  initialImages, 
+export default function ImageUploadManager({
+  productId,
+  initialImages,
   onImagesChange,
-  maxImages = 5 
+  maxImages = 5,
 }: ImageUploadManagerProps) {
   const [images, setImages] = useState<ImageData[]>(initialImages);
   const [uploading, setUploading] = useState(false);
@@ -44,7 +49,8 @@ export default function ImageUploadManager({
   const validateClientFile = (file: File): string | null => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const max = 5 * 1024 * 1024; // 5MB
-    if (!allowed.includes(file.type)) return 'Invalid file type. Only JPEG, PNG, and WebP are allowed.';
+    if (!allowed.includes(file.type))
+      return 'Invalid file type. Only JPEG, PNG, and WebP are allowed.';
     if (file.size > max) return 'File size too large. Maximum 5MB allowed.';
     return null;
   };
@@ -93,7 +99,9 @@ export default function ImageUploadManager({
     }
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     await uploadFiles(files);
@@ -101,7 +109,7 @@ export default function ImageUploadManager({
 
   const handleDelete = async (imageId: string) => {
     const result = await deleteProductImage(imageId, productId);
-    
+
     if (result.success) {
       updateImages(images.filter(img => img.id !== imageId));
       toast.success('Image deleted');
@@ -120,7 +128,7 @@ export default function ImageUploadManager({
 
   const handleDrop = async (event: React.DragEvent, dropIndex: number) => {
     event.preventDefault();
-    
+
     if (draggedIndex === null || draggedIndex === dropIndex) {
       setDraggedIndex(null);
       return;
@@ -128,25 +136,25 @@ export default function ImageUploadManager({
 
     const newImages = [...images];
     const draggedImage = newImages[draggedIndex];
-    
+
     // Remove from old position
     newImages.splice(draggedIndex, 1);
-    
+
     // Insert at new position
     newImages.splice(dropIndex, 0, draggedImage);
-    
+
     // Update sort orders
     const reorderedImages = newImages.map((img, index) => ({
       ...img,
-      sortOrder: index + 1
+      sortOrder: index + 1,
     }));
-    
+
     updateImages(reorderedImages);
-    
+
     // Save new order to database
     const imageIds = reorderedImages.map(img => img.id);
     const result = await reorderProductImages(productId, imageIds);
-    
+
     if (result.success) {
       toast.success('Images reordered');
     } else {
@@ -154,7 +162,7 @@ export default function ImageUploadManager({
       // Revert on error
       updateImages(images);
     }
-    
+
     setDraggedIndex(null);
   };
 
@@ -165,9 +173,15 @@ export default function ImageUploadManager({
 
   const saveAlt = async () => {
     if (!editingAltId) return;
-    const result = await updateProductImageAlt(editingAltId, productId, altDraft.trim());
+    const result = await updateProductImageAlt(
+      editingAltId,
+      productId,
+      altDraft.trim()
+    );
     if (result.success) {
-      const newImages = images.map(img => img.id === editingAltId ? { ...img, alt: result.alt ?? '' } : img);
+      const newImages = images.map(img =>
+        img.id === editingAltId ? { ...img, alt: result.alt ?? '' } : img
+      );
       updateImages(newImages);
       toast.success('Alt text updated');
       setEditingAltId(null);
@@ -192,10 +206,19 @@ export default function ImageUploadManager({
           className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
             isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
           }`}
-          onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-          onDrop={(e) => {
+          onDragEnter={e => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragOver={e => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={e => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={e => {
             e.preventDefault();
             setIsDragging(false);
             if (uploading) return;
@@ -213,14 +236,14 @@ export default function ImageUploadManager({
             className="hidden"
             disabled={uploading}
           />
-          
+
           <div className="flex flex-col items-center gap-2">
             {uploading ? (
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             ) : (
               <Upload className="h-8 w-8 text-gray-400" />
             )}
-            
+
             <div>
               <Button
                 type="button"
@@ -262,7 +285,7 @@ export default function ImageUploadManager({
                 draggable
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, index)}
+                onDrop={e => handleDrop(e, index)}
                 className={`relative group bg-gray-100 rounded-lg overflow-hidden aspect-square cursor-move ${
                   draggedIndex === index ? 'opacity-50' : ''
                 }`}
@@ -274,14 +297,14 @@ export default function ImageUploadManager({
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 33vw"
                 />
-                
+
                 {/* Drag handle */}
                 <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="bg-black/50 rounded p-1">
                     <GripVertical className="h-4 w-4 text-white" />
                   </div>
                 </div>
-                
+
                 {/* Delete button */}
                 <button
                   type="button"
@@ -290,7 +313,7 @@ export default function ImageUploadManager({
                 >
                   <X className="h-4 w-4" />
                 </button>
-                
+
                 {/* Primary indicator */}
                 {index === 0 && (
                   <div className="absolute bottom-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
@@ -306,20 +329,40 @@ export default function ImageUploadManager({
                         <input
                           type="text"
                           value={altDraft}
-                          onChange={(e) => setAltDraft(e.target.value)}
+                          onChange={e => setAltDraft(e.target.value)}
                           placeholder="Alt text (max 200 chars)"
                           maxLength={200}
                           className="flex-1 text-xs px-2 py-1 rounded bg-white text-black"
                         />
-                        <Button size="sm" variant="secondary" onClick={saveAlt}>Save</Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setEditingAltId(null); setAltDraft(''); }}>Cancel</Button>
+                        <Button size="sm" variant="secondary" onClick={saveAlt}>
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingAltId(null);
+                            setAltDraft('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
                       </>
                     ) : (
                       <>
-                        <div className="flex-1 text-xs text-white truncate" title={image.alt || ''}>
+                        <div
+                          className="flex-1 text-xs text-white truncate"
+                          title={image.alt || ''}
+                        >
                           {image.alt || 'No alt text'}
                         </div>
-                        <Button size="sm" variant="secondary" onClick={() => startEditAlt(image)}>Edit alt</Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => startEditAlt(image)}
+                        >
+                          Edit alt
+                        </Button>
                       </>
                     )}
                   </div>
@@ -328,7 +371,7 @@ export default function ImageUploadManager({
             ))}
         </div>
       )}
-      
+
       {images.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           No images uploaded yet

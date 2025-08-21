@@ -13,12 +13,15 @@ async function main() {
   }
   console.log('🎨 Generating category images...');
 
-  const categories = await prisma.category.findMany({ select: { id: true, name: true, slug: true } });
+  const categories = await prisma.category.findMany({
+    select: { id: true, name: true, slug: true },
+  });
 
   for (const c of categories) {
     // Derive a clean English title from name and slug
     const nameParts = c.name.split('/').map(s => s.trim());
-    const englishFromName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : undefined;
+    const englishFromName =
+      nameParts.length > 1 ? nameParts[nameParts.length - 1] : undefined;
     const fallbackBySlug: Record<string, string> = {
       ceramics: 'Ceramics',
       textiles: 'Textiles',
@@ -33,10 +36,16 @@ async function main() {
         let lastErr: unknown;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            return await generateProductImageBuffer({ title, description, category: c.slug, size: '1024x1024' });
+            return await generateProductImageBuffer({
+              title,
+              description,
+              category: c.slug,
+              size: '1024x1024',
+            });
           } catch (e) {
             lastErr = e;
-            if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+            if (attempt < 3)
+              await new Promise(r => setTimeout(r, 500 * attempt));
           }
         }
         throw lastErr;

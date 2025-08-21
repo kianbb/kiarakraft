@@ -15,7 +15,7 @@ export default function Error({
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('common');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
 
   useEffect(() => {
     console.error(error);
@@ -25,15 +25,11 @@ export default function Error({
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center max-w-md">
         <AlertTriangle className="w-16 h-16 text-destructive mx-auto mb-4" />
-        <h1 className="text-2xl font-bold mb-4">
-          {t('error')}
-        </h1>
+        <h1 className="text-2xl font-bold mb-4">{t('error')}</h1>
         <p className="text-muted-foreground mb-6">
           {error.message || 'Something went wrong'}
         </p>
-        <Button onClick={reset}>
-          Try again
-        </Button>
+        <Button onClick={reset}>Try again</Button>
       </div>
     </div>
   );

@@ -16,8 +16,8 @@ export type CreateResult = {
 
 export interface PaymentAdapter {
   create(input: CreatePaymentInput): Promise<CreateResult>;
-  verify(input: VerifyPaymentInput): Promise<
-    { ok: true; refId?: string } | { ok: false; reason?: string }
-  >;
-  gateway: "OFFLINE" | "ZARINPAL" | "IDPAY";
+  verify(
+    input: VerifyPaymentInput
+  ): Promise<{ ok: true; refId?: string } | { ok: false; reason?: string }>;
+  gateway: 'OFFLINE' | 'ZARINPAL' | 'IDPAY';
 }

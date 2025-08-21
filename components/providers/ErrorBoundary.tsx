@@ -19,7 +19,10 @@ interface ErrorFallbackProps {
   resetError: () => void;
 }
 
-const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError }) => (
+const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({
+  error,
+  resetError,
+}) => (
   <div className="min-h-[400px] flex items-center justify-center p-4">
     <div className="text-center max-w-md">
       <AlertTriangle className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -35,7 +38,10 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError 
   </div>
 );
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -51,7 +57,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error to monitoring service (e.g., Sentry)
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     // In production, you would send this to your error tracking service
     if (process.env.NODE_ENV === 'production') {
       // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
@@ -66,8 +72,8 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (this.state.hasError) {
       const FallbackComponent = this.props.fallback || DefaultErrorFallback;
       return (
-        <FallbackComponent 
-          error={this.state.error} 
+        <FallbackComponent
+          error={this.state.error}
           resetError={this.resetError}
         />
       );

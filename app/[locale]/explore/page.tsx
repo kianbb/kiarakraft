@@ -27,43 +27,52 @@ interface PageProps {
 
 const PRODUCTS_PER_PAGE = 12;
 
-async function getSearchResults(locale: string, searchParams: PageProps['searchParams']) {
+async function getSearchResults(
+  locale: string,
+  searchParams: PageProps['searchParams']
+) {
   try {
     // Translate category slug (from URL) to the actual Category ID used in DB
     let categoryIdFromSlug: string | undefined;
     if (searchParams.category && searchParams.category !== 'all') {
-      const cat = await prisma.category.findUnique({ where: { slug: searchParams.category } });
+      const cat = await prisma.category.findUnique({
+        where: { slug: searchParams.category },
+      });
       categoryIdFromSlug = cat?.id;
     }
     const filters: SearchFilters = {
       query: searchParams.q?.trim(),
       categoryId: categoryIdFromSlug,
-      minPrice: searchParams.minPrice ? parseInt(searchParams.minPrice) : undefined,
-      maxPrice: searchParams.maxPrice ? parseInt(searchParams.maxPrice) : undefined,
+      minPrice: searchParams.minPrice
+        ? parseInt(searchParams.minPrice)
+        : undefined,
+      maxPrice: searchParams.maxPrice
+        ? parseInt(searchParams.maxPrice)
+        : undefined,
       verifiedOnly: searchParams.verified === 'true',
       sortBy: (searchParams.sort || 'relevance') as SearchFilters['sortBy'],
       page: parseInt(searchParams.page || '1'),
-      limit: PRODUCTS_PER_PAGE
+      limit: PRODUCTS_PER_PAGE,
     };
 
     const results = await searchProducts({ ...filters, locale });
-    
+
     // Transform results to include seller verification status
     const transformedProducts = results.products.map(product => ({
       ...product,
       seller: {
         ...product.seller,
-        verified: product.seller.verified
-      }
+        verified: product.seller.verified,
+      },
     }));
 
     return {
       ...results,
-      products: transformedProducts
+      products: transformedProducts,
     };
   } catch (error) {
     console.error('Error in search:', error);
-    
+
     // Fallback to empty results
     return {
       products: [],
@@ -71,28 +80,31 @@ async function getSearchResults(locale: string, searchParams: PageProps['searchP
         page: 1,
         limit: PRODUCTS_PER_PAGE,
         total: 0,
-        pages: 0
+        pages: 0,
       },
       facets: {
         categories: [],
         priceRanges: [],
-        verifiedSellers: 0
-      }
+        verifiedSellers: 0,
+      },
     };
   }
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'explore' });
-  
+  const t = await getTranslations({
+    locale: params.locale,
+    namespace: 'explore',
+  });
+
   let title = t('title');
   let description = t('subtitle');
-  
+
   if (searchParams.q) {
     title = `${searchParams.q} - ${title}`;
     description = `Search results for "${searchParams.q}" - ${description}`;
   }
-  
+
   if (searchParams.category && searchParams.category !== 'all') {
     const categoryName = searchParams.category;
     title = `${categoryName} - ${title}`;
@@ -102,7 +114,7 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
   const canonicalUrl = `https://www.kiarakraft.com/${params.locale}/explore`;
   const alternateUrls = {
     'fa-IR': `https://www.kiarakraft.com/fa/explore`,
-    'en-US': `https://www.kiarakraft.com/en/explore`
+    'en-US': `https://www.kiarakraft.com/en/explore`,
   };
 
   return {
@@ -111,7 +123,7 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
     description,
     alternates: {
       canonical: canonicalUrl,
-      languages: alternateUrls
+      languages: alternateUrls,
     },
     openGraph: {
       title,
@@ -119,27 +131,36 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
       type: 'website',
       url: canonicalUrl,
       locale: params.locale === 'fa' ? 'fa_IR' : 'en_US',
-      alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR'
+      alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR',
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description
-    }
+      description,
+    },
   };
 }
 
 export default async function ExplorePage({ params, searchParams }: PageProps) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'explore' });
-  const tCategories = await getTranslations({ locale: params.locale, namespace: 'categories' });
-  
-  const { products, pagination, facets } = await getSearchResults(params.locale, searchParams);
+  const t = await getTranslations({
+    locale: params.locale,
+    namespace: 'explore',
+  });
+  const tCategories = await getTranslations({
+    locale: params.locale,
+    namespace: 'categories',
+  });
+
+  const { products, pagination, facets } = await getSearchResults(
+    params.locale,
+    searchParams
+  );
   const hasQuery = Boolean(searchParams.q?.trim());
   const hasFilters = Boolean(
-    searchParams.category && searchParams.category !== 'all' ||
-    searchParams.minPrice ||
-    searchParams.maxPrice ||
-    searchParams.verified === 'true'
+    (searchParams.category && searchParams.category !== 'all') ||
+      searchParams.minPrice ||
+      searchParams.maxPrice ||
+      searchParams.verified === 'true'
   );
 
   return (
@@ -151,19 +172,24 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
             {hasQuery ? t('searchResults') : t('title')}
           </h1>
           <p className="text-lg text-muted-foreground">
-            {hasQuery 
+            {hasQuery
               ? t('searchResultsFor', { query: searchParams.q || '' })
-              : t('subtitle')
-            }
+              : t('subtitle')}
           </p>
         </div>
 
         {/* Enhanced Search and Filters */}
-        <Suspense fallback={<div className="h-32 animate-pulse bg-gray-100 rounded-lg mb-8" />}>
-          <ExploreFilters 
+        <Suspense
+          fallback={
+            <div className="h-32 animate-pulse bg-gray-100 rounded-lg mb-8" />
+          }
+        >
+          <ExploreFilters
             initialSearch={searchParams.q || ''}
             initialCategory={searchParams.category || 'all'}
-            initialSort={searchParams.sort || (hasQuery ? 'relevance' : 'newest')}
+            initialSort={
+              searchParams.sort || (hasQuery ? 'relevance' : 'newest')
+            }
             initialMinPrice={searchParams.minPrice}
             initialMaxPrice={searchParams.maxPrice}
             initialVerified={searchParams.verified === 'true'}
@@ -181,15 +207,17 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
                 { value: 'textiles', label: tCategories('textiles') },
                 { value: 'jewelry', label: tCategories('jewelry') },
                 { value: 'woodwork', label: tCategories('woodwork') },
-                { value: 'painting', label: tCategories('painting') }
+                { value: 'painting', label: tCategories('painting') },
               ],
               sortOptions: [
-                ...(hasQuery ? [{ value: 'relevance', label: t('filters.relevance') }] : []),
+                ...(hasQuery
+                  ? [{ value: 'relevance', label: t('filters.relevance') }]
+                  : []),
                 { value: 'newest', label: t('filters.newest') },
                 { value: 'oldest', label: t('filters.oldest') },
                 { value: 'price_asc', label: t('filters.priceLowToHigh') },
-                { value: 'price_desc', label: t('filters.priceHighToLow') }
-              ]
+                { value: 'price_desc', label: t('filters.priceHighToLow') },
+              ],
             }}
           />
         </Suspense>
@@ -207,25 +235,25 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
         {products.length > 0 ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-              {products.map((product) => (
-                <ProductCard 
-                  key={product.id} 
+              {products.map(product => (
+                <ProductCard
+                  key={product.id}
                   product={{
                     ...product,
                     images: product.images.map(img => ({
                       url: img.url,
-                      alt: img.alt || product.title
+                      alt: img.alt || product.title,
                     })),
                     seller: {
                       displayName: product.seller.displayName,
                       shopName: product.seller.shopName,
-                      verified: product.seller.verified
-                    }
-                  }} 
+                      verified: product.seller.verified,
+                    },
+                  }}
                 />
               ))}
             </div>
-            
+
             {/* Pagination */}
             {pagination.pages > 1 && (
               <ExplorePagination
@@ -240,18 +268,27 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
           <div className="text-center py-12">
             <div className="text-muted-foreground mb-4">
               <div className="h-12 w-12 mx-auto mb-4 opacity-50 bg-gray-200 rounded-full flex items-center justify-center">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </div>
               <p className="text-lg">
                 {hasQuery ? t('noSearchResults') : t('noResults')}
               </p>
               <p className="text-sm">
-                {hasQuery 
-                  ? t('noSearchResultsDescription') 
-                  : t('noResultsDescription')
-                }
+                {hasQuery
+                  ? t('noSearchResultsDescription')
+                  : t('noResultsDescription')}
               </p>
               {(hasQuery || hasFilters) && (
                 <div className="mt-4">
@@ -270,7 +307,9 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
         {/* Search Tips for Empty Results */}
         {products.length === 0 && hasQuery && (
           <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="font-semibold text-blue-900 mb-3">{t('searchTips.title')}</h3>
+            <h3 className="font-semibold text-blue-900 mb-3">
+              {t('searchTips.title')}
+            </h3>
             <ul className="space-y-2 text-sm text-blue-800">
               <li>• {t('searchTips.tip1')}</li>
               <li>• {t('searchTips.tip2')}</li>

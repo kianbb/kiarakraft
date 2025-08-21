@@ -1,10 +1,11 @@
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Kiara Kraft - Iranian Handmade Marketplace',
     short_name: 'Kiara Kraft',
-    description: 'Online marketplace for authentic Iranian handcrafted products. Quality, authenticity, and traditional artistry in every piece.',
+    description:
+      'Online marketplace for authentic Iranian handcrafted products. Quality, authenticity, and traditional artistry in every piece.',
     start_url: '/fa',
     display: 'standalone',
     background_color: '#ffffff',
@@ -49,9 +50,9 @@ export default function manifest(): MetadataRoute.Manifest {
           {
             src: '/android-chrome-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
-          }
-        ]
+            type: 'image/png',
+          },
+        ],
       },
       {
         name: 'سبد خرید',
@@ -62,10 +63,10 @@ export default function manifest(): MetadataRoute.Manifest {
           {
             src: '/android-chrome-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
-          }
-        ]
-      }
+            type: 'image/png',
+          },
+        ],
+      },
     ],
     // Screenshots will be added in the future for better PWA discovery
     // screenshots: [
@@ -77,12 +78,12 @@ export default function manifest(): MetadataRoute.Manifest {
     //     label: 'Kiara Kraft homepage showcasing handcrafted products'
     //   },
     //   {
-    //     src: '/screenshot-narrow.png', 
+    //     src: '/screenshot-narrow.png',
     //     type: 'image/png',
     //     sizes: '750x1334',
     //     form_factor: 'narrow',
     //     label: 'Browse products on mobile'
     //   },
     // ],
-  }
+  };
 }

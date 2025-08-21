@@ -33,7 +33,7 @@ export function Price({ amount, className = '' }: PriceProps) {
     );
   }
   const locale = isHydrated ? _locale : 'en';
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const isRTL = locale === 'fa';
 
   const formatted = new Intl.NumberFormat(isRTL ? 'fa-IR' : 'en-US', {
@@ -44,7 +44,10 @@ export function Price({ amount, className = '' }: PriceProps) {
   const currency = t('currency');
 
   return (
-    <span className={`${className} ${isRTL ? 'font-vazir' : ''}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <span
+      className={`${className} ${isRTL ? 'font-vazir' : ''}`}
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
       {formatted} {currency}
     </span>
   );

@@ -6,15 +6,15 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { 
-  Search, 
-  ShoppingCart, 
-  User, 
-  Menu, 
+import {
+  Search,
+  ShoppingCart,
+  User,
+  Menu,
   X,
   LogOut,
   Settings,
-  Package
+  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,11 +30,11 @@ export default function Navbar() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [searchText, setSearchText] = useState('');
-    // Keep hook order stable by calling hooks unconditionally
-    const _locale = useLocale();
-    const _t = useTranslations('navigation');
-    const locale = isHydrated ? _locale : 'en';
-  
+  // Keep hook order stable by calling hooks unconditionally
+  const _locale = useLocale();
+  const _t = useTranslations('navigation');
+  const locale = isHydrated ? _locale : 'en';
+
   // Prevent SSR/hydration mismatch by only rendering after client-side hydration
   useEffect(() => {
     setIsHydrated(true);
@@ -72,14 +72,22 @@ export default function Navbar() {
   // Don't render until hydrated to prevent locale context issues
   if (!isHydrated) {
     return (
-      <nav className="bg-background border-b border-border sticky top-0 z-50" role="navigation" aria-label="Main navigation">
+      <nav
+        className="bg-background border-b border-border sticky top-0 z-50"
+        role="navigation"
+        aria-label="Main navigation"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
+                <span className="text-primary-foreground font-bold text-lg">
+                  K
+                </span>
               </div>
-              <span className="text-xl font-bold text-foreground hidden sm:block ml-2">Kiara Kraft</span>
+              <span className="text-xl font-bold text-foreground hidden sm:block ml-2">
+                Kiara Kraft
+              </span>
             </div>
           </div>
         </div>
@@ -87,7 +95,7 @@ export default function Navbar() {
     );
   }
 
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const isRTL = locale === 'fa';
 
   const navigation = [
@@ -98,20 +106,31 @@ export default function Navbar() {
   const submitSearch = () => {
     if (!isHydrated) return;
     const q = searchText.trim();
-    const url = q ? `/${locale}/explore?q=${encodeURIComponent(q)}` : `/${locale}/explore`;
+    const url = q
+      ? `/${locale}/explore?q=${encodeURIComponent(q)}`
+      : `/${locale}/explore`;
     router.push(url);
     setIsMenuOpen(false);
   };
 
   return (
-    <nav className="bg-background border-b border-border sticky top-0 z-50" role="navigation" aria-label="Main navigation">
+    <nav
+      className="bg-background border-b border-border sticky top-0 z-50"
+      role="navigation"
+      aria-label="Main navigation"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href={`/${locale}`} className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
+            <Link
+              href={`/${locale}`}
+              className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}
+            >
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">K</span>
+                <span className="text-primary-foreground font-bold text-lg">
+                  K
+                </span>
               </div>
               <span className="text-xl font-bold text-foreground hidden sm:block">
                 Kiara Kraft
@@ -121,7 +140,7 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
+            {navigation.map(item => (
               <Link
                 key={item.name}
                 href={item.href}
@@ -154,8 +173,8 @@ export default function Navbar() {
                 className="pl-10 pr-4"
                 aria-label={t('search') || 'Search products'}
                 value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                onKeyDown={(e) => {
+                onChange={e => setSearchText(e.target.value)}
+                onKeyDown={e => {
                   if (e.key === 'Enter') submitSearch();
                 }}
               />
@@ -170,11 +189,19 @@ export default function Navbar() {
             </div>
 
             {/* Cart */}
-            <Link href={`/${locale}/cart`} prefetch={false} className="relative" aria-label={`${t('cart')} (${cartCount} items)`}>
+            <Link
+              href={`/${locale}/cart`}
+              prefetch={false}
+              className="relative"
+              aria-label={`${t('cart')} (${cartCount} items)`}
+            >
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="w-5 h-5" aria-hidden="true" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center" aria-label={`${cartCount} items in cart`}>
+                  <span
+                    className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center"
+                    aria-label={`${cartCount} items in cart`}
+                  >
                     {cartCount}
                   </span>
                 )}
@@ -194,9 +221,12 @@ export default function Navbar() {
                 >
                   <User className="w-5 h-5" aria-hidden="true" />
                 </Button>
-                
+
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-50" role="menu">
+                  <div
+                    className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-50"
+                    role="menu"
+                  >
                     <div className="px-4 py-2 border-b border-border">
                       <p className="text-sm font-medium text-foreground">
                         {session.user.name}
@@ -205,7 +235,7 @@ export default function Navbar() {
                         {session.user.email}
                       </p>
                     </div>
-                    
+
                     {session.user.role === 'SELLER' && (
                       <Link
                         href={`/${locale}/seller`}
@@ -216,16 +246,16 @@ export default function Navbar() {
                         {t('dashboard')}
                       </Link>
                     )}
-                    
+
                     <Link
                       href={`/${locale}/profile`}
                       className="block px-4 py-2 text-sm text-foreground hover:bg-accent flex items-center"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
                       <Settings className="w-4 h-4 mr-2" />
-{t('profile')}
+                      {t('profile')}
                     </Link>
-                    
+
                     <button
                       onClick={() => {
                         signOut();
@@ -247,9 +277,7 @@ export default function Navbar() {
                   </Button>
                 </Link>
                 <Link href={`/${locale}/auth/register`} prefetch={false}>
-                  <Button size="sm">
-                    {t('register')}
-                  </Button>
+                  <Button size="sm">{t('register')}</Button>
                 </Link>
               </div>
             )}
@@ -263,7 +291,11 @@ export default function Navbar() {
               aria-label="Toggle menu"
               aria-expanded={isMenuOpen}
             >
-              {isMenuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+              {isMenuOpen ? (
+                <X className="w-5 h-5" aria-hidden="true" />
+              ) : (
+                <Menu className="w-5 h-5" aria-hidden="true" />
+              )}
             </Button>
           </div>
         </div>
@@ -281,15 +313,18 @@ export default function Navbar() {
                     className="absolute left-4 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
                     aria-label={t('search') || 'Search products'}
                   >
-                    <Search className="w-4 h-4 cursor-pointer" aria-hidden="true" />
+                    <Search
+                      className="w-4 h-4 cursor-pointer"
+                      aria-hidden="true"
+                    />
                   </button>
                   <Input
                     type="search"
                     placeholder={t('search') || 'Search...'}
                     className="pl-10 pr-4"
                     value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    onKeyDown={(e) => {
+                    onChange={e => setSearchText(e.target.value)}
+                    onKeyDown={e => {
                       if (e.key === 'Enter') submitSearch();
                     }}
                   />
@@ -297,7 +332,7 @@ export default function Navbar() {
               </div>
 
               {/* Navigation links */}
-              {navigation.map((item) => (
+              {navigation.map(item => (
                 <Link
                   key={item.name}
                   href={item.href}
@@ -321,13 +356,28 @@ export default function Navbar() {
               {/* Auth buttons on mobile */}
               {!session && (
                 <div className="sm:hidden px-3 py-2 space-y-2">
-                  <Link href={`/${locale}/auth/login`} prefetch={false} className="block">
-                    <Button variant="outline" className="w-full" onClick={() => setIsMenuOpen(false)}>
+                  <Link
+                    href={`/${locale}/auth/login`}
+                    prefetch={false}
+                    className="block"
+                  >
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
                       {t('login')}
                     </Button>
                   </Link>
-                  <Link href={`/${locale}/auth/register`} prefetch={false} className="block">
-                    <Button className="w-full" onClick={() => setIsMenuOpen(false)}>
+                  <Link
+                    href={`/${locale}/auth/register`}
+                    prefetch={false}
+                    className="block"
+                  >
+                    <Button
+                      className="w-full"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
                       {t('register')}
                     </Button>
                   </Link>

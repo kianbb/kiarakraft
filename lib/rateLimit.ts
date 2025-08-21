@@ -10,63 +10,71 @@ interface RateLimitConfig {
 }
 
 // Cleanup old entries periodically
-setInterval(() => {
-  const now = Date.now();
-  const keysToDelete: string[] = [];
-  
-  rateLimitMap.forEach((data, key) => {
-    if (now > data.resetTime) {
-      keysToDelete.push(key);
-    }
-  });
-  
-  keysToDelete.forEach(key => rateLimitMap.delete(key));
-}, 5 * 60 * 1000); // Cleanup every 5 minutes
+setInterval(
+  () => {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+
+    rateLimitMap.forEach((data, key) => {
+      if (now > data.resetTime) {
+        keysToDelete.push(key);
+      }
+    });
+
+    keysToDelete.forEach(key => rateLimitMap.delete(key));
+  },
+  5 * 60 * 1000
+); // Cleanup every 5 minutes
 
 export function createRateLimiter(config: RateLimitConfig) {
-  return function rateLimit(request: NextRequest): { allowed: boolean; remainingRequests: number; resetTime: number } {
-  const ip = request.headers.get('x-forwarded-for') || 
-         request.headers.get('x-real-ip') || 
-         request.headers.get('cf-connecting-ip') || 
-               'unknown';
-    
+  return function rateLimit(request: NextRequest): {
+    allowed: boolean;
+    remainingRequests: number;
+    resetTime: number;
+  } {
+    const ip =
+      request.headers.get('x-forwarded-for') ||
+      request.headers.get('x-real-ip') ||
+      request.headers.get('cf-connecting-ip') ||
+      'unknown';
+
     // Create a unique key for this IP and endpoint
     const endpoint = new URL(request.url).pathname;
     const key = `${ip}:${endpoint}`;
-    
+
     const now = Date.now();
     const windowEnd = now + config.windowMs;
-    
+
     const existingEntry = rateLimitMap.get(key);
-    
+
     if (!existingEntry || now > existingEntry.resetTime) {
       // First request or window expired
       rateLimitMap.set(key, {
         count: 1,
-        resetTime: windowEnd
+        resetTime: windowEnd,
       });
-      
+
       return {
         allowed: true,
         remainingRequests: config.maxRequests - 1,
-        resetTime: windowEnd
+        resetTime: windowEnd,
       };
     }
-    
+
     if (existingEntry.count >= config.maxRequests) {
       return {
         allowed: false,
         remainingRequests: 0,
-        resetTime: existingEntry.resetTime
+        resetTime: existingEntry.resetTime,
       };
     }
-    
+
     existingEntry.count++;
-    
+
     return {
       allowed: true,
       remainingRequests: config.maxRequests - existingEntry.count,
-      resetTime: existingEntry.resetTime
+      resetTime: existingEntry.resetTime,
     };
   };
 }
@@ -74,27 +82,27 @@ export function createRateLimiter(config: RateLimitConfig) {
 // Pre-configured rate limiters for different endpoint types
 export const paymentRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 5 // 5 payment attempts per 15 minutes
+  maxRequests: 5, // 5 payment attempts per 15 minutes
 });
 
 export const adminRateLimit = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute  
-  maxRequests: 30 // 30 admin actions per minute
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 30, // 30 admin actions per minute
 });
 
 export const authRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 10 // 10 auth attempts per 15 minutes
+  maxRequests: 10, // 10 auth attempts per 15 minutes
 });
 
 export const orderRateLimit = createRateLimiter({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  maxRequests: 3 // 3 orders per 5 minutes
+  maxRequests: 3, // 3 orders per 5 minutes
 });
 
 export const uploadRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 10 // 10 uploads per minute
+  maxRequests: 10, // 10 uploads per minute
 });
 
 /**
@@ -106,45 +114,50 @@ export function withRateLimit<T extends unknown[]>(
 ) {
   return async (request: NextRequest, ...rest: T): Promise<Response> => {
     const { allowed, remainingRequests, resetTime } = rateLimiter(request);
-    
+
     if (!allowed) {
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);
-      
-  console.warn(`Rate limit exceeded for ${request.url} from IP ${request.headers.get('x-forwarded-for') || 'unknown'}`);
-      
+
+      console.warn(
+        `Rate limit exceeded for ${request.url} from IP ${request.headers.get('x-forwarded-for') || 'unknown'}`
+      );
+
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Rate limit exceeded. Please try again later.',
-          retryAfter: retryAfter
+          retryAfter: retryAfter,
         }),
-        { 
+        {
           status: 429,
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Retry-After': retryAfter.toString(),
             'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': Math.ceil(resetTime / 1000).toString()
-          } 
+            'X-RateLimit-Reset': Math.ceil(resetTime / 1000).toString(),
+          },
         }
       );
     }
-    
-  const response = await handler(request, ...rest);
-    
+
+    const response = await handler(request, ...rest);
+
     // Add rate limit headers to successful responses
     response.headers.set('X-RateLimit-Remaining', remainingRequests.toString());
-    response.headers.set('X-RateLimit-Reset', Math.ceil(resetTime / 1000).toString());
-    
+    response.headers.set(
+      'X-RateLimit-Reset',
+      Math.ceil(resetTime / 1000).toString()
+    );
+
     return response;
   };
 }
 
 export const sellerRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 20 // 20 seller actions per minute
+  maxRequests: 20, // 20 seller actions per minute
 });
 
 export const cartRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 30 // 30 cart operations per minute
+  maxRequests: 30, // 30 cart operations per minute
 });

@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  
+
   const t = useTranslations('auth');
   const params = useParams();
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<ForgotPasswordForm>({
-    resolver: zodResolver(forgotPasswordSchema)
+    resolver: zodResolver(forgotPasswordSchema),
   });
 
   const onSubmit = async (data: ForgotPasswordForm) => {
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
             >
               {t('tryDifferentEmail')}
             </Button>
-            
+
             <Button
               type="button"
               variant="ghost"
@@ -147,16 +147,14 @@ export default function ForgotPasswordPage() {
               {...register('email')}
             />
             {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-4">
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-            >
+            <Button type="submit" disabled={loading} className="w-full">
               {loading ? t('sending') : t('sendResetLink')}
             </Button>
 

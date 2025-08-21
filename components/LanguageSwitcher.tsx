@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -14,7 +14,7 @@ export default function LanguageSwitcher() {
   const _locale = useLocale();
   const _t = useTranslations('common');
   const locale = isHydrated ? _locale : 'en';
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,19 +22,19 @@ export default function LanguageSwitcher() {
   const switchLanguage = (newLocale: string) => {
     // Extract the path without the current locale prefix
     const pathSegments = pathname.split('/').filter(Boolean);
-    
+
     // Remove the first segment if it's a locale
     if (pathSegments.length > 0 && ['fa', 'en'].includes(pathSegments[0])) {
       pathSegments.shift();
     }
-    
+
     // Reconstruct the path with the new locale
     const newPath = `/${newLocale}${pathSegments.length > 0 ? '/' + pathSegments.join('/') : ''}`;
-    
+
     // Preserve query parameters
     const queryString = searchParams.toString();
     const fullPath = queryString ? `${newPath}?${queryString}` : newPath;
-    
+
     router.push(fullPath);
   };
 
@@ -43,7 +43,7 @@ export default function LanguageSwitcher() {
       <Languages className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
       <select
         value={locale}
-        onChange={(e) => switchLanguage(e.target.value)}
+        onChange={e => switchLanguage(e.target.value)}
         className="bg-background border border-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
         aria-label={t('language')}
         title={t('language')}

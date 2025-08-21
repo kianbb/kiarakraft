@@ -74,14 +74,15 @@ export default function OfflinePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             {isOnline ? 'Back Online!' : 'You&apos;re Offline'}
           </h1>
-          
+
           <p className="text-gray-600 leading-relaxed">
             {isOnline ? (
               'Your internet connection has been restored. The page will refresh shortly.'
             ) : (
               <>
                 <span className="block mb-2">
-                  You&apos;re currently offline. Please check your internet connection.
+                  You&apos;re currently offline. Please check your internet
+                  connection.
                 </span>
                 <span className="text-sm text-gray-500">
                   Some cached content may still be available.
@@ -92,17 +93,17 @@ export default function OfflinePage() {
         </div>
 
         {/* Status indicator */}
-        <div className={`mb-6 px-4 py-2 rounded-lg text-sm font-medium ${
-          isOnline 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
+        <div
+          className={`mb-6 px-4 py-2 rounded-lg text-sm font-medium ${
+            isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}
+        >
           {isOnline ? 'Connected' : 'Disconnected'}
         </div>
 
         {/* Actions */}
         <div className="space-y-3">
-          <button 
+          <button
             onClick={handleRetry}
             disabled={isRetrying}
             className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
@@ -120,7 +121,7 @@ export default function OfflinePage() {
             )}
           </button>
 
-          <button 
+          <button
             onClick={goHome}
             className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -131,9 +132,7 @@ export default function OfflinePage() {
 
         {/* Help text */}
         <div className="mt-8 text-xs text-gray-500">
-          <p>
-            Some cached content may still be available while offline.
-          </p>
+          <p>Some cached content may still be available while offline.</p>
         </div>
       </div>
     </div>

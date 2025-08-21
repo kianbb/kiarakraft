@@ -8,34 +8,29 @@ async function run() {
   const calls: any[] = [];
   const mockTx: MinimalTx = {
     order: {
-      update: async (args) => {
+      update: async args => {
         calls.push(['order.update', args]);
         return {};
       },
     },
     cart: {
-      upsert: async (args) => {
+      upsert: async args => {
         calls.push(['cart.upsert', args]);
         return { id: 'cart-1' } as any;
-      }
+      },
     },
     cartItem: {
-      upsert: async (args) => {
+      upsert: async args => {
         calls.push(['cartItem.upsert', args]);
         return {};
-      }
-    }
+      },
+    },
   };
 
-  const flags = await cancelOrderAndRestoreCart(
-    mockTx,
-    'user-1',
-    'order-1',
-    [
-      { productId: 'p1', quantity: 2 },
-      { productId: 'p2', quantity: 1 },
-    ]
-  );
+  const flags = await cancelOrderAndRestoreCart(mockTx, 'user-1', 'order-1', [
+    { productId: 'p1', quantity: 2 },
+    { productId: 'p2', quantity: 1 },
+  ]);
 
   assert.equal(flags.orderCanceled, true, 'orderCanceled flag should be true');
   assert.equal(flags.cartRestored, true, 'cartRestored flag should be true');

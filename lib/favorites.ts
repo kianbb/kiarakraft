@@ -18,7 +18,10 @@ export function getFavorites(): string[] {
 export function setFavorites(ids: string[]) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(new Set(ids))));
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(Array.from(new Set(ids)))
+    );
     window.dispatchEvent(new Event(EVENT_NAME));
   } catch {
     // ignore
