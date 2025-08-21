@@ -1,0 +1,45 @@
+name: Performance Monitoring
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC
+  workflow_dispatch:
+
+jobs:
+  performance-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run comprehensive Lighthouse audit
+        run: npm run lhci
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
+          NEXTAUTH_SECRET: performance-test-secret
+          NEXTAUTH_URL: https://www.kiarakraft.com
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+          LHCI_BUILD_CONTEXT__COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
+          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
+          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: "Weekly performance audit"
+
+      - name: Check production analytics
+        run: npm run check:analytics
+        env:
+          BASE_URL: https://www.kiarakraft.com
+
+      - name: Monitor production status
+        run: npm run check:status
+        env:
+          BASE_URL: https://www.kiarakraft.com

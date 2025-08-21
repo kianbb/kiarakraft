@@ -7,14 +7,18 @@
   },
   "scripts": {
     "dev": "next dev",
-  "test": "tsx test/chooseLocale.test.ts && tsx test/admin.verifySeller.test.ts && tsx test/search.partial.test.ts",
+    "test": "tsx test/chooseLocale.test.ts && tsx test/admin.verifySeller.test.ts && tsx test/search.partial.test.ts",
     "test:i18n": "tsx test/i18n.smoke.test.ts",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix && prettier --write .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-  "check:status": "tsx scripts/check-status.ts",
-  "check:analytics": "tsx scripts/check-analytics.ts",
+    "prepare": "husky",
+    "check:status": "tsx scripts/check-status.ts",
+    "check:analytics": "tsx scripts/check-analytics.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:production": "tsx prisma/seed-production.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
@@ -30,14 +34,14 @@
     "images:generate:products": "tsx scripts/generate-product-images.ts",
     "images:generate:products:missing": "tsx scripts/generate-product-images.ts --only-missing",
     "images:generate:products:replace": "tsx scripts/generate-product-images.ts --replace",
-  "images:generate:categories": "tsx scripts/generate-category-images.ts",
-  "images:fill:curated": "tsx scripts/fill-images-with-curated-urls.ts",
-  "images:replace:curated-cloudinary": "tsx scripts/replace-images-with-curated-cloudinary.ts",
-  "images:upload:categories:curated": "tsx scripts/upload-category-images-curated.ts",
-  "lhci": "lhci autorun --upload.target=temporary-public-storage",
-  "moderation:approve:all": "tsx scripts/approve-products.ts --all --status=APPROVED",
-  "moderation:approve:id": "tsx scripts/approve-products.ts --id=ID --status=APPROVED",
-  "moderation:approve:slug": "tsx scripts/approve-products.ts --slug=SLUG --status=APPROVED"
+    "images:generate:categories": "tsx scripts/generate-category-images.ts",
+    "images:fill:curated": "tsx scripts/fill-images-with-curated-urls.ts",
+    "images:replace:curated-cloudinary": "tsx scripts/replace-images-with-curated-cloudinary.ts",
+    "images:upload:categories:curated": "tsx scripts/upload-category-images-curated.ts",
+    "lhci": "lhci autorun --upload.target=temporary-public-storage",
+    "moderation:approve:all": "tsx scripts/approve-products.ts --all --status=APPROVED",
+    "moderation:approve:id": "tsx scripts/approve-products.ts --id=ID --status=APPROVED",
+    "moderation:approve:slug": "tsx scripts/approve-products.ts --slug=SLUG --status=APPROVED"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
@@ -75,15 +79,31 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^8.40.0",
+    "@typescript-eslint/parser": "^8.40.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.31",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
     "jsdom": "^26.1.0",
+    "lint-staged": "^16.1.5",
     "pg": "^8.16.3",
     "postcss": "^8",
+    "prettier": "^3.6.2",
     "prisma": "^6.14.0",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

@@ -10,7 +10,21 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,9 +33,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Setup database
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      - name: Check code formatting
+        run: npm run format:check
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Run i18n smoke tests
+        run: npm run test:i18n
+
+      - name: Verify i18n completeness
+        run: npm run verify:i18n
 
       - name: Run typecheck
         run: npm run typecheck
@@ -39,12 +78,19 @@ jobs:
         env:
           BASE_URL: https://www.kiarakraft.com
 
+      - name: Check analytics integration
+        run: npm run check:analytics
+        env:
+          BASE_URL: https://www.kiarakraft.com
+
       - name: Check for SSR placeholder leaks
-        run: |
-          # Next.js with i18n embeds complete translation JSON in static HTML files
-          # This includes legitimate "loading":"Loading..." and "Loading products..." strings
-          # The presence of these in static HTML is expected - they're not SSR placeholder leaks
-          echo "✓ Skipping SSR placeholder check (Next.js i18n embeds translations in static HTML)"
+        run: npm run check:ssr
+
+      - name: Run search smoke tests
+        run: npm run search:smoke
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
       - name: Run Lighthouse CI
         run: npm run lhci
@@ -57,3 +103,18 @@ jobs:
           LHCI_BUILD_CONTEXT__COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
           LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
           LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
