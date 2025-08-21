@@ -12,6 +12,7 @@ import { RatingStars } from '@/components/products/RatingStars';
 import { Price } from '@/components/ui/price';
 import { VerifiedBadge } from '@/components/ui/verified-badge';
 import { cn } from '@/lib/utils';
+import { isFavorite, toggleFavorite, onFavoritesUpdated } from '@/lib/favorites';
 
 interface ProductCardProps {
   product: {
@@ -37,6 +38,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [addingToCart, setAddingToCart] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
+  const [favorite, setFavorite] = React.useState(false);
   React.useEffect(() => setIsHydrated(true), []);
   const _locale = useLocale();
   const _t = useTranslations('common');
@@ -55,6 +57,14 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   const productUrl = `/${locale}/product/${product.slug}`;
   const mainImage = imageError ? '/kk-logo-original.png' : (product.images[0]?.url || '/kk-logo-original.png');
   const isOutOfStock = product.stock === 0;
+
+  // Initialize and subscribe to favorites state
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setFavorite(isFavorite(product.id));
+    const off = onFavoritesUpdated(() => setFavorite(isFavorite(product.id)));
+  return () => { off(); };
+  }, [product.id]);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -107,8 +117,13 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Implement favorite functionality
-    // Will be implemented when favorites system is added
+    // If user not logged in, redirect to login to encourage account creation
+    if (!session) {
+      router.push(`/${locale}/auth/login`);
+      return;
+    }
+    const nowFav = toggleFavorite(product.id);
+    setFavorite(nowFav);
   };
 
   return (
@@ -142,7 +157,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
               onClick={handleToggleFavorite}
               aria-label={`Add ${product.title} to favorites`}
             >
-              <Heart className="w-4 h-4" aria-hidden="true" />
+              <Heart className={cn("w-4 h-4", favorite ? "fill-red-500 text-red-500" : "")} aria-hidden="true" />
             </Button>
           </div>
 
