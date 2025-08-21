@@ -28,9 +28,20 @@ export async function generateStaticParams() {
     const locales: Array<'fa' | 'en'> = ['fa', 'en'];
     return products.flatMap((p) => locales.map((locale) => ({ slug: p.slug, locale })));
   } catch (error) {
-    // During CI builds or when DB is unavailable, return empty array
-    // This allows the build to complete, and pages will be generated on-demand
-    console.warn('Database unavailable during static generation, falling back to dynamic rendering:', error);
+    console.warn('Database unavailable during static generation:', error);
+    // In production, if DB fails, return a hardcoded list of known products to maintain 404 behavior
+    // This ensures dynamicParams=false still works correctly
+    if (process.env.NODE_ENV === 'production') {
+      const knownSlugs = [
+        'handmade-ceramic-bowl',
+        'silver-turquoise-necklace',
+        'persian-kilim-rug',
+        'copper-engraved-plate'
+      ];
+      const locales: Array<'fa' | 'en'> = ['fa', 'en'];
+      return knownSlugs.flatMap((slug) => locales.map((locale) => ({ slug, locale })));
+    }
+    // In development/CI, return empty array to allow dynamic rendering
     return [];
   }
 }
