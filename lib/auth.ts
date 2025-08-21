@@ -1,7 +1,7 @@
-import { NextAuthOptions } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/db'
+import { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/db';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -9,33 +9,33 @@ export const authOptions: NextAuthOptions = {
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null
+          return null;
         }
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
+            email: credentials.email,
           },
           include: {
-            sellerProfile: true
-          }
-        })
+            sellerProfile: true,
+          },
+        });
 
         if (!user) {
-          return null
+          return null;
         }
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password
-        )
+        );
 
         if (!isPasswordValid) {
-          return null
+          return null;
         }
 
         return {
@@ -44,26 +44,26 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           image: user.image,
-          sellerProfile: user.sellerProfile
-        }
-      }
-    })
+          sellerProfile: user.sellerProfile,
+        };
+      },
+    }),
   ],
   session: {
-    strategy: 'jwt'
+    strategy: 'jwt',
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role
-        token.sellerProfile = user.sellerProfile
+        token.role = user.role;
+        token.sellerProfile = user.sellerProfile;
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub!
-        session.user.role = token.role as string
+        session.user.id = token.sub!;
+        session.user.role = token.role as string;
         session.user.sellerProfile = token.sellerProfile as {
           id: string;
           shopName: string;
@@ -71,13 +71,13 @@ export const authOptions: NextAuthOptions = {
           bio?: string | null;
           region?: string | null;
           avatarUrl?: string | null;
-        } | null
+        } | null;
       }
-      return session
-    }
+      return session;
+    },
   },
   pages: {
-    signIn: '/auth/login'
+    signIn: '/auth/login',
   },
-  secret: process.env.NEXTAUTH_SECRET
-}
+  secret: process.env.NEXTAUTH_SECRET,
+};

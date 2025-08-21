@@ -8,14 +8,14 @@ import * as Sentry from '@sentry/nextjs';
 export const GET = withRateLimit(sellerRateLimit, async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-  Sentry.setUser({ email: session.user.email });
+    Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -33,60 +33,63 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
   }
 });
 
-export const PUT = withRateLimit(sellerRateLimit, async function PUT(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email || session.user.role !== 'SELLER') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  Sentry.setUser({ email: session.user.email });
+export const PUT = withRateLimit(
+  sellerRateLimit,
+  async function PUT(request: NextRequest) {
+    try {
+      const session = await getServerSession(authOptions);
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const data = await request.json();
-
-    // Update user name
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        name: data.name
+      if (!session?.user?.email || session.user.role !== 'SELLER') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-    });
+      Sentry.setUser({ email: session.user.email });
 
-    // Update or create seller profile
-    await prisma.sellerProfile.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        shopName: data.shopName || '',
-        displayName: data.displayName || data.name,
-        bio: data.bio,
-        phone: data.phone,
-        address: data.address,
-        website: data.website
-      },
-      update: {
-        bio: data.bio,
-        phone: data.phone,
-        address: data.address,
-        website: data.website
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+      });
+
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
-    });
 
-    return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error('Error updating seller profile:', error);
-    Sentry.captureException(error);
-    return NextResponse.json(
-      { error: 'Failed to update profile' },
-      { status: 500 }
-    );
+      const data = await request.json();
+
+      // Update user name
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: data.name,
+        },
+      });
+
+      // Update or create seller profile
+      await prisma.sellerProfile.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          shopName: data.shopName || '',
+          displayName: data.displayName || data.name,
+          bio: data.bio,
+          phone: data.phone,
+          address: data.address,
+          website: data.website,
+        },
+        update: {
+          bio: data.bio,
+          phone: data.phone,
+          address: data.address,
+          website: data.website,
+        },
+      });
+
+      return NextResponse.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating seller profile:', error);
+      Sentry.captureException(error);
+      return NextResponse.json(
+        { error: 'Failed to update profile' },
+        { status: 500 }
+      );
+    }
   }
-});
+);

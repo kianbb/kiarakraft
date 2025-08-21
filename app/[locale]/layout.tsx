@@ -1,4 +1,8 @@
-import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
+import {
+  getMessages,
+  getTranslations,
+  setRequestLocale,
+} from 'next-intl/server';
 import { Providers } from '@/components/providers/Providers';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -21,27 +25,30 @@ export function generateStaticParams() {
   return [{ locale: 'fa' }, { locale: 'en' }];
 }
 
-export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: LocaleLayoutProps): Promise<Metadata> {
   const { locale } = params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'home' });
-  
+
   const canonicalUrl = `https://kiarakraft.com/${locale}`;
   const alternateUrls = {
     'fa-IR': 'https://kiarakraft.com/fa',
-    'en-US': 'https://kiarakraft.com/en'
+    'en-US': 'https://kiarakraft.com/en',
   };
 
   return {
     metadataBase: new URL('https://kiarakraft.com'),
     title: {
       template: `%s - ${t('hero.title')}`,
-      default: `${t('hero.title')} - ${t('hero.subtitle')}`
+      default: `${t('hero.title')} - ${t('hero.subtitle')}`,
     },
     description: t('hero.description'),
-    keywords: locale === 'fa' 
-      ? 'محصولات دستساز ایرانی، صنایع دستی، بازار آنلاین، هنرمندان ایرانی، کیارا کرفت، سرامیک، نساجی، جواهرات، صنایع چوبی'
-      : 'Iranian handmade, handcrafted products, online marketplace, Iranian artisans, Kiara Kraft, ceramics, textiles, jewelry, woodwork',
+    keywords:
+      locale === 'fa'
+        ? 'محصولات دستساز ایرانی، صنایع دستی، بازار آنلاین، هنرمندان ایرانی، کیارا کرفت، سرامیک، نساجی، جواهرات، صنایع چوبی'
+        : 'Iranian handmade, handcrafted products, online marketplace, Iranian artisans, Kiara Kraft, ceramics, textiles, jewelry, woodwork',
     authors: [{ name: 'Kiara Kraft' }],
     creator: 'Kiara Kraft',
     publisher: 'Kiara Kraft',
@@ -52,7 +59,7 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
     },
     alternates: {
       canonical: canonicalUrl,
-      languages: alternateUrls
+      languages: alternateUrls,
     },
     robots: {
       index: true,
@@ -104,7 +111,10 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
   };
 }
 
-export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
+export default async function LocaleLayout({
+  children,
+  params,
+}: LocaleLayoutProps) {
   const { locale } = params;
   setRequestLocale(locale);
   // Ensure messages are loaded for the current locale explicitly
@@ -112,7 +122,10 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const t = await getTranslations({ locale, namespace: 'home' });
   const tCommon = await getTranslations({ locale, namespace: 'common' });
   const tFooter = await getTranslations({ locale, namespace: 'footer' });
-  const tCategories = await getTranslations({ locale, namespace: 'categories' });
+  const tCategories = await getTranslations({
+    locale,
+    namespace: 'categories',
+  });
 
   // Server-side pre-rendered strings for the Footer so the client Footer can render
   // localized text during SSR without waiting for hydration.
@@ -155,13 +168,13 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       '@type': 'ContactPoint',
       contactType: 'Customer Service',
       areaServed: 'IR',
-      availableLanguage: ['Persian', 'English']
+      availableLanguage: ['Persian', 'English'],
     },
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'IR',
       addressLocality: 'Tehran',
-    }
+    },
   };
 
   // WebSite structured data
@@ -176,38 +189,52 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: `https://kiarakraft.com/${locale}/explore?search={search_term_string}`
+        urlTemplate: `https://kiarakraft.com/${locale}/explore?search={search_term_string}`,
       },
-      'query-input': 'required name=search_term_string'
-    }
+      'query-input': 'required name=search_term_string',
+    },
   };
 
   const fontClass = locale === 'fa' ? vazirmatn.className : inter.className;
 
   return (
-    <html lang={locale} dir={locale === 'fa' ? 'rtl' : 'ltr'} className={`${inter.variable} ${vazirmatn.variable}`}>
+    <html
+      lang={locale}
+      dir={locale === 'fa' ? 'rtl' : 'ltr'}
+      className={`${inter.variable} ${vazirmatn.variable}`}
+    >
       <head>
-  {/* Preconnect to external domains for performance */}
-  <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
-  <link rel="dns-prefetch" href="https://images.unsplash.com" />
-  <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
-  <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-  <link rel="preconnect" href="https://plausible.io" crossOrigin="anonymous" />
-  <link rel="dns-prefetch" href="https://plausible.io" />
-  {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
-    <script
-      defer
-      data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-      src="https://plausible.io/js/script.js"
-    ></script>
-  ) : null}
-        
-        
-        
+        {/* Preconnect to external domains for performance */}
+        <link
+          rel="preconnect"
+          href="https://images.unsplash.com"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <link
+          rel="preconnect"
+          href="https://res.cloudinary.com"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link
+          rel="preconnect"
+          href="https://plausible.io"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="https://plausible.io" />
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
+          <script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src="https://plausible.io/js/script.js"
+          ></script>
+        ) : null}
+
         {/* Preload LCP image for hero section */}
-        <link 
-          rel="preload" 
-          href="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80" 
+        <link
+          rel="preload"
+          href="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80"
           as="image"
           imageSrcSet="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1280&h=720&fit=crop&q=70 1280w, https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=70 1920w"
           imageSizes="100vw"
@@ -223,19 +250,23 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           <StructuredData data={websiteStructuredData} />
           <div className="min-h-screen bg-background">
             <a href="#main-content" className="skip-link">
-{tCommon('skipToContent')}
+              {tCommon('skipToContent')}
             </a>
             <Navbar />
             <main id="main-content" className="flex-1">
               {children}
             </main>
-      {/* Pass server locale and pre-rendered footer/category strings so Footer
+            {/* Pass server locale and pre-rendered footer/category strings so Footer
         can render localized text during SSR without showing translation keys. */}
-      <Footer serverLocale={locale} serverFooter={serverFooter} serverCategories={serverCategories} />
-          <PWAInstallPrompt />
+            <Footer
+              serverLocale={locale}
+              serverFooter={serverFooter}
+              serverCategories={serverCategories}
+            />
+            <PWAInstallPrompt />
           </div>
         </Providers>
-  {/* Plausible script is injected in <head> above for SSR visibility */}
+        {/* Plausible script is injected in <head> above for SSR visibility */}
       </body>
     </html>
   );

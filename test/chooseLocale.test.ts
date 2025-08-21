@@ -10,9 +10,21 @@ function run() {
   assert.equal(chooseLocale('fa-IR'), 'fa', 'fa-IR should normalize to fa');
 
   // Edge cases
-  assert.equal(chooseLocale(undefined), 'fa', 'undefined should fallback to fa');
-  assert.equal(chooseLocale('es-ES'), 'fa', 'unsupported locale should fallback to fa');
-  assert.equal(chooseLocale('EN-us'), 'fa', 'case-sensitive unknown variant falls back to fa (expected)');
+  assert.equal(
+    chooseLocale(undefined),
+    'fa',
+    'undefined should fallback to fa'
+  );
+  assert.equal(
+    chooseLocale('es-ES'),
+    'fa',
+    'unsupported locale should fallback to fa'
+  );
+  assert.equal(
+    chooseLocale('EN-us'),
+    'fa',
+    'case-sensitive unknown variant falls back to fa (expected)'
+  );
 
   console.log('All chooseLocale tests passed');
 }

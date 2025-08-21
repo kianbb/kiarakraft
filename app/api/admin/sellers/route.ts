@@ -6,17 +6,20 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Access denied - Admin required' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Access denied - Admin required' },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -31,17 +34,17 @@ export async function GET(request: NextRequest) {
             select: {
               email: true,
               name: true,
-            }
-          }
+            },
+          },
         },
         orderBy: [
           { verified: 'asc' }, // Unverified first
-          { createdAt: 'desc' }
+          { createdAt: 'desc' },
         ],
         skip: offset,
-        take: limit
+        take: limit,
       }),
-      prisma.sellerProfile.count()
+      prisma.sellerProfile.count(),
     ]);
 
     const stats = {
@@ -57,8 +60,8 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error fetching sellers:', error);

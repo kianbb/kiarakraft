@@ -78,7 +78,9 @@ export interface SearchResult {
   };
 }
 
-export async function searchProducts(filters: SearchFilters = {}): Promise<SearchResult> {
+export async function searchProducts(
+  filters: SearchFilters = {}
+): Promise<SearchResult> {
   const {
     query,
     categoryId,
@@ -89,7 +91,7 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     sortBy = 'relevance',
     page = 1,
     limit = 20,
-    locale = 'fa'
+    locale = 'fa',
   } = filters;
 
   const offset = (page - 1) * limit;
@@ -108,17 +110,18 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     ...(sellerId && { sellerId }),
     ...(minPrice && { priceToman: { gte: minPrice } }),
     ...(maxPrice && { priceToman: { lte: maxPrice } }),
-    ...(minPrice && maxPrice && { 
-      priceToman: { 
-        gte: minPrice, 
-        lte: maxPrice 
-      } 
-    }),
+    ...(minPrice &&
+      maxPrice && {
+        priceToman: {
+          gte: minPrice,
+          lte: maxPrice,
+        },
+      }),
     ...(verifiedOnly && {
       seller: {
-        verified: true
-      }
-    })
+        verified: true,
+      },
+    }),
   };
 
   let products;
@@ -127,7 +130,7 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
   if (query && query.trim().length > 0) {
     // Use advanced search with trigram similarity and full-text search
     const searchQuery = query.trim();
-    
+
     // Build WHERE clause for raw query
     const whereConditions = [];
     const params: (string | number)[] = [];
@@ -136,10 +139,10 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     // Add base conditions
     whereConditions.push(`p.active = true`);
     whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
-  // Exclude known test/demo items
-  whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
-  whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
-  whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
+    // Exclude known test/demo items
+    whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
+    whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
+    whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
 
     if (categoryId) {
       whereConditions.push(`p."categoryId" = $${paramIndex}`);
@@ -169,7 +172,10 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       whereConditions.push(`sp.verified = true`);
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')}`
+        : '';
 
     // Determine sort order
     let orderBy = '';
@@ -190,15 +196,15 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         orderBy = 'ORDER BY relevance DESC, p."createdAt" DESC';
     }
 
-  // Build the search query with proper parameter placeholders
-  const searchQueryParam = `$${paramIndex}`;
-  // Also bind locale for joining translations (so English searches match translated titles)
-  const localeParam = `$${paramIndex + 1}`;
-  const limitParam = `$${paramIndex + 2}`;
-  const offsetParam = `$${paramIndex + 3}`;
-    
+    // Build the search query with proper parameter placeholders
+    const searchQueryParam = `$${paramIndex}`;
+    // Also bind locale for joining translations (so English searches match translated titles)
+    const localeParam = `$${paramIndex + 1}`;
+    const limitParam = `$${paramIndex + 2}`;
+    const offsetParam = `$${paramIndex + 3}`;
+
     // Advanced search query with multiple ranking factors
-  const searchSql = `
+    const searchSql = `
       SELECT 
         p.*,
         sp.id as seller_id,
@@ -251,7 +257,7 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     const rawProducts = await prisma.$queryRawUnsafe(searchSql, ...params);
 
     // Count total results
-  const countSql = `
+    const countSql = `
       SELECT COUNT(*) as total
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
@@ -270,35 +276,42 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     `;
 
     const countParams = params.slice(0, -2); // Remove limit and offset (keeping search and locale)
-    const countResult = await prisma.$queryRawUnsafe(countSql, ...countParams) as Array<{ total: bigint }>;
+    const countResult = (await prisma.$queryRawUnsafe(
+      countSql,
+      ...countParams
+    )) as Array<{ total: bigint }>;
     total = Number(countResult[0]?.total || 0);
 
     // Transform raw results to match expected format
-    products = (rawProducts as RawSearchResult[]).map((row: RawSearchResult) => ({
-      id: row.id,
-      title: row.title,
-      slug: row.slug,
-      description: row.description,
-      priceToman: row.priceToman,
-      stock: row.stock,
-      active: row.active,
-      eligibilityStatus: row.eligibilityStatus,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      _relevance: Number(row.relevance),
-      seller: {
-        id: row.seller_id,
-        displayName: row.seller_display_name,
-        shopName: row.seller_shop_name,
-        verified: row.seller_verified,
-      },
-      category: row.category_id ? {
-        id: row.category_id,
-        name: row.category_name,
-        slug: row.category_slug,
-      } : null,
-      images: [], // Will be populated separately
-    }));
+    products = (rawProducts as RawSearchResult[]).map(
+      (row: RawSearchResult) => ({
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        description: row.description,
+        priceToman: row.priceToman,
+        stock: row.stock,
+        active: row.active,
+        eligibilityStatus: row.eligibilityStatus,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        _relevance: Number(row.relevance),
+        seller: {
+          id: row.seller_id,
+          displayName: row.seller_display_name,
+          shopName: row.seller_shop_name,
+          verified: row.seller_verified,
+        },
+        category: row.category_id
+          ? {
+              id: row.category_id,
+              name: row.category_name,
+              slug: row.category_slug,
+            }
+          : null,
+        images: [], // Will be populated separately
+      })
+    );
 
     // Apply translations for search results if needed
     if (locale === 'en' && products.length > 0) {
@@ -306,29 +319,33 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       const translations = await prisma.productTranslation.findMany({
         where: {
           productId: { in: productIds },
-          locale: 'en'
-        }
+          locale: 'en',
+        },
       });
-      
-      const translationMap = new Map(translations.map(t => [t.productId, { title: t.title, description: t.description }]));
-      
+
+      const translationMap = new Map(
+        translations.map(t => [
+          t.productId,
+          { title: t.title, description: t.description },
+        ])
+      );
+
       products = products.map(product => {
         const translation = translationMap.get(product.id);
         if (translation) {
           return {
             ...product,
             title: translation.title,
-            description: translation.description
+            description: translation.description,
           };
         }
         return product;
       });
     }
-
   } else {
     // Simple filtering without search query
     let orderBy: Prisma.ProductOrderByWithRelationInput[] = [];
-    
+
     switch (sortBy) {
       case 'price_asc':
         orderBy = [{ priceToman: 'asc' }];
@@ -356,14 +373,14 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
               displayName: true,
               shopName: true,
               verified: true,
-            }
+            },
           },
           category: {
             select: {
               id: true,
               name: true,
               slug: true,
-            }
+            },
           },
           images: {
             select: {
@@ -372,18 +389,18 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
               sortOrder: true,
             },
             orderBy: {
-              sortOrder: 'asc'
-            }
+              sortOrder: 'asc',
+            },
           },
           translations: {
-            where: { locale }
-          }
+            where: { locale },
+          },
         },
         orderBy,
         skip: offset,
         take: limit,
       }),
-      prisma.product.count({ where: baseConditions })
+      prisma.product.count({ where: baseConditions }),
     ]);
 
     // Apply translations if available
@@ -393,7 +410,7 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         return {
           ...product,
           title: translation.title,
-          description: translation.description
+          description: translation.description,
         };
       }
       return product;
@@ -403,10 +420,10 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
 
   // Populate images for search results if not already included
   if (query && products.length > 0) {
-    const productIds = products.map((p) => p.id);
+    const productIds = products.map(p => p.id);
     const images = await prisma.listingImage.findMany({
       where: {
-        productId: { in: productIds }
+        productId: { in: productIds },
       },
       select: {
         productId: true,
@@ -415,24 +432,35 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         sortOrder: true,
       },
       orderBy: {
-        sortOrder: 'asc'
-      }
+        sortOrder: 'asc',
+      },
     });
 
     // Group images by product ID
-    const imagesByProduct = images.reduce((acc, img) => {
-      if (!acc[img.productId]) acc[img.productId] = [];
-      acc[img.productId].push({
-        url: img.url,
-        alt: img.alt,
-        sortOrder: img.sortOrder,
-      });
-      return acc;
-    }, {} as Record<string, Array<{ url: string; alt: string | null; sortOrder: number }>>);
+    const imagesByProduct = images.reduce(
+      (acc, img) => {
+        if (!acc[img.productId]) acc[img.productId] = [];
+        acc[img.productId].push({
+          url: img.url,
+          alt: img.alt,
+          sortOrder: img.sortOrder,
+        });
+        return acc;
+      },
+      {} as Record<
+        string,
+        Array<{ url: string; alt: string | null; sortOrder: number }>
+      >
+    );
 
     // Assign images to products
-    products.forEach((product) => {
-      (product as { id: string; images: Array<{ url: string; alt: string | null; sortOrder: number }> }).images = imagesByProduct[product.id] || [];
+    products.forEach(product => {
+      (
+        product as {
+          id: string;
+          images: Array<{ url: string; alt: string | null; sortOrder: number }>;
+        }
+      ).images = imagesByProduct[product.id] || [];
     });
   }
 
@@ -451,29 +479,30 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       page,
       limit,
       total,
-      pages: Math.ceil(total / limit)
+      pages: Math.ceil(total / limit),
     },
-    facets
+    facets,
   };
 }
 
-async function generateSearchFacets(
-  {
-    categoryId,
-    minPrice,
-    maxPrice,
-    sellerId,
-    verifiedOnly,
-  }: Pick<SearchFilters, 'categoryId' | 'minPrice' | 'maxPrice' | 'sellerId' | 'verifiedOnly'>
-) {
+async function generateSearchFacets({
+  categoryId,
+  minPrice,
+  maxPrice,
+  sellerId,
+  verifiedOnly,
+}: Pick<
+  SearchFilters,
+  'categoryId' | 'minPrice' | 'maxPrice' | 'sellerId' | 'verifiedOnly'
+>) {
   // Build WHERE clause and params once for reuse across facet queries
   const whereParts: string[] = [
     'p.active = true',
     `p."eligibilityStatus" = 'APPROVED'`,
-  // Exclude known test/demo items
-  `p."slug" NOT LIKE 'test-%'`,
-  `COALESCE(sp."shopName", '') <> 'Test Shop'`,
-  `COALESCE(sp."displayName", '') <> 'Test Seller'`,
+    // Exclude known test/demo items
+    `p."slug" NOT LIKE 'test-%'`,
+    `COALESCE(sp."shopName", '') <> 'Test Shop'`,
+    `COALESCE(sp."displayName", '') <> 'Test Seller'`,
   ];
   const params: (string | number | boolean)[] = [];
   let idx = 1;
@@ -498,7 +527,9 @@ async function generateSearchFacets(
     whereParts.push(`sp.verified = true`);
   }
 
-  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+  const whereClause = whereParts.length
+    ? `WHERE ${whereParts.join(' AND ')}`
+    : '';
 
   // 1) Category facets in a single query
   const categoriesPromise = prisma.$queryRawUnsafe<
@@ -574,7 +605,7 @@ async function generateSearchFacets(
     verifiedSellersPromise,
   ]);
 
-  const priceRanges = priceBuckets.map((b) => ({
+  const priceRanges = priceBuckets.map(b => ({
     min: Math.floor(b.min),
     max: Math.ceil(b.max),
     count: b.count,

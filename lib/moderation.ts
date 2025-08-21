@@ -7,23 +7,66 @@ type EligibilityResult = {
 };
 
 const HANDCRAFT_KEYWORDS_APPROVE = [
-  'handmade', 'hand-crafted', 'hand crafted', 'artisan', 'artisanal', 'craft', 'crafted',
-  'weave', 'woven', 'knit', 'knitted', 'crochet', 'embroider', 'embroidered',
-  'pottery', 'ceramic', 'woodwork', 'hand carved', 'carved', 'leatherwork', 'loom',
+  'handmade',
+  'hand-crafted',
+  'hand crafted',
+  'artisan',
+  'artisanal',
+  'craft',
+  'crafted',
+  'weave',
+  'woven',
+  'knit',
+  'knitted',
+  'crochet',
+  'embroider',
+  'embroidered',
+  'pottery',
+  'ceramic',
+  'woodwork',
+  'hand carved',
+  'carved',
+  'leatherwork',
+  'loom',
   // Persian terms commonly used in descriptions
-  'دست‌ساز', 'دست ساز', 'دستباف', 'هنری', 'صنایع دستی', 'خاتم', 'معرق', 'فیروزه', 'نقره', 'سفال'
+  'دست‌ساز',
+  'دست ساز',
+  'دستباف',
+  'هنری',
+  'صنایع دستی',
+  'خاتم',
+  'معرق',
+  'فیروزه',
+  'نقره',
+  'سفال',
 ];
 
 const MASS_PRODUCED_KEYWORDS_REJECT = [
-  'factory', 'mass produced', 'wholesale', 'bulk', 'dropship', 'drop ship', 'resell',
-  'brand new boxed', 'oem', 'replica', 'copy', 'imported', 'made in china',
+  'factory',
+  'mass produced',
+  'wholesale',
+  'bulk',
+  'dropship',
+  'drop ship',
+  'resell',
+  'brand new boxed',
+  'oem',
+  'replica',
+  'copy',
+  'imported',
+  'made in china',
   // Persian indicators
-  'کارخانه', 'انبوه', '批量', 'وارداتی'
+  'کارخانه',
+  'انبوه',
+  '批量',
+  'وارداتی',
 ];
 
-export async function assessProductForHandcrafted(
-  input: { title: string; description: string; categorySlug?: string }
-): Promise<EligibilityResult> {
+export async function assessProductForHandcrafted(input: {
+  title: string;
+  description: string;
+  categorySlug?: string;
+}): Promise<EligibilityResult> {
   const text = `${input.title}\n${input.description}`.toLowerCase();
 
   let score = 0;
@@ -35,16 +78,26 @@ export async function assessProductForHandcrafted(
 
   if (approves.length) {
     score += Math.min(approves.length * 10, 40);
-    reasons.push(`Keywords suggesting handcrafted: ${approves.slice(0,5).join(', ')}`);
+    reasons.push(
+      `Keywords suggesting handcrafted: ${approves.slice(0, 5).join(', ')}`
+    );
   }
   if (rejects.length) {
     score -= Math.min(rejects.length * 15, 60);
-    reasons.push(`Keywords suggesting mass-produced: ${rejects.slice(0,5).join(', ')}`);
+    reasons.push(
+      `Keywords suggesting mass-produced: ${rejects.slice(0, 5).join(', ')}`
+    );
   }
 
   // Category prior
   if (input.categorySlug) {
-    const craftFriendly = ['ceramics','textiles','jewelry','woodwork','painting'];
+    const craftFriendly = [
+      'ceramics',
+      'textiles',
+      'jewelry',
+      'woodwork',
+      'painting',
+    ];
     if (craftFriendly.includes(input.categorySlug)) score += 10;
   }
 
@@ -58,7 +111,7 @@ export async function assessProductForHandcrafted(
       // In production, call Azure AI Language classify/custom classifier here.
       const digest = crypto.createHash('sha1').update(text).digest('hex');
       // Use digest parity to add a tiny random-like jitter to avoid ties
-      const jitter = parseInt(digest.slice(0,2), 16) % 5; // 0..4
+      const jitter = parseInt(digest.slice(0, 2), 16) % 5; // 0..4
       score += jitter;
       reasons.push('Azure AI signals (configured)');
     }

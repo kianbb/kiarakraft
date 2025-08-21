@@ -24,22 +24,22 @@ export default function LoginPage() {
   const _locale = useLocale();
   const _t = useTranslations('auth');
   const locale = isHydrated ? _locale : 'en';
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const loginSchema = z.object({
     email: z.string().email(t('invalidEmail')),
-    password: z.string().min(1, t('passwordRequired'))
+    password: z.string().min(1, t('passwordRequired')),
   });
   type LoginForm = z.infer<typeof loginSchema>;
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const {
     register,
     handleSubmit,
-    formState: { errors }
+    formState: { errors },
   } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema)
+    resolver: zodResolver(loginSchema),
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -50,14 +50,16 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        redirect: false
+        redirect: false,
       });
 
       if (result?.error) {
         setError(t('loginFailed'));
       } else {
         // Redirect to the previous page or home
-        const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
+        const callbackUrl = new URLSearchParams(window.location.search).get(
+          'callbackUrl'
+        );
         router.push(callbackUrl || `/${locale}`);
         router.refresh();
       }
@@ -67,17 +69,13 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-foreground">
-            {t('login')}
-          </h2>
-          <p className="mt-2 text-muted-foreground">
-            {t('loginSubtitle')}
-          </p>
+          <h2 className="text-3xl font-bold text-foreground">{t('login')}</h2>
+          <p className="mt-2 text-muted-foreground">{t('loginSubtitle')}</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
@@ -133,11 +131,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t('signingIn') : t('login')}
             </Button>
           </div>

@@ -19,9 +19,9 @@ export default function CartPage() {
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('cart');
   const _locale = useLocale();
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const locale = isHydrated ? _locale : 'en';
-  
+
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -54,20 +54,20 @@ export default function CartPage() {
       const response = await fetch(`/api/cart/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity: newQuantity })
+        body: JSON.stringify({ quantity: newQuantity }),
       });
 
       if (response.ok) {
         if (newQuantity === 0) {
-          setCartItems(cartItems.filter((item) => item.id !== itemId));
+          setCartItems(cartItems.filter(item => item.id !== itemId));
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('cart:updated'));
           }
         } else {
           const updatedItem = await response.json();
-          setCartItems(cartItems.map((item) => 
-            item.id === itemId ? updatedItem : item
-          ));
+          setCartItems(
+            cartItems.map(item => (item.id === itemId ? updatedItem : item))
+          );
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('cart:updated'));
           }
@@ -84,11 +84,11 @@ export default function CartPage() {
     setUpdating(itemId);
     try {
       const response = await fetch(`/api/cart/${itemId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (response.ok) {
-        setCartItems(cartItems.filter((item) => item.id !== itemId));
+        setCartItems(cartItems.filter(item => item.id !== itemId));
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('cart:updated'));
         }
@@ -102,7 +102,7 @@ export default function CartPage() {
 
   const calculateTotal = () => {
     return cartItems.reduce((total: number, item: CartItemWithProduct) => {
-      return total + (item.product.priceToman * item.quantity);
+      return total + item.product.priceToman * item.quantity;
     }, 0);
   };
 
@@ -134,7 +134,10 @@ export default function CartPage() {
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4">
         <div className="mb-6">
-          <Link href={`/${locale}/explore`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
+          <Link
+            href={`/${locale}/explore`}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" />
             {t('continueShopping')}
           </Link>
@@ -146,7 +149,9 @@ export default function CartPage() {
           <div className="text-center py-12">
             <ShoppingBag className="h-16 w-16 mx-auto mb-6 text-muted-foreground opacity-50" />
             <h2 className="text-xl font-semibold mb-4">{t('empty')}</h2>
-            <p className="text-muted-foreground mb-6">{t('emptyDescription')}</p>
+            <p className="text-muted-foreground mb-6">
+              {t('emptyDescription')}
+            </p>
             <Link href={`/${locale}/explore`}>
               <Button size="lg">{t('startShopping')}</Button>
             </Link>
@@ -155,7 +160,7 @@ export default function CartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item) => (
+              {cartItems.map(item => (
                 <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
                     <Image
@@ -165,11 +170,11 @@ export default function CartPage() {
                       className="object-cover"
                     />
                   </div>
-                  
+
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <Link 
+                        <Link
                           href={`/${locale}/product/${item.product.slug}`}
                           className="font-semibold hover:text-primary"
                         >
@@ -189,12 +194,14 @@ export default function CartPage() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <QuantitySelector
                           value={item.quantity}
-                          onChange={(newQuantity) => updateQuantity(item.id, newQuantity)}
+                          onChange={newQuantity =>
+                            updateQuantity(item.id, newQuantity)
+                          }
                           max={item.product.stock}
                           disabled={updating === item.id}
                         />
@@ -214,8 +221,10 @@ export default function CartPage() {
             {/* Order Summary */}
             <div className="lg:col-span-1">
               <div className="border rounded-lg p-6 sticky top-4">
-                <h3 className="text-lg font-semibold mb-4">{t('orderSummary')}</h3>
-                
+                <h3 className="text-lg font-semibold mb-4">
+                  {t('orderSummary')}
+                </h3>
+
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between">
                     <span>{t('subtotal')}</span>

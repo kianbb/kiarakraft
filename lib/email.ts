@@ -21,9 +21,10 @@ const SMTP_CONFIG = {
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 // Initialize SMTP transporter as fallback
-const smtpTransporter = (SMTP_CONFIG.host && SMTP_CONFIG.auth.user && SMTP_CONFIG.auth.pass) 
-  ? nodemailer.createTransport(SMTP_CONFIG)
-  : null;
+const smtpTransporter =
+  SMTP_CONFIG.host && SMTP_CONFIG.auth.user && SMTP_CONFIG.auth.pass
+    ? nodemailer.createTransport(SMTP_CONFIG)
+    : null;
 
 export interface EmailOptions {
   to: string | string[];
@@ -46,7 +47,7 @@ export interface EmailResult {
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
     const { to, subject, html, text, react } = options;
-    
+
     // Convert React component to HTML if provided
     let finalHtml = html;
     if (react) {
@@ -54,7 +55,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       const { renderToStaticMarkup } = await import('react-dom/server');
       finalHtml = renderToStaticMarkup(react);
     }
-    
+
     if (!finalHtml && !text) {
       throw new Error('Either html, text, or react content must be provided');
     }
@@ -63,7 +64,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     if (resend) {
       try {
         let result;
-        
+
         if (react) {
           // Use React component directly with Resend
           result = await resend.emails.send({
@@ -80,9 +81,9 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
             subject,
             ...(finalHtml ? { html: finalHtml } : {}),
             ...(text ? { text: text } : {}),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any; // Resend types are too restrictive for HTML/text mode
-          
+
           result = await resend.emails.send(emailOptions);
         }
 
@@ -90,11 +91,11 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
         return {
           success: true,
           messageId: result.data?.id,
-          provider: 'resend'
+          provider: 'resend',
         };
       } catch (resendError) {
         console.error('Resend failed, trying SMTP fallback:', resendError);
-        
+
         // Fall through to SMTP if Resend fails
         if (!smtpTransporter) {
           throw resendError;
@@ -116,17 +117,18 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       return {
         success: true,
         messageId: result.messageId,
-        provider: 'smtp'
+        provider: 'smtp',
       };
     }
 
-    throw new Error('No email provider configured. Please set RESEND_API_KEY or SMTP credentials.');
-
+    throw new Error(
+      'No email provider configured. Please set RESEND_API_KEY or SMTP credentials.'
+    );
   } catch (error) {
     console.error('Email sending failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown email error'
+      error: error instanceof Error ? error.message : 'Unknown email error',
     };
   }
 }
@@ -163,35 +165,46 @@ const emailRateLimit = new Map<string, { count: number; resetTime: number }>();
 const EMAIL_RATE_LIMIT = 3; // Max 3 emails per hour per email address
 const EMAIL_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
 
-export function checkEmailRateLimit(email: string): { allowed: boolean; remaining: number; resetTime: number } {
+export function checkEmailRateLimit(email: string): {
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+} {
   const now = Date.now();
   const key = email.toLowerCase();
   const existing = emailRateLimit.get(key);
-  
+
   if (!existing || now > existing.resetTime) {
     const resetTime = now + EMAIL_RATE_WINDOW;
     emailRateLimit.set(key, { count: 1, resetTime });
     return { allowed: true, remaining: EMAIL_RATE_LIMIT - 1, resetTime };
   }
-  
+
   if (existing.count >= EMAIL_RATE_LIMIT) {
     return { allowed: false, remaining: 0, resetTime: existing.resetTime };
   }
-  
+
   existing.count++;
-  return { allowed: true, remaining: EMAIL_RATE_LIMIT - existing.count, resetTime: existing.resetTime };
+  return {
+    allowed: true,
+    remaining: EMAIL_RATE_LIMIT - existing.count,
+    resetTime: existing.resetTime,
+  };
 }
 
 // Cleanup old rate limit entries
-setInterval(() => {
-  const now = Date.now();
-  const keysToDelete: string[] = [];
-  
-  emailRateLimit.forEach((data, key) => {
-    if (now > data.resetTime) {
-      keysToDelete.push(key);
-    }
-  });
-  
-  keysToDelete.forEach(key => emailRateLimit.delete(key));
-}, 5 * 60 * 1000); // Cleanup every 5 minutes
+setInterval(
+  () => {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+
+    emailRateLimit.forEach((data, key) => {
+      if (now > data.resetTime) {
+        keysToDelete.push(key);
+      }
+    });
+
+    keysToDelete.forEach(key => emailRateLimit.delete(key));
+  },
+  5 * 60 * 1000
+); // Cleanup every 5 minutes

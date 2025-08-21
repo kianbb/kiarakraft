@@ -14,26 +14,34 @@ export function generateStaticParams() {
   return [{ locale: 'fa' }, { locale: 'en' }];
 }
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: { locale: string };
+}): Promise<Metadata> {
   const { locale } = params;
   setRequestLocale(locale);
   const isRTL = locale === 'fa';
-  
+
   return {
-    title: isRTL ? 'خانه | کیارا کرفت - بازار دستسازهای ایرانی' : 'Home | Kiara Kraft - Iranian Handmade Marketplace',
-    description: isRTL 
+    title: isRTL
+      ? 'خانه | کیارا کرفت - بازار دستسازهای ایرانی'
+      : 'Home | Kiara Kraft - Iranian Handmade Marketplace',
+    description: isRTL
       ? 'محصولات منحصر به فرد دست‌ساز ایرانی را کشف کنید. از صنایع دستی سنتی تا هنرهای مدرن. از هنرمندان محلی حمایت کنید.'
       : 'Discover unique Iranian handcrafted products. From traditional crafts to modern artistry. Support local artisans.',
     alternates: {
       canonical: `/${locale}`,
       languages: {
-        'fa': '/fa',
-        'en': '/en',
+        fa: '/fa',
+        en: '/en',
       },
     },
     openGraph: {
-      title: isRTL ? 'کیارا کرفت - بازار دستسازهای ایرانی' : 'Kiara Kraft - Iranian Handmade Marketplace',
-      description: isRTL 
+      title: isRTL
+        ? 'کیارا کرفت - بازار دستسازهای ایرانی'
+        : 'Kiara Kraft - Iranian Handmade Marketplace',
+      description: isRTL
         ? 'محصولات منحصر به فرد دست‌ساز ایرانی را کشف کنید'
         : 'Discover unique Iranian handcrafted products',
       url: `/${locale}`,
@@ -48,9 +56,9 @@ async function getFeaturedProducts(locale: string) {
     const results = await searchProducts({
       sortBy: 'newest',
       limit: 4, // Show 4 featured products
-      locale
+      locale,
     });
-    
+
     return results.products.map(product => ({
       id: product.id,
       title: product.title,
@@ -60,13 +68,13 @@ async function getFeaturedProducts(locale: string) {
       stock: product.stock,
       images: product.images.map(img => ({
         url: img.url,
-        alt: img.alt || product.title
+        alt: img.alt || product.title,
       })),
       seller: {
         displayName: product.seller.displayName,
         shopName: product.seller.shopName,
-        verified: product.seller.verified
-      }
+        verified: product.seller.verified,
+      },
     }));
   } catch (error) {
     console.error('Error fetching featured products:', error);
@@ -79,22 +87,42 @@ async function getFeaturedProducts(locale: string) {
 async function getCategoryTiles() {
   // Safe fallbacks to avoid build-time DB dependency
   const staticFallback = [
-    { nameKey: 'ceramics', slug: 'ceramics', image: CATEGORY_IMAGE_FALLBACKS.ceramics },
-    { nameKey: 'textiles', slug: 'textiles', image: CATEGORY_IMAGE_FALLBACKS.textiles },
-    { nameKey: 'jewelry', slug: 'jewelry', image: CATEGORY_IMAGE_FALLBACKS.jewelry },
-    { nameKey: 'woodwork', slug: 'woodwork', image: CATEGORY_IMAGE_FALLBACKS.woodwork },
-    { nameKey: 'painting', slug: 'painting', image: CATEGORY_IMAGE_FALLBACKS.painting }
+    {
+      nameKey: 'ceramics',
+      slug: 'ceramics',
+      image: CATEGORY_IMAGE_FALLBACKS.ceramics,
+    },
+    {
+      nameKey: 'textiles',
+      slug: 'textiles',
+      image: CATEGORY_IMAGE_FALLBACKS.textiles,
+    },
+    {
+      nameKey: 'jewelry',
+      slug: 'jewelry',
+      image: CATEGORY_IMAGE_FALLBACKS.jewelry,
+    },
+    {
+      nameKey: 'woodwork',
+      slug: 'woodwork',
+      image: CATEGORY_IMAGE_FALLBACKS.woodwork,
+    },
+    {
+      nameKey: 'painting',
+      slug: 'painting',
+      image: CATEGORY_IMAGE_FALLBACKS.painting,
+    },
   ] as const;
 
   try {
     // Fetch all categories (small fixed set)
     const categories = await prisma.category.findMany({
-      select: { id: true, slug: true }
+      select: { id: true, slug: true },
     });
 
     // For each category, pick the most recent approved product's first image
     const tiles = await Promise.all(
-      categories.map(async (c) => {
+      categories.map(async c => {
         const product = await prisma.product.findFirst({
           where: {
             active: true,
@@ -105,20 +133,28 @@ async function getCategoryTiles() {
               { slug: { startsWith: 'test-' } },
               { seller: { shopName: 'Test Shop' } },
               { seller: { displayName: 'Test Seller' } },
-            ]
+            ],
           },
           orderBy: { createdAt: 'desc' },
           select: {
-            images: { select: { url: true }, orderBy: { sortOrder: 'asc' }, take: 1 }
-          }
+            images: {
+              select: { url: true },
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+            },
+          },
         });
-  const fallbackBySlug: Record<string, string> = CATEGORY_IMAGE_FALLBACKS as Record<string, string>;
+        const fallbackBySlug: Record<string, string> =
+          CATEGORY_IMAGE_FALLBACKS as Record<string, string>;
         return {
           nameKey: c.slug,
           slug: c.slug,
           // Prefer the category hero image we generated (Cloudinary via CATEGORY_IMAGE_FALLBACKS).
           // If not available for any reason, fall back to the most recent product image, then to logo.
-          image: fallbackBySlug[c.slug] || product?.images?.[0]?.url || '/kk-logo-original.png'
+          image:
+            fallbackBySlug[c.slug] ||
+            product?.images?.[0]?.url ||
+            '/kk-logo-original.png',
         };
       })
     );
@@ -128,7 +164,11 @@ async function getCategoryTiles() {
     return tiles.sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug));
   } catch {
     // If DB is not reachable at build time, use fallbacks
-    return staticFallback as unknown as Array<{ nameKey: string; slug: string; image: string }>;
+    return staticFallback as unknown as Array<{
+      nameKey: string;
+      slug: string;
+      image: string;
+    }>;
   }
 }
 
@@ -137,16 +177,21 @@ export default async function Home({ params }: { params: { locale: string } }) {
   setRequestLocale(locale);
   // Use explicit locale to avoid default-locale bleed during SSG/ISR
   const t = await getTranslations({ locale, namespace: 'home' });
-  const tCategories = await getTranslations({ locale, namespace: 'categories' });
+  const tCategories = await getTranslations({
+    locale,
+    namespace: 'categories',
+  });
   const featuredProducts = await getFeaturedProducts(locale);
   const categoryTiles = await getCategoryTiles();
-  
 
   return (
     <div className="min-h-screen">
       <main role="main">
         {/* Hero Section */}
-        <section className="relative bg-gradient-to-br from-background to-muted/30 py-20 overflow-hidden" aria-labelledby="hero-title">
+        <section
+          className="relative bg-gradient-to-br from-background to-muted/30 py-20 overflow-hidden"
+          aria-labelledby="hero-title"
+        >
           {/* Background Image */}
           <div className="absolute inset-0 -z-10">
             <Image
@@ -160,9 +205,12 @@ export default async function Home({ params }: { params: { locale: string } }) {
               quality={70}
             />
           </div>
-          
+
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 id="hero-title" className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+            <h1
+              id="hero-title"
+              className="text-4xl md:text-6xl font-bold text-foreground mb-6"
+            >
               {t('hero.title')}
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-6">
@@ -185,12 +233,12 @@ export default async function Home({ params }: { params: { locale: string } }) {
             <h3 className="text-3xl font-bold text-center mb-12">
               {t('featured.categories')}
             </h3>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-    {categoryTiles.map((category) => (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+              {categoryTiles.map(category => (
                 <Link
                   key={category.slug}
-          href={`/${locale}/explore?category=${category.slug}`}
-          prefetch={false}
+                  href={`/${locale}/explore?category=${category.slug}`}
+                  prefetch={false}
                   className="group"
                 >
                   <div className="p-6 bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200 text-center group-hover:-translate-y-1">
@@ -204,10 +252,12 @@ export default async function Home({ params }: { params: { locale: string } }) {
                         quality={80}
                       />
                     </div>
-                    <p className="font-medium text-foreground">{tCategories(category.nameKey)}</p>
+                    <p className="font-medium text-foreground">
+                      {tCategories(category.nameKey)}
+                    </p>
                   </div>
                 </Link>
-        ))}
+              ))}
             </div>
           </div>
         </section>
@@ -220,19 +270,18 @@ export default async function Home({ params }: { params: { locale: string } }) {
             </h3>
             {featuredProducts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {featuredProducts.map((product) => (
+                {featuredProducts.map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">
-                  {t('noFeaturedProducts') || 'No featured products available at the moment.'}
+                  {t('noFeaturedProducts') ||
+                    'No featured products available at the moment.'}
                 </p>
                 <Link href={`/${locale}/explore`} prefetch={false}>
-                  <Button variant="outline">
-                    {t('viewAllProducts')}
-                  </Button>
+                  <Button variant="outline">{t('viewAllProducts')}</Button>
                 </Link>
               </div>
             )}

@@ -3,7 +3,8 @@
 import React from 'react';
 
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    React.useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = React.useState(false);
 
   React.useEffect(() => {
@@ -14,10 +15,16 @@ export default function PWAInstallPrompt() {
       setVisible(true);
     };
 
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt as EventListener);
+    window.addEventListener(
+      'beforeinstallprompt',
+      onBeforeInstallPrompt as EventListener
+    );
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt as EventListener);
+      window.removeEventListener(
+        'beforeinstallprompt',
+        onBeforeInstallPrompt as EventListener
+      );
     };
   }, []);
 

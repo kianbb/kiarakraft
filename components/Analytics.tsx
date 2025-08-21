@@ -1,7 +1,10 @@
 'use client';
 
 export default function Analytics() {
-  if (process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && process.env.NODE_ENV === 'production') {
+  if (
+    process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN &&
+    process.env.NODE_ENV === 'production'
+  ) {
     return (
       <script
         defer

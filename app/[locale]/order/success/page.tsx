@@ -12,7 +12,7 @@ function OrderSuccessContent() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('order');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
 
   const orderId = searchParams.get('orderId');
 
@@ -21,23 +21,19 @@ function OrderSuccessContent() {
       <div className="container mx-auto px-4 text-center">
         <div className="max-w-md mx-auto">
           <CheckCircle className="h-20 w-20 mx-auto mb-6 text-green-500" />
-          
+
           <h1 className="text-3xl font-bold mb-4 text-green-700">
             {t('paymentSuccessful')}
           </h1>
-          
-          <p className="text-muted-foreground mb-6">
-            {t('orderConfirmation')}
-          </p>
-          
+
+          <p className="text-muted-foreground mb-6">{t('orderConfirmation')}</p>
+
           {orderId && (
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
               <p className="text-sm text-muted-foreground mb-1">
                 {t('orderNumber')}
               </p>
-              <p className="font-mono font-semibold text-lg">
-                {orderId}
-              </p>
+              <p className="font-mono font-semibold text-lg">{orderId}</p>
             </div>
           )}
 
@@ -50,7 +46,7 @@ function OrderSuccessContent() {
                 </Button>
               </Link>
             )}
-            
+
             <Link href="/explore">
               <Button variant="outline" size="lg" className="w-full">
                 {t('continueShopping')}
@@ -70,17 +66,19 @@ function OrderSuccessContent() {
 
 export default function OrderSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen py-8">
-        <div className="container mx-auto px-4 text-center">
-          <div className="animate-pulse">
-            <div className="bg-gray-200 h-20 w-20 rounded-full mx-auto mb-6"></div>
-            <div className="bg-gray-200 h-8 rounded mb-4 max-w-md mx-auto"></div>
-            <div className="bg-gray-200 h-4 rounded mb-6 max-w-sm mx-auto"></div>
+    <Suspense
+      fallback={
+        <div className="min-h-screen py-8">
+          <div className="container mx-auto px-4 text-center">
+            <div className="animate-pulse">
+              <div className="bg-gray-200 h-20 w-20 rounded-full mx-auto mb-6"></div>
+              <div className="bg-gray-200 h-8 rounded mb-4 max-w-md mx-auto"></div>
+              <div className="bg-gray-200 h-4 rounded mb-6 max-w-sm mx-auto"></div>
+            </div>
           </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <OrderSuccessContent />
     </Suspense>
   );

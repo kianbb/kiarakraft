@@ -5,7 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Search, X, Filter, DollarSign, Shield } from 'lucide-react';
 
@@ -35,22 +41,22 @@ interface ExploreFiltersProps {
   };
 }
 
-export function ExploreFilters({ 
-  initialSearch, 
-  initialCategory, 
-  initialSort, 
+export function ExploreFilters({
+  initialSearch,
+  initialCategory,
+  initialSort,
   initialMinPrice,
   initialMaxPrice,
   initialVerified,
-  locale, 
+  locale,
   facets,
-  precomputed 
+  precomputed,
 }: ExploreFiltersProps) {
   const t = useTranslations('explore');
   const tCategories = useTranslations('categories');
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState(initialSort);
@@ -66,7 +72,7 @@ export function ExploreFilters({
     { value: 'textiles', label: tCategories('textiles') },
     { value: 'jewelry', label: tCategories('jewelry') },
     { value: 'woodwork', label: tCategories('woodwork') },
-    { value: 'painting', label: tCategories('painting') }
+    { value: 'painting', label: tCategories('painting') },
   ];
 
   const sortOptions = precomputed?.sortOptions ?? [
@@ -74,27 +80,34 @@ export function ExploreFilters({
     { value: 'oldest', label: t('filters.oldest') },
     { value: 'price_asc', label: t('filters.priceLowToHigh') },
     { value: 'price_desc', label: t('filters.priceHighToLow') },
-    { value: 'relevance', label: t('filters.relevance') }
+    { value: 'relevance', label: t('filters.relevance') },
   ];
 
-  const updateFilters = (updates: Record<string, string | boolean | undefined>) => {
+  const updateFilters = (
+    updates: Record<string, string | boolean | undefined>
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
-    
+
     // Update with new values
     Object.entries(updates).forEach(([key, value]) => {
-      if (value !== undefined && value !== '' && value !== false && value !== 'all') {
+      if (
+        value !== undefined &&
+        value !== '' &&
+        value !== false &&
+        value !== 'all'
+      ) {
         params.set(key, String(value));
       } else {
         params.delete(key);
       }
     });
-    
+
     // Reset to first page when filters change
     params.delete('page');
-    
+
     const queryString = params.toString();
     const newUrl = `/${locale}/explore${queryString ? `?${queryString}` : ''}`;
-    
+
     router.push(newUrl);
   };
 
@@ -114,9 +127,9 @@ export function ExploreFilters({
   };
 
   const handlePriceFilter = () => {
-    updateFilters({ 
+    updateFilters({
       minPrice: minPrice || undefined,
-      maxPrice: maxPrice || undefined
+      maxPrice: maxPrice || undefined,
     });
   };
 
@@ -136,14 +149,19 @@ export function ExploreFilters({
     router.push(`/${locale}/explore`);
   };
 
-  const hasActiveFilters = searchTerm || selectedCategory !== 'all' || 
-    sortBy !== 'newest' || minPrice || maxPrice || verifiedOnly;
+  const hasActiveFilters =
+    searchTerm ||
+    selectedCategory !== 'all' ||
+    sortBy !== 'newest' ||
+    minPrice ||
+    maxPrice ||
+    verifiedOnly;
 
   const activeFilterCount = [
     searchTerm,
     selectedCategory !== 'all' ? selectedCategory : null,
     minPrice || maxPrice ? 'price' : null,
-    verifiedOnly ? 'verified' : null
+    verifiedOnly ? 'verified' : null,
   ].filter(Boolean).length;
 
   return (
@@ -154,9 +172,11 @@ export function ExploreFilters({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             type="text"
-            placeholder={precomputed?.searchPlaceholder ?? t('searchPlaceholder')}
+            placeholder={
+              precomputed?.searchPlaceholder ?? t('searchPlaceholder')
+            }
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2"
           />
           {searchTerm && (
@@ -181,15 +201,25 @@ export function ExploreFilters({
         <div className="flex-1">
           <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger>
-              <SelectValue placeholder={precomputed?.selectCategory ?? t('filters.selectCategory')} />
+              <SelectValue
+                placeholder={
+                  precomputed?.selectCategory ?? t('filters.selectCategory')
+                }
+              />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
+              {categories.map(category => (
                 <SelectItem key={category.value} value={category.value}>
                   {category.label}
-                  {facets?.categories.find(c => c.id === category.value)?.count && (
+                  {facets?.categories.find(c => c.id === category.value)
+                    ?.count && (
                     <span className="ml-2 text-xs text-muted-foreground">
-                      ({facets.categories.find(c => c.id === category.value)?.count})
+                      (
+                      {
+                        facets.categories.find(c => c.id === category.value)
+                          ?.count
+                      }
+                      )
                     </span>
                   )}
                 </SelectItem>
@@ -197,14 +227,14 @@ export function ExploreFilters({
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="flex-1">
           <Select value={sortBy} onValueChange={handleSortChange}>
             <SelectTrigger>
               <SelectValue placeholder={t('filters.sortBy')} />
             </SelectTrigger>
             <SelectContent>
-              {sortOptions.map((option) => (
+              {sortOptions.map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -228,7 +258,11 @@ export function ExploreFilters({
         </Button>
 
         {hasActiveFilters && (
-          <Button variant="outline" onClick={clearAllFilters} className="shrink-0">
+          <Button
+            variant="outline"
+            onClick={clearAllFilters}
+            className="shrink-0"
+          >
             <X className="h-4 w-4 mr-2" />
             {precomputed?.clearFilters ?? t('clearFilters')}
           </Button>
@@ -239,7 +273,7 @@ export function ExploreFilters({
       {showAdvanced && (
         <div className="p-4 bg-gray-50 rounded-lg border space-y-4">
           <h3 className="font-medium text-sm">{t('filters.advanced')}</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Price Range */}
             <div className="space-y-2">
@@ -252,7 +286,7 @@ export function ExploreFilters({
                   type="number"
                   placeholder={t('filters.minPrice')}
                   value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
+                  onChange={e => setMinPrice(e.target.value)}
                   className="flex-1"
                 />
                 <span className="self-center text-muted-foreground">-</span>
@@ -260,7 +294,7 @@ export function ExploreFilters({
                   type="number"
                   placeholder={t('filters.maxPrice')}
                   value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
+                  onChange={e => setMaxPrice(e.target.value)}
                   className="flex-1"
                 />
                 <Button variant="outline" size="sm" onClick={handlePriceFilter}>
@@ -278,13 +312,14 @@ export function ExploreFilters({
                       onClick={() => {
                         setMinPrice(String(range.min));
                         setMaxPrice(String(range.max));
-                        updateFilters({ 
+                        updateFilters({
                           minPrice: String(range.min),
-                          maxPrice: String(range.max)
+                          maxPrice: String(range.max),
                         });
                       }}
                     >
-                      {range.min.toLocaleString()}-{range.max.toLocaleString()} ({range.count})
+                      {range.min.toLocaleString()}-{range.max.toLocaleString()}{' '}
+                      ({range.count})
                     </Button>
                   ))}
                 </div>
@@ -299,7 +334,7 @@ export function ExploreFilters({
               </label>
               <div className="flex items-center gap-2">
                 <Button
-                  variant={verifiedOnly ? "default" : "outline"}
+                  variant={verifiedOnly ? 'default' : 'outline'}
                   size="sm"
                   onClick={handleVerifiedToggle}
                   className="flex items-center gap-2"
@@ -336,7 +371,7 @@ export function ExploreFilters({
               </Button>
             </Badge>
           )}
-          
+
           {selectedCategory !== 'all' && (
             <Badge variant="secondary" className="flex items-center gap-1">
               {categories.find(c => c.value === selectedCategory)?.label}

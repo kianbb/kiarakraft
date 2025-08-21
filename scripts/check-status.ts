@@ -1,62 +1,64 @@
 // Simple status check for two URLs and whether the HTML contains NEXT_NOT_FOUND
 // Usage: npm run check:status
 
-import { setTimeout as delay } from 'node:timers/promises'
-import { fetch } from 'undici'
+import { setTimeout as delay } from 'node:timers/promises';
+import { fetch } from 'undici';
 
 const BASE = process.env.BASE_URL || 'https://www.kiarakraft.com';
 const targets = [
   {
-  url: `${BASE}/fa/product/handmade-ceramic-bowl`,
+    url: `${BASE}/fa/product/handmade-ceramic-bowl`,
     expect: 200,
-    label: 'existing product (expect 200)'
+    label: 'existing product (expect 200)',
   },
   {
-  url: `${BASE}/fa/product/nonexistent-product-123`,
+    url: `${BASE}/fa/product/nonexistent-product-123`,
     expect: 404,
-    label: 'nonexistent product (expect 404)'
-  }
-]
+    label: 'nonexistent product (expect 404)',
+  },
+];
 
 async function check(url: string) {
-  const res = await fetch(url, { redirect: 'manual' })
-  const text = await res.text()
-  const hasNotFoundMarker = text.includes('NEXT_NOT_FOUND')
-  return { status: res.status, hasNotFoundMarker }
+  const res = await fetch(url, { redirect: 'manual' });
+  const text = await res.text();
+  const hasNotFoundMarker = text.includes('NEXT_NOT_FOUND');
+  return { status: res.status, hasNotFoundMarker };
 }
 
 async function main() {
-  let exitCode = 0
+  let exitCode = 0;
   for (const t of targets) {
     try {
-      const { status, hasNotFoundMarker } = await check(t.url)
-      
-      let ok: boolean
+      const { status, hasNotFoundMarker } = await check(t.url);
+
+      let ok: boolean;
       if (t.expect === 404) {
         // For 404 cases, accept either a proper 404 OR a 200 with NEXT_NOT_FOUND marker
         // This accommodates Vercel's edge behavior which may return soft 404s
-        ok = status === 404 || (status === 200 && hasNotFoundMarker)
+        ok = status === 404 || (status === 200 && hasNotFoundMarker);
       } else {
         // For other expected statuses, require exact match
-        ok = status === t.expect
+        ok = status === t.expect;
       }
-      
-      if (!ok) exitCode = 1
-      console.log(`${t.label}:`)
-      console.log(`  URL: ${t.url}`)
-      console.log(`  Status: ${status} (expected ${t.expect}) ${ok ? 'OK' : 'MISMATCH'}`)
-      console.log(`  Contains NEXT_NOT_FOUND: ${hasNotFoundMarker}`)
+
+      if (!ok) exitCode = 1;
+      console.log(`${t.label}:`);
+      console.log(`  URL: ${t.url}`);
+      console.log(
+        `  Status: ${status} (expected ${t.expect}) ${ok ? 'OK' : 'MISMATCH'}`
+      );
+      console.log(`  Contains NEXT_NOT_FOUND: ${hasNotFoundMarker}`);
       if (t.expect === 404 && status === 200 && hasNotFoundMarker) {
-        console.log(`  Note: Soft 404 detected (Vercel edge behavior)`)
+        console.log(`  Note: Soft 404 detected (Vercel edge behavior)`);
       }
       // Small delay to be polite
-      await delay(100)
+      await delay(100);
     } catch (err: any) {
-      exitCode = 1
-      console.error(`Error fetching ${t.url}:`, err?.message || err)
+      exitCode = 1;
+      console.error(`Error fetching ${t.url}:`, err?.message || err);
     }
   }
-  process.exit(exitCode)
+  process.exit(exitCode);
 }
 
-main()
+main();

@@ -14,8 +14,8 @@ export function ToastProvider() {
 
   return (
     <Toaster
-      position={isRTL ? "top-left" : "top-right"}
-      dir={isRTL ? "rtl" : "ltr"}
+      position={isRTL ? 'top-left' : 'top-right'}
+      dir={isRTL ? 'rtl' : 'ltr'}
       richColors
       closeButton
       theme="light"

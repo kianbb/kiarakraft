@@ -8,26 +8,26 @@ export async function GET() {
     const client: any = prisma;
     const [totalProducts, enTranslations] = await Promise.all([
       client.product.count(),
-      client.productTranslation.count({ where: { locale: 'en' } })
+      client.productTranslation.count({ where: { locale: 'en' } }),
     ]);
 
-  const missing = await client.product.findMany(({
+    const missing = await client.product.findMany({
       where: {
         active: true,
-        NOT: { translations: { some: { locale: 'en' } } }
+        NOT: { translations: { some: { locale: 'en' } } },
       },
       select: { id: true, slug: true, title: true },
       orderBy: { createdAt: 'desc' },
-      take: 10
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as unknown) as any);
+      take: 10,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as unknown as any);
 
     return NextResponse.json({
       totalProducts,
       enTranslations,
       missingCount: Math.max(totalProducts - enTranslations, 0),
       sampleMissing: missing,
-      env: process.env.NODE_ENV || 'development'
+      env: process.env.NODE_ENV || 'development',
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

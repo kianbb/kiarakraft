@@ -11,44 +11,55 @@ const prisma = new PrismaClient();
 const CATEGORY_URLS: Record<string, string[]> = {
   ceramics: [
     'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=1200&h=1200&fit=crop&q=85',
-    'https://images.unsplash.com/photo-1611309454922-3a9a160a2a20?w=1200&h=1200&fit=crop&q=85'
+    'https://images.unsplash.com/photo-1611309454922-3a9a160a2a20?w=1200&h=1200&fit=crop&q=85',
   ],
   textiles: [
     'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=1200&fit=crop&q=85',
-    'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=1200&h=1200&fit=crop&q=85'
+    'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=1200&h=1200&fit=crop&q=85',
   ],
   jewelry: [
     'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1200&h=1200&fit=crop&q=85',
-    'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=1200&h=1200&fit=crop&q=85'
+    'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=1200&h=1200&fit=crop&q=85',
   ],
   woodwork: [
     'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200&h=1200&fit=crop&q=85',
-    'https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200&h=1200&fit=crop&q=85'
+    'https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200&h=1200&fit=crop&q=85',
   ],
   painting: [
     'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=1200&h=1200&fit=crop&q=85',
-    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&h=1200&fit=crop&q=85'
+    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&h=1200&fit=crop&q=85',
   ],
 };
 
 function stablePick<T>(arr: T[], key: string): T {
   let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash) + key.charCodeAt(i);
+  for (let i = 0; i < key.length; i++)
+    hash = (hash << 5) - hash + key.charCodeAt(i);
   const idx = Math.abs(hash) % Math.max(1, arr.length);
   return arr[idx];
 }
 
-async function fetchImageBuffer(url: string, timeoutMs = 10000): Promise<Buffer> {
+async function fetchImageBuffer(
+  url: string,
+  timeoutMs = 10000
+): Promise<Buffer> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  const resp = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'KiaraKraft-Script/1.0' } });
+  const resp = await fetch(url, {
+    signal: ctrl.signal,
+    headers: { 'User-Agent': 'KiaraKraft-Script/1.0' },
+  });
   clearTimeout(t);
   if (!resp.ok) throw new Error(`fetch ${resp.status}`);
   const ab = await resp.arrayBuffer();
   return Buffer.from(ab);
 }
 
-function buildCandidateUrls(slug: string, bucket: string[] | undefined, key: string): string[] {
+function buildCandidateUrls(
+  slug: string,
+  bucket: string[] | undefined,
+  key: string
+): string[] {
   const candidates: string[] = [];
   if (bucket && bucket.length) {
     // Prefer stable pick first, then fall back to the rest in order
@@ -64,14 +75,20 @@ function buildCandidateUrls(slug: string, bucket: string[] | undefined, key: str
 }
 
 async function main() {
-  console.log('🔄 Replacing product images with curated Cloudinary-hosted images...');
+  console.log(
+    '🔄 Replacing product images with curated Cloudinary-hosted images...'
+  );
 
   const limitArg = process.argv.find(a => a.startsWith('--limit='));
   const limit = limitArg ? parseInt(limitArg.split('=')[1]) : undefined;
 
   const products = await prisma.product.findMany({
     where: { active: true },
-    include: { images: true, category: { select: { slug: true } }, translations: { where: { locale: 'en' } } },
+    include: {
+      images: true,
+      category: { select: { slug: true } },
+      translations: { where: { locale: 'en' } },
+    },
     orderBy: { createdAt: 'asc' },
     take: limit,
   });
@@ -118,7 +135,8 @@ async function main() {
             return await uploadImageToCloudinary(buf, opts);
           } catch (e) {
             lastErr = e;
-            if (attempt < 3) await new Promise(r => setTimeout(r, 400 * attempt));
+            if (attempt < 3)
+              await new Promise(r => setTimeout(r, 400 * attempt));
           }
         }
         throw lastErr;
@@ -127,11 +145,16 @@ async function main() {
       // Replace existing images
       await prisma.listingImage.deleteMany({ where: { productId: p.id } });
       await prisma.listingImage.create({
-        data: { productId: p.id, url: upload.secure_url, alt: enTitle, sortOrder: 0 }
+        data: {
+          productId: p.id,
+          url: upload.secure_url,
+          alt: enTitle,
+          sortOrder: 0,
+        },
       });
 
-  replaced++;
-  if (usedUrl) console.log(`   ✓ from ${usedUrl}`);
+      replaced++;
+      if (usedUrl) console.log(`   ✓ from ${usedUrl}`);
     } catch (e) {
       console.error(`✗ Failed for ${p.title}:`, e);
     }

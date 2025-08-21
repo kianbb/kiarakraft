@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -7,7 +7,7 @@ interface ContactFormProps {
   locale: string;
 }
 
-export default function ContactForm({ }: ContactFormProps) {
+export default function ContactForm({}: ContactFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -20,7 +20,10 @@ export default function ContactForm({ }: ContactFormProps) {
     setLoading(true);
 
     const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    const data = Object.fromEntries(new FormData(form).entries()) as Record<
+      string,
+      string
+    >;
 
     try {
       const res = await fetch('/api/contact', {
@@ -42,20 +45,45 @@ export default function ContactForm({ }: ContactFormProps) {
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="name">{t('name')}</label>
-        <input id="name" name="name" required className="w-full rounded-md border px-3 py-2 bg-background" />
+        <label className="block text-sm font-medium mb-1" htmlFor="name">
+          {t('name')}
+        </label>
+        <input
+          id="name"
+          name="name"
+          required
+          className="w-full rounded-md border px-3 py-2 bg-background"
+        />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="email">{t('email')}</label>
-        <input id="email" name="email" type="email" required className="w-full rounded-md border px-3 py-2 bg-background" />
+        <label className="block text-sm font-medium mb-1" htmlFor="email">
+          {t('email')}
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          className="w-full rounded-md border px-3 py-2 bg-background"
+        />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="message">{t('message')}</label>
-        <textarea id="message" name="message" required rows={5} className="w-full rounded-md border px-3 py-2 bg-background" />
+        <label className="block text-sm font-medium mb-1" htmlFor="message">
+          {t('message')}
+        </label>
+        <textarea
+          id="message"
+          name="message"
+          required
+          rows={5}
+          className="w-full rounded-md border px-3 py-2 bg-background"
+        />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm text-green-600">{t('successMessage')}</p>}
+      {success && (
+        <p className="text-sm text-green-600">{t('successMessage')}</p>
+      )}
 
       <button
         type="submit"

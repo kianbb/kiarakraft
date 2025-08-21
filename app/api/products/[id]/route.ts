@@ -9,18 +9,15 @@ export async function GET(
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        active: true
+        active: true,
       },
       include: {
-        seller: true
-      }
+        seller: true,
+      },
     });
 
     if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
     return NextResponse.json(product);

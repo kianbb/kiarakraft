@@ -9,32 +9,34 @@ interface VerifiedBadgeProps {
   className?: string;
 }
 
-export function VerifiedBadge({ 
-  verified, 
-  size = 'md', 
+export function VerifiedBadge({
+  verified,
+  size = 'md',
   variant = 'default',
-  className 
+  className,
 }: VerifiedBadgeProps) {
   if (!verified) return null;
 
   const sizeClasses = {
     sm: 'text-xs px-2 py-1',
     md: 'text-sm px-3 py-1',
-    lg: 'text-base px-4 py-2'
+    lg: 'text-base px-4 py-2',
   };
 
   const iconSizes = {
     sm: 'h-3 w-3',
-    md: 'h-4 w-4', 
-    lg: 'h-5 w-5'
+    md: 'h-4 w-4',
+    lg: 'h-5 w-5',
   };
 
   if (variant === 'compact') {
     return (
-      <div className={cn(
-        'inline-flex items-center gap-1 text-green-600',
-        className
-      )}>
+      <div
+        className={cn(
+          'inline-flex items-center gap-1 text-green-600',
+          className
+        )}
+      >
         <CheckCircle className={iconSizes[size]} />
         {size !== 'sm' && <span className="text-xs font-medium">Verified</span>}
       </div>
@@ -42,7 +44,7 @@ export function VerifiedBadge({
   }
 
   return (
-    <Badge 
+    <Badge
       variant={variant === 'outline' ? 'outline' : 'default'}
       className={cn(
         'bg-green-100 text-green-800 border-green-200 hover:bg-green-200',

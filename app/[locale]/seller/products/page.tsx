@@ -12,14 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
 import { ProductWithRelations } from '@/types/database';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
   Eye,
   Package,
-  ArrowLeft 
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function SellerProductsPage() {
@@ -29,7 +29,7 @@ export default function SellerProductsPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +37,7 @@ export default function SellerProductsPage() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push(`/${locale}/auth/login`);
       return;
@@ -67,15 +67,17 @@ export default function SellerProductsPage() {
 
   const deleteProduct = async (productId: string) => {
     if (!confirm(t('confirmDeleteProduct'))) return;
-    
+
     setDeleting(productId);
     try {
       const response = await fetch(`/api/seller/products/${productId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (response.ok) {
-        setProducts(products.filter((p: ProductWithRelations) => p.id !== productId));
+        setProducts(
+          products.filter((p: ProductWithRelations) => p.id !== productId)
+        );
       }
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -84,9 +86,10 @@ export default function SellerProductsPage() {
     }
   };
 
-  const filteredProducts = products.filter((product: ProductWithRelations) =>
-    product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter(
+    (product: ProductWithRelations) =>
+      product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (status === 'loading' || loading) {
@@ -115,17 +118,20 @@ export default function SellerProductsPage() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <Link href={`/${locale}/seller`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link
+            href={`/${locale}/seller`}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
+          >
             <ArrowLeft className="h-4 w-4" />
             {t('backToDashboard')}
           </Link>
-          
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold">{t('products')}</h1>
               <p className="text-muted-foreground">{t('manageYourProducts')}</p>
             </div>
-            
+
             <Link href={`/${locale}/seller/products/new`}>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -143,7 +149,7 @@ export default function SellerProductsPage() {
               type="text"
               placeholder={t('searchProducts')}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -153,7 +159,10 @@ export default function SellerProductsPage() {
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product: ProductWithRelations) => (
-              <div key={product.id} className="bg-white rounded-lg border overflow-hidden">
+              <div
+                key={product.id}
+                className="bg-white rounded-lg border overflow-hidden"
+              >
                 <div className="relative aspect-square">
                   <Image
                     src={product.images?.[0]?.url || '/placeholder-product.jpg'}
@@ -162,20 +171,26 @@ export default function SellerProductsPage() {
                     className="object-cover"
                   />
                 </div>
-                
+
                 <div className="p-4 space-y-3">
                   <div>
-                    <h3 className="font-semibold line-clamp-1">{product.title}</h3>
+                    <h3 className="font-semibold line-clamp-1">
+                      {product.title}
+                    </h3>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {product.description}
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
-                    <div className="font-bold text-lg">{formatPrice(product.priceToman)}</div>
+                    <div className="font-bold text-lg">
+                      {formatPrice(product.priceToman)}
+                    </div>
                     <div className="flex items-center gap-2">
                       {product.stock > 0 ? (
-                        <Badge variant="secondary">{product.stock} {t('inStock')}</Badge>
+                        <Badge variant="secondary">
+                          {product.stock} {t('inStock')}
+                        </Badge>
                       ) : (
                         <Badge variant="destructive">{t('outOfStock')}</Badge>
                       )}
@@ -185,21 +200,37 @@ export default function SellerProductsPage() {
                         <Badge variant="outline">{t('inactive')}</Badge>
                       )}
                       {product.eligibilityStatus && (
-                        <Badge variant={product.eligibilityStatus === 'APPROVED' ? 'default' : product.eligibilityStatus === 'REJECTED' ? 'destructive' : 'secondary'}>
-                          {t(`eligibility_${product.eligibilityStatus.toLowerCase()}`) || product.eligibilityStatus}
+                        <Badge
+                          variant={
+                            product.eligibilityStatus === 'APPROVED'
+                              ? 'default'
+                              : product.eligibilityStatus === 'REJECTED'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
+                        >
+                          {t(
+                            `eligibility_${product.eligibilityStatus.toLowerCase()}`
+                          ) || product.eligibilityStatus}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2">
-                    <Link href={`/${locale}/product/${product.slug}`} className="flex-1">
+                    <Link
+                      href={`/${locale}/product/${product.slug}`}
+                      className="flex-1"
+                    >
                       <Button variant="outline" size="sm" className="w-full">
                         <Eye className="h-4 w-4 mr-1" />
                         {t('view')}
                       </Button>
                     </Link>
-                    <Link href={`/${locale}/seller/products/${product.id}/edit`} className="flex-1">
+                    <Link
+                      href={`/${locale}/seller/products/${product.id}/edit`}
+                      className="flex-1"
+                    >
                       <Button variant="outline" size="sm" className="w-full">
                         <Edit className="h-4 w-4 mr-1" />
                         {t('edit')}
@@ -226,7 +257,9 @@ export default function SellerProductsPage() {
               {searchTerm ? t('noProductsFound') : t('noProducts')}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {searchTerm ? t('tryDifferentSearch') : t('addFirstProductDescription')}
+              {searchTerm
+                ? t('tryDifferentSearch')
+                : t('addFirstProductDescription')}
             </p>
             {!searchTerm && (
               <Link href={`/${locale}/seller/products/new`}>
