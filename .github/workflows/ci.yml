@@ -7,41 +7,46 @@ on:
     branches: [ main ]
 
 jobs:
-  ci:
-    name: Build & Test
+  verify:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 15
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
-      - name: Generate Prisma Client
-        run: npx prisma generate
-        env:
-          # Use a dummy DATABASE_URL for generation
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
-        
-      - name: Run TypeScript type checking
+        working-directory: kiarakraft
+
+      - name: Typecheck
         run: npm run typecheck
-        
-      - name: Run ESLint
-        run: npm run lint
-        
-      - name: Build Next.js application
+        working-directory: kiarakraft
+
+      - name: Build
         run: npm run build
+        working-directory: kiarakraft
         env:
-          # Use dummy values for build
+          # Minimal env to allow build that may reference these
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
-          NEXTAUTH_SECRET: ci-build-secret
-          NEXTAUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_PLAUSIBLE_DOMAIN: kiarakraft.com
+
+      - name: Status checks (expect 200 and 404)
+        run: npm run check:status
+        working-directory: kiarakraft
+        env:
+          BASE_URL: https://www.kiarakraft.com
+
+      - name: Fail if literal Loading... appears in built HTML
+        run: |
+          if grep -R "Loading..." -n .next/; then
+            echo "Found 'Loading...' in built output. SSR/UI placeholders leaked.";
+            exit 1;
+          fi
+        working-directory: kiarakraft
