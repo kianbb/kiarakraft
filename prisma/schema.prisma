@@ -71,6 +71,7 @@ model Product {
   priceToman            Int
   stock                 Int                  @default(0)
   active                Boolean              @default(true)
+  isTest                Boolean              @default(false) // Marks internal/demo products that must be hidden from public listings
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   eligibilityConfidence Int?

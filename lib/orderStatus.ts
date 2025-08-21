@@ -1,4 +1,9 @@
-export type OrderStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELED';
+export type OrderStatus =
+  | 'PENDING'
+  | 'PAID'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELED';
 
 export type SellerAction = 'mark_shipped' | 'mark_delivered';
 export type AdminAction = SellerAction | 'cancel';

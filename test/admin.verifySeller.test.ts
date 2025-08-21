@@ -3,11 +3,16 @@ import assert from 'node:assert/strict';
 // This is a lightweight unit-style test that validates our update payload logic
 // for the admin verify endpoint: verifiedBy should only be set when action === 'verify'.
 
-function buildUpdateData(action: 'verify' | 'reject', notes: string, adminEmail: string) {
+function buildUpdateData(
+  action: 'verify' | 'reject',
+  notes: string,
+  adminEmail: string
+) {
   return {
     verified: action === 'verify',
     verificationNotes: notes.trim(),
-    verifiedAt: action === 'verify' ? new Date('2025-01-01T00:00:00.000Z') : null,
+    verifiedAt:
+      action === 'verify' ? new Date('2025-01-01T00:00:00.000Z') : null,
     verifiedBy: action === 'verify' ? adminEmail : null,
   };
 }

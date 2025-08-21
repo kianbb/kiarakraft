@@ -13,14 +13,14 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
-  if (!session?.user?.email || session.user.role !== 'SELLER') {
+
+    if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-  Sentry.setUser({ email: session.user.email });
+    Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -30,8 +30,8 @@ export async function GET(
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        sellerId: user.id
-      }
+        sellerId: user.id,
+      },
     });
 
     if (!product) {
@@ -55,15 +55,15 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
-  if (!session?.user?.email || session.user.role !== 'SELLER') {
+
+    if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-  Sentry.setUser({ email: session.user.email });
+    Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      include: { sellerProfile: true }
+      include: { sellerProfile: true },
     });
 
     if (!user) {
@@ -71,87 +71,135 @@ export async function PUT(
     }
 
     const data = await request.json();
-    if ((data.title?.length || 0) > 200 || (data.description?.length || 0) > 5000) {
+    if (
+      (data.title?.length || 0) > 200 ||
+      (data.description?.length || 0) > 5000
+    ) {
       return NextResponse.json({ error: 'Input too long' }, { status: 400 });
     }
-    const suspicious = /<script|https?:\/\//i.test(data.description || '') || /(?:viagra|casino|bet)/i.test(data.description || '');
+    const suspicious =
+      /<script|https?:\/\//i.test(data.description || '') ||
+      /(?:viagra|casino|bet)/i.test(data.description || '');
     if (suspicious) {
-      return NextResponse.json({ error: 'Content not allowed' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Content not allowed' },
+        { status: 400 }
+      );
     }
 
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        sellerId: user.id
-      }
+        sellerId: user.id,
+      },
     });
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-  // Prevent unverified sellers from self-activating products
-  const nextActive = typeof data.active === 'boolean' ? data.active : undefined;
-  const allowActive = user.sellerProfile?.verified ? nextActive : undefined;
+    // Prevent unverified sellers from self-activating products
+    const nextActive =
+      typeof data.active === 'boolean' ? data.active : undefined;
+    const allowActive = user.sellerProfile?.verified ? nextActive : undefined;
 
-  const updatedProduct = await prisma.product.update({
+    const updatedProduct = await prisma.product.update({
       where: { id: params.id },
       data: {
         title: data.title,
         description: data.description,
         priceToman: data.priceToman,
-    stock: data.stock,
-    ...(allowActive !== undefined ? { active: allowActive } : {})
-      }
+        stock: data.stock,
+        ...(allowActive !== undefined ? { active: allowActive } : {}),
+      },
     });
 
     // Re-translate EN if source appears Persian
-    const hasPersian = /[\u0600-\u06FF]/.test(updatedProduct.title) || /[\u0600-\u06FF]/.test(updatedProduct.description);
+    const hasPersian =
+      /[\u0600-\u06FF]/.test(updatedProduct.title) ||
+      /[\u0600-\u06FF]/.test(updatedProduct.description);
     if (hasPersian) {
-      const hash = crypto.createHash('sha1').update(updatedProduct.title + '|' + updatedProduct.description).digest('hex');
-      translateProductFields({ title: updatedProduct.title, description: updatedProduct.description }, 'fa', 'en')
-        .then(async (en) => {
+      const hash = crypto
+        .createHash('sha1')
+        .update(updatedProduct.title + '|' + updatedProduct.description)
+        .digest('hex');
+      translateProductFields(
+        {
+          title: updatedProduct.title,
+          description: updatedProduct.description,
+        },
+        'fa',
+        'en'
+      )
+        .then(async en => {
           type PTClient = {
             productTranslation: {
               upsert: (args: {
-                where: { productId_locale: { productId: string; locale: string } };
-                create: { productId: string; locale: string; title: string; description: string; sourceHash: string };
-                update: { title: string; description: string; sourceHash: string };
+                where: {
+                  productId_locale: { productId: string; locale: string };
+                };
+                create: {
+                  productId: string;
+                  locale: string;
+                  title: string;
+                  description: string;
+                  sourceHash: string;
+                };
+                update: {
+                  title: string;
+                  description: string;
+                  sourceHash: string;
+                };
               }) => Promise<void>;
             };
           };
           const client = prisma as unknown as PTClient;
           await client.productTranslation.upsert({
-            where: { productId_locale: { productId: updatedProduct.id, locale: 'en' } },
-            create: { productId: updatedProduct.id, locale: 'en', title: en.title, description: en.description, sourceHash: hash },
-            update: { title: en.title, description: en.description, sourceHash: hash }
+            where: {
+              productId_locale: { productId: updatedProduct.id, locale: 'en' },
+            },
+            create: {
+              productId: updatedProduct.id,
+              locale: 'en',
+              title: en.title,
+              description: en.description,
+              sourceHash: hash,
+            },
+            update: {
+              title: en.title,
+              description: en.description,
+              sourceHash: hash,
+            },
           });
         })
-        .catch((e) => console.error('Translation error (update)', e));
+        .catch(e => console.error('Translation error (update)', e));
     }
 
     // Update handcrafted eligibility in background (best-effort)
     assessProductForHandcrafted({
       title: updatedProduct.title,
       description: updatedProduct.description,
-      categorySlug: undefined
-    }).then(async (res) => {
-      try {
-        await prisma.product.update({
-          where: { id: updatedProduct.id },
-          data: {
-            ...( {
-              eligibilityStatus: res.status,
-              eligibilityConfidence: res.confidence ?? null,
-              eligibilityReasons: res.reasons?.join('; ').slice(0, 1000) || null
-            } as Record<string, unknown>)
-          }
-        });
-      } catch (e) {
-        console.error('Failed to update eligibility', e);
-        Sentry.captureException(e);
-      }
-    }).catch((e) => console.error('Eligibility error (update)', e));
+      categorySlug: undefined,
+    })
+      .then(async res => {
+        try {
+          await prisma.product.update({
+            where: { id: updatedProduct.id },
+            data: {
+              ...({
+                eligibilityStatus: res.status,
+                eligibilityConfidence: res.confidence ?? null,
+                eligibilityReasons:
+                  res.reasons?.join('; ').slice(0, 1000) || null,
+              } as Record<string, unknown>),
+            },
+          });
+        } catch (e) {
+          console.error('Failed to update eligibility', e);
+          Sentry.captureException(e);
+        }
+      })
+      .catch(e => console.error('Eligibility error (update)', e));
 
     return NextResponse.json(updatedProduct);
   } catch (error) {
@@ -170,14 +218,14 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
-  if (!session?.user?.email || session.user.role !== 'SELLER') {
+
+    if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-  Sentry.setUser({ email: session.user.email });
+    Sentry.setUser({ email: session.user.email });
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -187,8 +235,8 @@ export async function DELETE(
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        sellerId: user.id
-      }
+        sellerId: user.id,
+      },
     });
 
     if (!product) {
@@ -196,7 +244,7 @@ export async function DELETE(
     }
 
     await prisma.product.delete({
-      where: { id: params.id }
+      where: { id: params.id },
     });
 
     return NextResponse.json({ message: 'Product deleted successfully' });

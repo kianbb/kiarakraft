@@ -3,18 +3,17 @@ import * as Sentry from '@sentry/nextjs';
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.SENTRY_ENVIRONMENT || 'development',
-  
+
   // Performance Monitoring
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-  
+
   // Session Replay for debugging
   replaysSessionSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 0.1,
   replaysOnErrorSampleRate: 1.0,
-  
+
   // Enhanced debugging in development
   debug: process.env.NODE_ENV === 'development',
-  
-  
+
   // Ignore certain errors to reduce noise
   ignoreErrors: [
     // Browser extensions
@@ -27,19 +26,17 @@ Sentry.init({
     'ChunkLoadError',
     'Loading chunk',
   ],
-  
+
   // Configure which URLs to capture
-  allowUrls: [
-    process.env.PUBLIC_APP_BASE || 'http://localhost:3000',
-  ],
-  
+  allowUrls: [process.env.PUBLIC_APP_BASE || 'http://localhost:3000'],
+
   // Enhanced context
   initialScope: {
     tags: {
       component: 'client',
     },
   },
-  
+
   beforeSend(event, hint) {
     // Filter out development errors in production
     if (process.env.NODE_ENV === 'production') {
@@ -48,7 +45,7 @@ Sentry.init({
         return null;
       }
     }
-    
+
     // Add additional context
     if (typeof window !== 'undefined') {
       event.tags = {
@@ -57,7 +54,7 @@ Sentry.init({
         userAgent: navigator.userAgent,
       };
     }
-    
+
     return event;
   },
 });

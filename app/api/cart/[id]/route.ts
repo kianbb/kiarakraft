@@ -10,17 +10,20 @@ export async function PUT(
 ) {
   // CSRF validation
   if (!validateCSRF(request)) {
-    return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'CSRF validation failed' },
+      { status: 403 }
+    );
   }
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -32,16 +35,19 @@ export async function PUT(
     const cartItem = await prisma.cartItem.findFirst({
       where: {
         id: params.id,
-        cart: { userId: user.id }
+        cart: { userId: user.id },
       },
-      include: { 
+      include: {
         product: true,
-        cart: true
-      }
+        cart: true,
+      },
     });
 
     if (!cartItem) {
-      return NextResponse.json({ error: 'Cart item not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Cart item not found' },
+        { status: 404 }
+      );
     }
 
     if (quantity <= 0) {
@@ -50,20 +56,23 @@ export async function PUT(
     }
 
     if (cartItem.product.stock < quantity) {
-      return NextResponse.json({ error: 'Insufficient stock' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Insufficient stock' },
+        { status: 400 }
+      );
     }
 
-  const updatedItem = await prisma.cartItem.update({
+    const updatedItem = await prisma.cartItem.update({
       where: { id: params.id },
       data: { quantity },
       include: {
         product: {
           include: {
-      seller: true,
-      images: true
-          }
-        }
-      }
+            seller: true,
+            images: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(updatedItem);
@@ -82,17 +91,20 @@ export async function DELETE(
 ) {
   // CSRF validation
   if (!validateCSRF(request)) {
-    return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'CSRF validation failed' },
+      { status: 403 }
+    );
   }
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -102,8 +114,8 @@ export async function DELETE(
     await prisma.cartItem.deleteMany({
       where: {
         id: params.id,
-        cart: { userId: user.id }
-      }
+        cart: { userId: user.id },
+      },
     });
 
     return NextResponse.json({ message: 'Item removed from cart' });

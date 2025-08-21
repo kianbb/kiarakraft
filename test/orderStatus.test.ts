@@ -1,15 +1,25 @@
 import assert from 'node:assert/strict';
-import { nextStatusForSeller, nextStatusForAdmin, type OrderStatus } from '../lib/orderStatus';
+import {
+  nextStatusForSeller,
+  nextStatusForAdmin,
+  type OrderStatus,
+} from '../lib/orderStatus';
 
 function testSellerRules() {
   console.log('Testing seller order status transitions...');
 
   // Single-seller order
   assert.equal(nextStatusForSeller('PAID', 'mark_shipped', true), 'SHIPPED');
-  assert.equal(nextStatusForSeller('SHIPPED', 'mark_delivered', true), 'DELIVERED');
+  assert.equal(
+    nextStatusForSeller('SHIPPED', 'mark_delivered', true),
+    'DELIVERED'
+  );
   assert.equal(nextStatusForSeller('PENDING', 'mark_shipped', true), undefined);
   assert.equal(nextStatusForSeller('PAID', 'mark_delivered', true), undefined);
-  assert.equal(nextStatusForSeller('DELIVERED', 'mark_delivered', true), undefined);
+  assert.equal(
+    nextStatusForSeller('DELIVERED', 'mark_delivered', true),
+    undefined
+  );
 
   // Multi-seller order not allowed
   assert.equal(nextStatusForSeller('PAID', 'mark_shipped', false), undefined);
@@ -34,7 +44,7 @@ function testAdminRules() {
     ['PENDING', 'mark_shipped'],
     ['PENDING', 'mark_delivered'],
     ['PAID', 'mark_delivered'],
-    ['DELIVERED', 'mark_delivered']
+    ['DELIVERED', 'mark_delivered'],
   ];
   for (const [status, action] of invalid) {
     assert.equal(nextStatusForAdmin(status, action), undefined);

@@ -7,12 +7,12 @@ interface OptimizedImageProps extends Omit<ImageProps, 'onLoad' | 'onError'> {
   fallbackSrc?: string;
 }
 
-export function OptimizedImage({ 
-  src, 
-  alt, 
+export function OptimizedImage({
+  src,
+  alt,
   fallbackSrc = '/placeholder-image.jpg',
   className = '',
-  ...props 
+  ...props
 }: OptimizedImageProps) {
   const [imgSrc, setImgSrc] = useState(src);
   const [isLoading, setIsLoading] = useState(true);

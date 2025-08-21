@@ -26,19 +26,34 @@ function getTimeZoneForLocale(locale: string): string {
   }
 }
 
-export function Providers({ children, messages, locale, session }: ProvidersProps) {
+export function Providers({
+  children,
+  messages,
+  locale,
+  session,
+}: ProvidersProps) {
   return (
     <ErrorBoundary>
       <SessionProvider session={session}>
-        <NextIntlClientProvider 
-          messages={messages} 
-          locale={locale} 
+        <NextIntlClientProvider
+          messages={messages}
+          locale={locale}
           timeZone={getTimeZoneForLocale(locale)}
-          onError={(error) => {
-            console.error('[Providers] Translation error for locale', locale, ':', error);
+          onError={error => {
+            console.error(
+              '[Providers] Translation error for locale',
+              locale,
+              ':',
+              error
+            );
           }}
           getMessageFallback={({ namespace, key }) => {
-            console.warn('[Providers] Missing translation key:', `${namespace}.${key}`, 'for locale:', locale);
+            console.warn(
+              '[Providers] Missing translation key:',
+              `${namespace}.${key}`,
+              'for locale:',
+              locale
+            );
             // Return key name instead of falling back to other locale
             return `[Missing: ${namespace}.${key}]`;
           }}

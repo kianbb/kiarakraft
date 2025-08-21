@@ -15,7 +15,9 @@ async function getSearchSuggestions(request: NextRequest) {
     const searchTerm = query.trim();
 
     // Get search suggestions using PostgreSQL trigram similarity
-    const suggestions = await prisma.$queryRaw<Array<{ suggestion: string; type: string }>>`
+    const suggestions = await prisma.$queryRaw<
+      Array<{ suggestion: string; type: string }>
+    >`
       (
         -- Product titles that start with the query (highest priority)
         SELECT DISTINCT 
@@ -67,10 +69,9 @@ async function getSearchSuggestions(request: NextRequest) {
     return NextResponse.json({
       suggestions: suggestions.map(s => ({
         text: s.suggestion.trim(),
-        type: s.type
-      }))
+        type: s.type,
+      })),
     });
-
   } catch (error) {
     console.error('Error getting search suggestions:', error);
     return NextResponse.json({ suggestions: [] });

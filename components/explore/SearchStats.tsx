@@ -12,11 +12,16 @@ interface SearchStatsProps {
   locale: string;
 }
 
-export function SearchStats({ query, totalResults, hasFilters, processingTime }: SearchStatsProps) {
+export function SearchStats({
+  query,
+  totalResults,
+  hasFilters,
+  processingTime,
+}: SearchStatsProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('explore');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
 
   if (!isHydrated) return null;
 
@@ -30,10 +35,12 @@ export function SearchStats({ query, totalResults, hasFilters, processingTime }:
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">
-              {hasQuery 
-                ? t('searchResultsCount', { count: totalResults, query: query || '' })
-                : t('resultsCount', { count: totalResults })
-              }
+              {hasQuery
+                ? t('searchResultsCount', {
+                    count: totalResults,
+                    query: query || '',
+                  })
+                : t('resultsCount', { count: totalResults })}
             </span>
           </div>
 
@@ -52,9 +59,7 @@ export function SearchStats({ query, totalResults, hasFilters, processingTime }:
         {processingTime > 0 && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
-            <span>
-              {t('searchTime', { time: processingTime.toFixed(2) })}
-            </span>
+            <span>{t('searchTime', { time: processingTime.toFixed(2) })}</span>
           </div>
         )}
       </div>
@@ -63,12 +68,11 @@ export function SearchStats({ query, totalResults, hasFilters, processingTime }:
       {hasQuery && totalResults > 0 && (
         <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
           <span>
-            {totalResults === 1 
+            {totalResults === 1
               ? t('exactMatch')
-              : totalResults > 100 
-                ? t('manyResults') 
-                : t('goodResults')
-            }
+              : totalResults > 100
+                ? t('manyResults')
+                : t('goodResults')}
           </span>
         </div>
       )}

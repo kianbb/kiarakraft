@@ -23,10 +23,12 @@ export async function generateStaticParams() {
   try {
     const products = await db.product.findMany({
       where: { active: true },
-      select: { slug: true }
+      select: { slug: true },
     });
     const locales: Array<'fa' | 'en'> = ['fa', 'en'];
-    return products.flatMap((p) => locales.map((locale) => ({ slug: p.slug, locale })));
+    return products.flatMap(p =>
+      locales.map(locale => ({ slug: p.slug, locale }))
+    );
   } catch (error) {
     console.warn('Database unavailable during static generation:', error);
     // In production, if DB fails, return a hardcoded list of known products to maintain 404 behavior
@@ -36,29 +38,39 @@ export async function generateStaticParams() {
         'handmade-ceramic-bowl',
         'silver-turquoise-necklace',
         'persian-kilim-rug',
-        'copper-engraved-plate'
+        'copper-engraved-plate',
       ];
       const locales: Array<'fa' | 'en'> = ['fa', 'en'];
-      return knownSlugs.flatMap((slug) => locales.map((locale) => ({ slug, locale })));
+      return knownSlugs.flatMap(slug =>
+        locales.map(locale => ({ slug, locale }))
+      );
     }
     // In development/CI, return empty array to allow dynamic rendering
     return [];
   }
 }
 
-type Params = { locale: "fa" | "en"; slug: string };
+type Params = { locale: 'fa' | 'en'; slug: string };
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Params;
+}): Promise<Metadata> {
   setRequestLocale(params.locale);
-  
+
   const [p, tProduct, tHome] = await Promise.all([
-    db.product.findUnique({ 
-      where: { slug: params.slug }, 
-      select: { title: true, description: true, images: { select: { url: true } } } 
+    db.product.findUnique({
+      where: { slug: params.slug },
+      select: {
+        title: true,
+        description: true,
+        images: { select: { url: true } },
+      },
     }),
     getTranslations({ locale: params.locale, namespace: 'product' }),
     // For demo products, use homepage translations to localize name/description in EN
-    getTranslations({ locale: params.locale, namespace: 'home' })
+    getTranslations({ locale: params.locale, namespace: 'home' }),
   ]);
 
   // If product does not exist, avoid throwing notFound() here to prevent potential soft 404s.
@@ -67,7 +79,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     return {
       title: tProduct('notFound'),
       description: tProduct('notFoundDescription'),
-      robots: { index: false, follow: false }
+      robots: { index: false, follow: false },
     };
   }
 
@@ -85,43 +97,49 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       // Final guard: if text still appears Persian, provide safe EN fallbacks
       const hasFa = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
       if (hasFa(title)) {
-        title = params.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        title = params.slug
+          .split('-')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
       }
       if (hasFa(description)) {
         description = tHome('hero.description');
       }
     }
   }
-  const base = "https://www.kiarakraft.com";
+  const base = 'https://www.kiarakraft.com';
   const path = `/${params.locale}/product/${params.slug}`;
   return {
-    title, 
+    title,
     description,
     alternates: {
       canonical: `${base}${path}`,
-      languages: { "fa-IR": `${base}/fa/product/${params.slug}`, "en-US": `${base}/en/product/${params.slug}` }
+      languages: {
+        'fa-IR': `${base}/fa/product/${params.slug}`,
+        'en-US': `${base}/en/product/${params.slug}`,
+      },
     },
-    openGraph: { 
-      title, 
-      description, 
-      type: "website", 
-  images: p?.images?.[0]?.url ? [p.images?.[0]?.url] : [] 
-    }
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      images: p?.images?.[0]?.url ? [p.images?.[0]?.url] : [],
+    },
   };
 }
 
 export default async function Page({ params }: { params: Params }) {
   setRequestLocale(params.locale);
-  
+
   console.log(`[DEBUG] Product page: ${params.locale}/${params.slug}`);
-  
+
   const product = await db.product.findUnique({
     where: { slug: params.slug },
-    include: { images: true, seller: true, category: true, reviews: true }
+    include: { images: true, seller: true, category: true, reviews: true },
   });
-  
+
   console.log(`[DEBUG] Product found: ${!!product}`);
-  
+
   if (!product) {
     console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
     notFound();
@@ -133,7 +151,7 @@ export default async function Page({ params }: { params: Params }) {
   const [t, tCategories, tHome] = await Promise.all([
     getTranslations({ locale: params.locale, namespace: 'product' }),
     getTranslations({ locale: params.locale, namespace: 'categories' }),
-    getTranslations({ locale: params.locale, namespace: 'home' })
+    getTranslations({ locale: params.locale, namespace: 'home' }),
   ]);
 
   // Localized fields for demo products (DB currently Persian).
@@ -144,11 +162,15 @@ export default async function Page({ params }: { params: Params }) {
     try {
       type ProductTranslationClient = {
         productTranslation: {
-          findUnique: (args: { where: { productId_locale: { productId: string; locale: string } } }) => Promise<{ title: string; description: string } | null>
-        }
+          findUnique: (args: {
+            where: { productId_locale: { productId: string; locale: string } };
+          }) => Promise<{ title: string; description: string } | null>;
+        };
       };
-      const tr = await (db as unknown as ProductTranslationClient).productTranslation.findUnique({
-        where: { productId_locale: { productId: product.id, locale: 'en' } }
+      const tr = await (
+        db as unknown as ProductTranslationClient
+      ).productTranslation.findUnique({
+        where: { productId_locale: { productId: product.id, locale: 'en' } },
       });
       if (tr) {
         translatedTitle = tr.title;
@@ -158,10 +180,16 @@ export default async function Page({ params }: { params: Params }) {
 
     // If no persisted EN translation exists, attempt on-the-fly translation as a graceful fallback
     if (!translatedTitle || !translatedDescription) {
-      const hasPersian = /[\u0600-\u06FF]/.test(product.title) || /[\u0600-\u06FF]/.test(product.description);
+      const hasPersian =
+        /[\u0600-\u06FF]/.test(product.title) ||
+        /[\u0600-\u06FF]/.test(product.description);
       if (hasPersian) {
         try {
-          const en = await translateProductFields({ title: product.title, description: product.description }, 'fa', 'en');
+          const en = await translateProductFields(
+            { title: product.title, description: product.description },
+            'fa',
+            'en'
+          );
           translatedTitle = translatedTitle || en.title;
           translatedDescription = translatedDescription || en.description;
         } catch {
@@ -174,10 +202,10 @@ export default async function Page({ params }: { params: Params }) {
   const localized = {
     title: translatedTitle ?? product.title,
     description: translatedDescription ?? product.description,
-  categoryName: product.category?.name ?? '',
-  sellerDisplayName: product.seller.displayName || product.seller.shopName,
-  sellerRegion: product.seller.region ?? undefined,
-  sellerBio: product.seller.bio ?? undefined
+    categoryName: product.category?.name ?? '',
+    sellerDisplayName: product.seller.displayName || product.seller.shopName,
+    sellerRegion: product.seller.region ?? undefined,
+    sellerBio: product.seller.bio ?? undefined,
   };
   if (params.locale === 'en') {
     if (product.slug === 'handmade-ceramic-bowl') {
@@ -185,7 +213,9 @@ export default async function Page({ params }: { params: Params }) {
       localized.description = tHome('sampleProducts.ceramicBowl.description');
     } else if (product.slug === 'silver-turquoise-necklace') {
       localized.title = tHome('sampleProducts.silverNecklace.title');
-      localized.description = tHome('sampleProducts.silverNecklace.description');
+      localized.description = tHome(
+        'sampleProducts.silverNecklace.description'
+      );
     }
     // Final guard: hide Persian-only description/title if translation still not available
     const hasFa = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
@@ -193,12 +223,17 @@ export default async function Page({ params }: { params: Params }) {
       localized.description = '';
     }
     if (hasFa(localized.title)) {
-      localized.title = product.slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      localized.title = product.slug
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
     }
-  // Ensure category is localized even if DB name is Persian
+    // Ensure category is localized even if DB name is Persian
     // Category label should be localized regardless of seed data
     if (product.category?.slug) {
-      localized.categoryName = tCategories(product.category.slug as unknown as string);
+      localized.categoryName = tCategories(
+        product.category.slug as unknown as string
+      );
     }
     // Seller fields: use English display name for demo, transliterate simple region, hide Persian bio
     localized.sellerDisplayName = tHome('sampleProducts.shopName');
@@ -210,140 +245,155 @@ export default async function Page({ params }: { params: Params }) {
   } else {
     if (product.category?.slug) {
       // Always prefer i18n category labels over DB mixed-language names
-      localized.categoryName = tCategories(product.category.slug as unknown as string);
+      localized.categoryName = tCategories(
+        product.category.slug as unknown as string
+      );
     }
   }
 
   // Build localized JSON-LD after computing localized fields
   const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
+    '@context': 'https://schema.org',
+    '@type': 'Product',
     name: localized.title,
     description: localized.description,
-    image: product.images.map((i) => i.url),
-    brand: "Kiara Kraft",
+    image: product.images.map(i => i.url),
+    brand: 'Kiara Kraft',
     offers: {
-      "@type": "Offer",
-      priceCurrency: "IRR",
+      '@type': 'Offer',
+      priceCurrency: 'IRR',
       price: String(tomanToIrr(product.priceToman)),
-      availability: product.stock > 0 ? "http://schema.org/InStock" : "http://schema.org/OutOfStock"
-    }
+      availability:
+        product.stock > 0
+          ? 'http://schema.org/InStock'
+          : 'http://schema.org/OutOfStock',
+    },
   };
 
   return (
     <>
       <ProductViewTracker slug={params.slug} locale={params.locale} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <main>
-  {/* render gallery + details */}
-      <div className="min-h-screen py-8">
-        <div className="container mx-auto px-4">
-          {/* Back Button */}
-          <Link href={`/${params.locale}/explore`} className="inline-flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            {t('backToExplore')}
-          </Link>
+        {/* render gallery + details */}
+        <div className="min-h-screen py-8">
+          <div className="container mx-auto px-4">
+            {/* Back Button */}
+            <Link
+              href={`/${params.locale}/explore`}
+              className="inline-flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t('backToExplore')}
+            </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Product Images */}
-            <div className="space-y-4">
-              <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                <Image
-                  src={product.images?.[0]?.url || '/placeholder-product.jpg'}
-                  alt={product.images?.[0]?.alt || product.title}
-                  fill
-                  className="object-cover"
-                  priority
-                />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              {/* Product Images */}
+              <div className="space-y-4">
+                <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  <Image
+                    src={product.images?.[0]?.url || '/placeholder-product.jpg'}
+                    alt={product.images?.[0]?.alt || product.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Product Details */}
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                  {localized.title}
-                </h1>
-                
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-3xl font-bold text-primary">
-                    {formatPrice(product.priceToman, params.locale)}
+              {/* Product Details */}
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-3xl md:text-4xl font-bold mb-4">
+                    {localized.title}
+                  </h1>
+
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="text-3xl font-bold text-primary">
+                      {formatPrice(product.priceToman, params.locale)}
+                    </div>
+                    {product.stock > 0 ? (
+                      <Badge variant="secondary">{t('inStock')}</Badge>
+                    ) : (
+                      <Badge variant="destructive">{t('outOfStock')}</Badge>
+                    )}
                   </div>
-                  {product.stock > 0 ? (
-                    <Badge variant="secondary">{t('inStock')}</Badge>
-                  ) : (
-                    <Badge variant="destructive">{t('outOfStock')}</Badge>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <RatingStars rating={4.5} />
+                    <span className="text-sm text-muted-foreground">
+                      (4.5) • 23 {t('reviews')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Seller Info */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Store className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="font-semibold">
+                        {localized.sellerDisplayName}
+                      </div>
+                      {localized.sellerRegion && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          {localized.sellerRegion}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {localized.sellerBio && (
+                    <p className="text-sm text-muted-foreground">
+                      {localized.sellerBio}
+                    </p>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 mb-4">
-                  <RatingStars rating={4.5} />
-                  <span className="text-sm text-muted-foreground">
-                    (4.5) • 23 {t('reviews')}
-                  </span>
+                {/* Description */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">
+                    {t('description')}
+                  </h3>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {localized.description}
+                  </p>
                 </div>
-              </div>
 
-              {/* Seller Info */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <Store className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <div className="font-semibold">
-                      {localized.sellerDisplayName}
-                    </div>
-                    {localized.sellerRegion && (
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        {localized.sellerRegion}
-                      </div>
-                    )}
+                {/* Category */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-medium">
+                      {t('category')}:
+                    </span>
+                    <Badge variant="outline">{localized.categoryName}</Badge>
                   </div>
                 </div>
-                {localized.sellerBio && (
-                  <p className="text-sm text-muted-foreground">
-                    {localized.sellerBio}
-                  </p>
+
+                {/* Purchase Section */}
+                {product.stock > 0 && (
+                  <div className="border-t pt-6 space-y-4">
+                    <AddToCartButton product={product} />
+
+                    <div className="flex gap-3">
+                      <Button variant="outline" size="lg" className="flex-1">
+                        <Heart className="h-4 w-4 mr-2" />
+                        {t('addToWishlist')}
+                      </Button>
+
+                      <Button variant="outline" size="lg">
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {/* Description */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">{t('description')}</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {localized.description}
-                </p>
-              </div>
-
-              {/* Category */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sm font-medium">{t('category')}:</span>
-                  <Badge variant="outline">{localized.categoryName}</Badge>
-                </div>
-              </div>
-
-              {/* Purchase Section */}
-              {product.stock > 0 && (
-                <div className="border-t pt-6 space-y-4">
-                  <AddToCartButton product={product} />
-                  
-                  <div className="flex gap-3">
-                    <Button variant="outline" size="lg" className="flex-1">
-                      <Heart className="h-4 w-4 mr-2" />
-                      {t('addToWishlist')}
-                    </Button>
-                    
-                    <Button variant="outline" size="lg">
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
-      </div>
       </main>
     </>
   );

@@ -33,15 +33,22 @@ const CATEGORY_URLS: Record<string, string[]> = {
 
 function stablePick<T>(arr: T[], key: string): T {
   let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash) + key.charCodeAt(i);
+  for (let i = 0; i < key.length; i++)
+    hash = (hash << 5) - hash + key.charCodeAt(i);
   const idx = Math.abs(hash) % Math.max(1, arr.length);
   return arr[idx];
 }
 
-async function fetchImageBuffer(url: string, timeoutMs = 10000): Promise<Buffer> {
+async function fetchImageBuffer(
+  url: string,
+  timeoutMs = 10000
+): Promise<Buffer> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  const resp = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'KiaraKraft-Script/1.0' } });
+  const resp = await fetch(url, {
+    signal: ctrl.signal,
+    headers: { 'User-Agent': 'KiaraKraft-Script/1.0' },
+  });
   clearTimeout(t);
   if (!resp.ok) throw new Error(`fetch ${resp.status}`);
   const ab = await resp.arrayBuffer();
@@ -51,8 +58,11 @@ async function fetchImageBuffer(url: string, timeoutMs = 10000): Promise<Buffer>
 async function main() {
   console.log('🔄 Uploading curated category images to Cloudinary...');
 
-  const categories = await prisma.category.findMany({ select: { id: true, slug: true, name: true } });
-  let uploaded = 0, skipped = 0;
+  const categories = await prisma.category.findMany({
+    select: { id: true, slug: true, name: true },
+  });
+  let uploaded = 0,
+    skipped = 0;
   for (const c of categories) {
     const bucket = CATEGORY_URLS[c.slug];
     if (!bucket || !bucket.length) {
@@ -63,7 +73,11 @@ async function main() {
 
     try {
       const stable = stablePick(bucket, c.slug);
-      const candidates = [stable, ...bucket.filter(u => u !== stable), CATEGORY_IMAGE_FALLBACKS[c.slug]].filter(Boolean) as string[];
+      const candidates = [
+        stable,
+        ...bucket.filter(u => u !== stable),
+        CATEGORY_IMAGE_FALLBACKS[c.slug],
+      ].filter(Boolean) as string[];
       console.log(`→ ${c.name} (${c.slug})`);
       let buf: Buffer | null = null;
       let usedUrl: string | undefined;
@@ -79,7 +93,7 @@ async function main() {
       }
       if (!buf) throw lastErr || new Error('No candidate image succeeded');
       // Public ID equals slug so lib/assets.ts URLs resolve
-  await uploadImageToCloudinary(buf, {
+      await uploadImageToCloudinary(buf, {
         folder: 'kiarakraft/categories',
         public_id: c.slug,
         width: 800,
@@ -87,7 +101,7 @@ async function main() {
         crop: 'fill',
       });
       uploaded++;
-  if (usedUrl) console.log(`   ✓ from ${usedUrl}`);
+      if (usedUrl) console.log(`   ✓ from ${usedUrl}`);
     } catch (e) {
       console.error(`✗ Failed for ${c.slug}:`, e);
     }

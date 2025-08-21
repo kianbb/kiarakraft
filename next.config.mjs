@@ -61,7 +61,7 @@ const nextConfig = {
   swcMinify: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '127.0.0.1:3000']
+      allowedOrigins: ['localhost:3000', '127.0.0.1:3000'],
     },
     optimizePackageImports: ['lucide-react', '@/components/ui'],
   },
@@ -74,29 +74,29 @@ const nextConfig = {
       headers: [
         {
           key: 'X-DNS-Prefetch-Control',
-          value: 'on'
+          value: 'on',
         },
         {
           key: 'X-Frame-Options',
-          value: 'DENY'
+          value: 'DENY',
         },
         {
           key: 'X-Content-Type-Options',
-          value: 'nosniff'
+          value: 'nosniff',
         },
         {
           key: 'Referrer-Policy',
-          value: 'origin-when-cross-origin'
+          value: 'origin-when-cross-origin',
         },
         // Enforced CSP (switched from Report-Only after validation)
         {
           key: 'Content-Security-Policy',
-          value: makeCsp()
+          value: makeCsp(),
         },
         {
           key: 'Strict-Transport-Security',
-          value: 'max-age=31536000; includeSubDomains'
-        }
+          value: 'max-age=31536000; includeSubDomains',
+        },
       ],
     },
     {
@@ -104,45 +104,45 @@ const nextConfig = {
       headers: [
         {
           key: 'Cache-Control',
-          value: 'public, max-age=31536000, immutable'
-        }
-      ]
+          value: 'public, max-age=31536000, immutable',
+        },
+      ],
     },
     {
       source: '/_next/image/:path*',
       headers: [
         {
           key: 'Cache-Control',
-          value: 'public, max-age=31536000, immutable'
-        }
-      ]
+          value: 'public, max-age=31536000, immutable',
+        },
+      ],
     },
     {
       source: '/sw.js',
       headers: [
         {
           key: 'Content-Type',
-          value: 'application/javascript'
+          value: 'application/javascript',
         },
         {
           key: 'Service-Worker-Allowed',
-          value: '/'
+          value: '/',
         },
         {
           key: 'Cache-Control',
-          value: 'no-cache, no-store, must-revalidate'
-        }
-      ]
+          value: 'no-cache, no-store, must-revalidate',
+        },
+      ],
     },
     {
       source: '/manifest.webmanifest',
       headers: [
         {
           key: 'Content-Type',
-          value: 'application/manifest+json'
-        }
-      ]
-    }
+          value: 'application/manifest+json',
+        },
+      ],
+    },
   ],
   eslint: {
     // Enforce ESLint checks during builds for better code quality
@@ -152,7 +152,7 @@ const nextConfig = {
     // Enforce TypeScript checks during builds to prevent runtime errors
     ignoreBuildErrors: false,
   },
-  webpack: (config) => {
+  webpack: config => {
     config.ignoreWarnings = [
       // Silence known benign OTel/Sentry dynamic require warnings
       /Critical dependency: the request of a dependency is an expression/,

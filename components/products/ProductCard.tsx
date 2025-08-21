@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import React from 'react';
 import Image from 'next/image';
@@ -12,7 +12,11 @@ import { RatingStars } from '@/components/products/RatingStars';
 import { Price } from '@/components/ui/price';
 import { VerifiedBadge } from '@/components/ui/verified-badge';
 import { cn } from '@/lib/utils';
-import { isFavorite, toggleFavorite, onFavoritesUpdated } from '@/lib/favorites';
+import {
+  isFavorite,
+  toggleFavorite,
+  onFavoritesUpdated,
+} from '@/lib/favorites';
 
 interface ProductCardProps {
   product: {
@@ -33,7 +37,11 @@ interface ProductCardProps {
   className?: string;
 }
 
-export const ProductCard = React.memo(function ProductCard({ product, compact = false, className }: ProductCardProps) {
+export const ProductCard = React.memo(function ProductCard({
+  product,
+  compact = false,
+  className,
+}: ProductCardProps) {
   // Keep hook order stable: call hooks unconditionally and use safe fallback until hydrated
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [addingToCart, setAddingToCart] = React.useState(false);
@@ -46,16 +54,21 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   const { data: session } = useSession();
   const router = useRouter();
   const locale = isHydrated ? _locale : 'en';
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
-  const tProduct = isHydrated ? _tProduct : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const tProduct = isHydrated
+    ? _tProduct
+    : (((k: string) => k) as (k: string) => string);
   // If we're on EN and the description is Persian, suppress it until translation exists
   const isPersian = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
-  const displayDescription = locale === 'en' && isPersian(product.description)
-    ? ''
-    : product.description;
-  
+  const displayDescription =
+    locale === 'en' && isPersian(product.description)
+      ? ''
+      : product.description;
+
   const productUrl = `/${locale}/product/${product.slug}`;
-  const mainImage = imageError ? '/kk-logo-original.png' : (product.images[0]?.url || '/kk-logo-original.png');
+  const mainImage = imageError
+    ? '/kk-logo-original.png'
+    : product.images[0]?.url || '/kk-logo-original.png';
   const isOutOfStock = product.stock === 0;
 
   // Initialize and subscribe to favorites state
@@ -63,13 +76,15 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
     if (typeof window === 'undefined') return;
     setFavorite(isFavorite(product.id));
     const off = onFavoritesUpdated(() => setFavorite(isFavorite(product.id)));
-  return () => { off(); };
+    return () => {
+      off();
+    };
   }, [product.id]);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!session) {
       router.push(`/${locale}/auth/login`);
       return;
@@ -82,8 +97,8 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: product.id,
-          quantity: 1
-        })
+          quantity: 1,
+        }),
       });
 
       if (response.ok) {
@@ -97,17 +112,21 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
         type ApiError = { error?: string; message?: string };
         let payload: ApiError | null = null;
         try {
-          payload = await response.json() as ApiError;
+          payload = (await response.json()) as ApiError;
         } catch {
           payload = null;
         }
         const serverMsg = payload?.error || payload?.message;
-        const msg = serverMsg ? `${serverMsg} (${response.status})` : `Failed to add to cart (${response.status})`;
+        const msg = serverMsg
+          ? `${serverMsg} (${response.status})`
+          : `Failed to add to cart (${response.status})`;
         throw new Error(msg);
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      const message = (error as Error)?.message || 'Failed to add item to cart. Please try again.';
+      const message =
+        (error as Error)?.message ||
+        'Failed to add item to cart. Please try again.';
       alert(message);
     } finally {
       setAddingToCart(false);
@@ -127,14 +146,21 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
   };
 
   return (
-  <Link href={productUrl} prefetch={false} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg">
-      <article className={cn(
-        'group bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1',
-        compact ? 'max-w-sm' : 'max-w-sm',
-        className
-      )} aria-labelledby={`product-title-${product.id}`}>
+    <Link
+      href={productUrl}
+      prefetch={false}
+      className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+    >
+      <article
+        className={cn(
+          'group bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1',
+          compact ? 'max-w-sm' : 'max-w-sm',
+          className
+        )}
+        aria-labelledby={`product-title-${product.id}`}
+      >
         {/* Image Section */}
-    <div className="relative aspect-square overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-muted">
           <Image
             src={mainImage}
             alt={product.images[0]?.alt || product.title}
@@ -147,7 +173,7 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
             onError={() => setImageError(true)}
           />
-          
+
           {/* Overlay Actions */}
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
@@ -157,24 +183,32 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
               onClick={handleToggleFavorite}
               aria-label={`Add ${product.title} to favorites`}
             >
-              <Heart className={cn("w-4 h-4", favorite ? "fill-red-500 text-red-500" : "")} aria-hidden="true" />
+              <Heart
+                className={cn(
+                  'w-4 h-4',
+                  favorite ? 'fill-red-500 text-red-500' : ''
+                )}
+                aria-hidden="true"
+              />
             </Button>
           </div>
 
           {/* Stock Status */}
-      {isOutOfStock && (
+          {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
               <span className="text-white font-medium bg-destructive px-3 py-1 rounded-full text-sm">
-        {isHydrated ? t('outOfStock') : ''}
+                {isHydrated ? t('outOfStock') : ''}
               </span>
             </div>
           )}
 
           {/* Low Stock Warning */}
-      {!isOutOfStock && product.stock <= 3 && (
+          {!isOutOfStock && product.stock <= 3 && (
             <div className="absolute top-2 left-2">
               <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-        {isHydrated ? `${product.stock} ${t('leftInStock')}` : `${product.stock}`}
+                {isHydrated
+                  ? `${product.stock} ${t('leftInStock')}`
+                  : `${product.stock}`}
               </span>
             </div>
           )}
@@ -185,17 +219,22 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           {/* Seller Info */}
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs text-muted-foreground">
-              {locale === 'en' ? product.seller.shopName : product.seller.displayName}
+              {locale === 'en'
+                ? product.seller.shopName
+                : product.seller.displayName}
             </span>
-            <VerifiedBadge 
-              verified={product.seller.verified || false} 
-              size="sm" 
-              variant="compact" 
+            <VerifiedBadge
+              verified={product.seller.verified || false}
+              size="sm"
+              variant="compact"
             />
           </div>
 
           {/* Title */}
-          <h3 id={`product-title-${product.id}`} className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+          <h3
+            id={`product-title-${product.id}`}
+            className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors"
+          >
             {product.title}
           </h3>
 
@@ -214,7 +253,10 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
           {/* Price and Actions */}
           <div className="flex items-center justify-between mt-4">
             <div className="flex flex-col">
-              <Price amount={product.priceToman} className="text-lg font-bold text-foreground" />
+              <Price
+                amount={product.priceToman}
+                className="text-lg font-bold text-foreground"
+              />
             </div>
 
             <Button
@@ -224,7 +266,10 @@ export const ProductCard = React.memo(function ProductCard({ product, compact = 
               className="min-w-[40px]"
               aria-label={`Add ${product.title} to cart`}
             >
-              <ShoppingCart className={cn("w-4 h-4", addingToCart && "animate-pulse")} aria-hidden="true" />
+              <ShoppingCart
+                className={cn('w-4 h-4', addingToCart && 'animate-pulse')}
+                aria-hidden="true"
+              />
             </Button>
           </div>
         </div>

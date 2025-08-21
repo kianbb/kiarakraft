@@ -9,7 +9,7 @@ on:
         default: 'production'
         type: choice
         options:
-        - production
+          - production
       confirm:
         description: 'Type "SEED" to confirm seeding production database'
         required: true
@@ -20,7 +20,7 @@ jobs:
     name: Seed Production Database
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    
+
     steps:
       - name: Validate confirmation
         run: |
@@ -29,25 +29,27 @@ jobs:
             exit 1
           fi
           echo "✅ Confirmation validated"
-        
+
       - name: Checkout code
+        dependabot/github_actions/actions/checkout-5
         uses: actions/checkout@v5
-        
+
+        main
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Generate Prisma Client
         run: npx prisma generate
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DIRECT_URL }}
-        
+
       - name: Check database connection
         run: |
           echo "SELECT 1;" | npx prisma db execute --stdin || echo "Database connection failed"
@@ -55,13 +57,13 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DIRECT_URL }}
         continue-on-error: true
-        
+
       - name: Run production seed
         run: npm run db:seed:production
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DIRECT_URL }}
-          
+
       - name: Verify seeded data
         run: |
           echo "📊 Checking seeded data..."

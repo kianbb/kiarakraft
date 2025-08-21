@@ -5,7 +5,11 @@ import { POST, __setTestOverrides } from '../app/api/payments/create/route';
 // Minimal fake types
 type User = { id: string; email: string };
 
-function makeJsonRequest(url: string, body: any, headers?: Record<string, string>) {
+function makeJsonRequest(
+  url: string,
+  body: any,
+  headers?: Record<string, string>
+) {
   return new NextRequest(url, {
     method: 'POST',
     headers: new Headers({
@@ -29,15 +33,25 @@ async function run() {
 
   const prisma = {
     user: {
-      findUnique: async ({ where: { email } }: any) => (email === fakeUser.email ? fakeUser : null),
+      findUnique: async ({ where: { email } }: any) =>
+        email === fakeUser.email ? fakeUser : null,
     },
     order: {
-      findFirst: async () => ({ id: 'o1', userId: fakeUser.id, status: 'PENDING', totalToman: 1000 }),
+      findFirst: async () => ({
+        id: 'o1',
+        userId: fakeUser.id,
+        status: 'PENDING',
+        totalToman: 1000,
+      }),
       findUnique: async ({ where: { id } }: any) => ({ id, status: 'PENDING' }),
     },
     orderItem: {
       findMany: async () => [
-        { productId: 'p1', quantity: 2, product: { title: 'X', stock: 1, active: true } }, // insufficient
+        {
+          productId: 'p1',
+          quantity: 2,
+          product: { title: 'X', stock: 1, active: true },
+        }, // insufficient
       ],
     },
     $transaction: async (fn: any) => {
@@ -56,25 +70,36 @@ async function run() {
 
   const adapter = {
     gateway: 'OFFLINE',
-    create: async () => ({ authority: 'a1', redirectUrl: 'http://pay.local/ok' }),
+    create: async () => ({
+      authority: 'a1',
+      redirectUrl: 'http://pay.local/ok',
+    }),
   } as any;
 
   __setTestOverrides({ getServerSession, prisma, adapter });
 
   // Act: call route
-  const req = makeJsonRequest('http://localhost:3000/api/payments/create', { orderId: 'o1' });
+  const req = makeJsonRequest('http://localhost:3000/api/payments/create', {
+    orderId: 'o1',
+  });
   const res = await POST(req);
   const status = (res as any).status || res.status;
-  const json = await (res as any).json?.() ?? JSON.parse(await res.text());
+  const json = (await (res as any).json?.()) ?? JSON.parse(await res.text());
 
   // Assert 409 flags & structure
   assert.equal(status, 409, 'should return 409 on insufficient stock');
   assert.equal(json.error, 'insufficient_stock');
   assert.equal(json.orderCanceled, true);
   assert.equal(json.cartRestored, true);
-  assert.ok(Array.isArray(json.details) && json.details.length > 0, 'details should list issues');
+  assert.ok(
+    Array.isArray(json.details) && json.details.length > 0,
+    'details should list issues'
+  );
 
   console.log('✓ API payments/create 409 test passed');
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

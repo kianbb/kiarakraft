@@ -12,20 +12,73 @@ const prisma = new PrismaClient();
 const createTestImage = (): Buffer => {
   // 1x1 transparent PNG (smallest valid PNG file)
   const pngData = Buffer.from([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-    0x00, 0x00, 0x00, 0x0d, // IHDR chunk length
-    0x49, 0x48, 0x44, 0x52, // IHDR
-    0x00, 0x00, 0x00, 0x01, // width: 1
-    0x00, 0x00, 0x00, 0x01, // height: 1
-    0x08, 0x06, 0x00, 0x00, 0x00, // bit depth: 8, color type: 6 (RGBA), compression: 0, filter: 0, interlace: 0
-    0x1f, 0x15, 0xc4, 0x89, // CRC
-    0x00, 0x00, 0x00, 0x0a, // IDAT chunk length
-    0x49, 0x44, 0x41, 0x54, // IDAT
-    0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, // compressed image data
-    0x0d, 0x0a, 0x2d, 0xb4, // CRC
-    0x00, 0x00, 0x00, 0x00, // IEND chunk length
-    0x49, 0x45, 0x4e, 0x44, // IEND
-    0xae, 0x42, 0x60, 0x82  // CRC
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a, // PNG signature
+    0x00,
+    0x00,
+    0x00,
+    0x0d, // IHDR chunk length
+    0x49,
+    0x48,
+    0x44,
+    0x52, // IHDR
+    0x00,
+    0x00,
+    0x00,
+    0x01, // width: 1
+    0x00,
+    0x00,
+    0x00,
+    0x01, // height: 1
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00, // bit depth: 8, color type: 6 (RGBA), compression: 0, filter: 0, interlace: 0
+    0x1f,
+    0x15,
+    0xc4,
+    0x89, // CRC
+    0x00,
+    0x00,
+    0x00,
+    0x0a, // IDAT chunk length
+    0x49,
+    0x44,
+    0x41,
+    0x54, // IDAT
+    0x78,
+    0x9c,
+    0x63,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x05,
+    0x00,
+    0x01, // compressed image data
+    0x0d,
+    0x0a,
+    0x2d,
+    0xb4, // CRC
+    0x00,
+    0x00,
+    0x00,
+    0x00, // IEND chunk length
+    0x49,
+    0x45,
+    0x4e,
+    0x44, // IEND
+    0xae,
+    0x42,
+    0x60,
+    0x82, // CRC
   ]);
   return pngData;
 };
@@ -37,7 +90,7 @@ async function testImageUploadThroughAPI() {
     // First, verify we have a test product to attach images to
     const testProduct = await prisma.product.findUniqueOrThrow({
       where: { slug: 'audit-test-product' },
-      include: { images: true }
+      include: { images: true },
     });
 
     console.log(`✅ Test product found: ${testProduct.title}`);
@@ -56,24 +109,25 @@ async function testImageUploadThroughAPI() {
     console.log('   1. Image validation (size, type)');
     console.log('   2. Cloudinary upload to kiarakraft/ folder');
     console.log('   3. Database record creation');
-    console.log('   4. URL format: https://res.cloudinary.com/.../image/upload/...');
+    console.log(
+      '   4. URL format: https://res.cloudinary.com/.../image/upload/...'
+    );
 
     // Since we can't easily simulate the API call with authentication in this script,
     // let's test the Cloudinary upload function directly
-    
+
     console.log('\n🔄 Testing direct Cloudinary upload function...');
 
     // Check if we can import Cloudinary (requires env vars to be set)
     try {
       // This will test if Cloudinary is configured
       const { uploadImageToCloudinary } = await import('../lib/cloudinary');
-      
+
       console.log('✅ Cloudinary module imported successfully');
-      
+
       // Note: Actual upload would require valid Cloudinary credentials
       console.log('⚠️  Cloudinary upload test requires valid credentials');
       console.log('   Set CLOUDINARY_* env vars to test actual upload');
-
     } catch (error) {
       console.log('❌ Cloudinary configuration issue:');
       console.log(`   Error: ${(error as Error).message}`);
@@ -106,24 +160,23 @@ async function testImageUploadThroughAPI() {
       testPassed: true,
       productId: testProduct.id,
       existingImages: testProduct.images.length,
-      uploadEndpoint: '/api/upload/image'
+      uploadEndpoint: '/api/upload/image',
     };
-
   } catch (error) {
     console.error('❌ Test failed:', error);
     return {
       testPassed: false,
-      error: (error as Error).message
+      error: (error as Error).message,
     };
   }
 }
 
 async function main() {
   console.log('🧪 IMAGE UPLOAD TEST');
-  console.log('=' .repeat(30));
-  
+  console.log('='.repeat(30));
+
   const result = await testImageUploadThroughAPI();
-  
+
   if (result.testPassed) {
     console.log('\n✅ IMAGE UPLOAD AUDIT: STRUCTURE VERIFIED');
   } else {
@@ -135,7 +188,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch(e => {
     console.error(e);
     process.exit(1);
   })

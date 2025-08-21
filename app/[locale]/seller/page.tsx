@@ -10,16 +10,20 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
-import { OrderWithItems, ProductWithRelations, SellerStats } from '@/types/database';
-import { 
-  Package, 
-  ShoppingCart, 
-  DollarSign, 
+import {
+  OrderWithItems,
+  ProductWithRelations,
+  SellerStats,
+} from '@/types/database';
+import {
+  Package,
+  ShoppingCart,
+  DollarSign,
   Star,
   Plus,
   Eye,
   Edit,
-  Users
+  Users,
 } from 'lucide-react';
 
 export default function SellerDashboard() {
@@ -29,10 +33,12 @@ export default function SellerDashboard() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<OrderWithItems[]>([]);
-  const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>([]);
+  const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
 
@@ -41,7 +47,7 @@ export default function SellerDashboard() {
       const [statsRes, ordersRes, productsRes] = await Promise.all([
         fetch('/api/seller/stats'),
         fetch('/api/seller/orders?limit=5'),
-        fetch('/api/seller/products?limit=5')
+        fetch('/api/seller/products?limit=5'),
       ]);
 
       if (statsRes.ok) {
@@ -62,7 +68,8 @@ export default function SellerDashboard() {
       // Fetch seller profile for verification state
       const profileRes = await fetch('/api/seller/profile');
       if (profileRes.ok) {
-        const profileData: { sellerProfile?: { verified?: boolean } } = await profileRes.json();
+        const profileData: { sellerProfile?: { verified?: boolean } } =
+          await profileRes.json();
         setIsVerified(Boolean(profileData?.sellerProfile?.verified));
       }
     } catch (error) {
@@ -74,7 +81,7 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push(`/${locale}/auth/login`);
       return;
@@ -122,14 +129,19 @@ export default function SellerDashboard() {
         {isVerified === false && (
           <div className="mb-8 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
             <p className="text-sm text-yellow-900">
-              {t('verificationPendingMessage') || 'Your account is not verified yet. New products will remain inactive until verification is complete.'}
+              {t('verificationPendingMessage') ||
+                'Your account is not verified yet. New products will remain inactive until verification is complete.'}
             </p>
             <div className="mt-3 flex gap-2">
               <Link href={`/${locale}/seller/onboarding`}>
-                <Button size="sm">{t('completeOnboarding') || 'Complete onboarding'}</Button>
+                <Button size="sm">
+                  {t('completeOnboarding') || 'Complete onboarding'}
+                </Button>
               </Link>
               <Link href={`/${locale}/seller/profile`}>
-                <Button variant="outline" size="sm">{t('updateProfile') || 'Update Profile'}</Button>
+                <Button variant="outline" size="sm">
+                  {t('updateProfile') || 'Update Profile'}
+                </Button>
               </Link>
             </div>
           </div>
@@ -140,38 +152,52 @@ export default function SellerDashboard() {
           <div className="bg-white p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">{t('totalProducts')}</h3>
-                <p className="text-2xl font-bold">{stats?.totalProducts || 0}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  {t('totalProducts')}
+                </h3>
+                <p className="text-2xl font-bold">
+                  {stats?.totalProducts || 0}
+                </p>
               </div>
               <Package className="h-8 w-8 text-blue-600" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">{t('totalOrders')}</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  {t('totalOrders')}
+                </h3>
                 <p className="text-2xl font-bold">{stats?.totalOrders || 0}</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-green-600" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">{t('totalRevenue')}</h3>
-                <p className="text-2xl font-bold">{formatPrice(stats?.totalRevenue || 0)}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  {t('totalRevenue')}
+                </h3>
+                <p className="text-2xl font-bold">
+                  {formatPrice(stats?.totalRevenue || 0)}
+                </p>
               </div>
               <DollarSign className="h-8 w-8 text-purple-600" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">{t('averageRating')}</h3>
-                <p className="text-2xl font-bold">{stats?.averageRating || '0.0'}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  {t('averageRating')}
+                </h3>
+                <p className="text-2xl font-bold">
+                  {stats?.averageRating || '0.0'}
+                </p>
               </div>
               <Star className="h-8 w-8 text-yellow-600" />
             </div>
@@ -186,33 +212,39 @@ export default function SellerDashboard() {
                 <Package className="h-6 w-6 text-blue-600" />
                 <h3 className="font-semibold">{t('manageProducts')}</h3>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">{t('addEditProducts')}</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {t('addEditProducts')}
+              </p>
               <Button variant="outline" size="sm">
                 {t('viewProducts')}
               </Button>
             </div>
           </Link>
-          
+
           <Link href={`/${locale}/seller/orders`}>
             <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center gap-3 mb-3">
                 <ShoppingCart className="h-6 w-6 text-green-600" />
                 <h3 className="font-semibold">{t('viewOrders')}</h3>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">{t('manageCustomerOrders')}</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {t('manageCustomerOrders')}
+              </p>
               <Button variant="outline" size="sm">
                 {t('viewOrders')}
               </Button>
             </div>
           </Link>
-          
+
           <Link href={`/${locale}/seller/profile`}>
             <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center gap-3 mb-3">
                 <Users className="h-6 w-6 text-purple-600" />
                 <h3 className="font-semibold">{t('updateProfile')}</h3>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">{t('editShopInfo')}</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {t('editShopInfo')}
+              </p>
               <Button variant="outline" size="sm">
                 {t('editProfile')}
               </Button>
@@ -226,14 +258,19 @@ export default function SellerDashboard() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">{t('recentOrders')}</h2>
               <Link href={`/${locale}/seller/orders`}>
-                <Button variant="outline" size="sm">{t('viewAll')}</Button>
+                <Button variant="outline" size="sm">
+                  {t('viewAll')}
+                </Button>
               </Link>
             </div>
 
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
                 {recentOrders.map((order: OrderWithItems) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 border rounded">
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between p-3 border rounded"
+                  >
                     <div>
                       <div className="font-medium">#{order.id.slice(-8)}</div>
                       <div className="text-sm text-muted-foreground">
@@ -241,8 +278,14 @@ export default function SellerDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">{formatPrice(order.totalToman)}</div>
-                      <Badge variant={order.status === 'PENDING' ? 'secondary' : 'default'}>
+                      <div className="font-semibold">
+                        {formatPrice(order.totalToman)}
+                      </div>
+                      <Badge
+                        variant={
+                          order.status === 'PENDING' ? 'secondary' : 'default'
+                        }
+                      >
                         {t(`status_${order.status.toLowerCase()}`)}
                       </Badge>
                     </div>
@@ -250,7 +293,9 @@ export default function SellerDashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">{t('noOrders')}</p>
+              <p className="text-muted-foreground text-center py-8">
+                {t('noOrders')}
+              </p>
             )}
           </div>
 
@@ -266,7 +311,9 @@ export default function SellerDashboard() {
                   </Button>
                 </Link>
                 <Link href={`/${locale}/seller/products`}>
-                  <Button variant="outline" size="sm">{t('viewAll')}</Button>
+                  <Button variant="outline" size="sm">
+                    {t('viewAll')}
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -274,10 +321,15 @@ export default function SellerDashboard() {
             {recentProducts.length > 0 ? (
               <div className="space-y-4">
                 {recentProducts.map((product: ProductWithRelations) => (
-                  <div key={product.id} className="flex items-center gap-3 p-3 border rounded">
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 p-3 border rounded"
+                  >
                     <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
                       <Image
-                        src={product.images?.[0]?.url || '/placeholder-product.jpg'}
+                        src={
+                          product.images?.[0]?.url || '/placeholder-product.jpg'
+                        }
                         alt={product.title}
                         width={48}
                         height={48}
@@ -287,7 +339,8 @@ export default function SellerDashboard() {
                     <div className="flex-1">
                       <div className="font-medium">{product.title}</div>
                       <div className="text-sm text-muted-foreground">
-                        {formatPrice(product.priceToman)} • {product.stock} {t('inStock')}
+                        {formatPrice(product.priceToman)} • {product.stock}{' '}
+                        {t('inStock')}
                       </div>
                     </div>
                     <div className="flex gap-1">

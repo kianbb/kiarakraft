@@ -13,7 +13,7 @@ async function main() {
     where: { email: 'audit-test@kiarakraft.com' },
     include: {
       sellerProfile: true,
-    }
+    },
   });
 
   if (!testUser) {
@@ -26,7 +26,7 @@ async function main() {
   console.log(`   Email: ${testUser.email}`);
   console.log(`   Name: ${testUser.name}`);
   console.log(`   Has seller profile: ${!!testUser.sellerProfile}`);
-  
+
   if (testUser.sellerProfile) {
     console.log(`   Seller verified: ${testUser.sellerProfile.verified}`);
     console.log(`   Shop name: ${testUser.sellerProfile.shopName}`);
@@ -38,7 +38,7 @@ async function main() {
       images: true,
       seller: true,
       category: true,
-    }
+    },
   });
 
   if (!testProduct) {
@@ -61,7 +61,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch(e => {
     console.error(e);
     process.exit(1);
   })

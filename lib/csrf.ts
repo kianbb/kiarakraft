@@ -16,7 +16,9 @@ function buildAllowedHosts(currentHost: string | null): Set<string> {
   }
 
   // Allow configured extra hosts, e.g., preview domains or alternate domains
-  const envHosts = process.env.ALLOWED_CSRF_HOSTS || process.env.NEXT_PUBLIC_ALLOWED_CSRF_HOSTS;
+  const envHosts =
+    process.env.ALLOWED_CSRF_HOSTS ||
+    process.env.NEXT_PUBLIC_ALLOWED_CSRF_HOSTS;
   if (envHosts) {
     envHosts
       .split(',')
@@ -65,7 +67,9 @@ export function validateCSRF(request: NextRequest): boolean {
   const refererOk = refererHost ? allowed.has(refererHost) : false;
 
   if (!originOk && !refererOk) {
-    console.warn(`CSRF: Host mismatch - Origin: ${originHost ?? 'n/a'}, Referer: ${refererHost ?? 'n/a'}, Allowed: ${Array.from(allowed).join(', ')}`);
+    console.warn(
+      `CSRF: Host mismatch - Origin: ${originHost ?? 'n/a'}, Referer: ${refererHost ?? 'n/a'}, Allowed: ${Array.from(allowed).join(', ')}`
+    );
     return false;
   }
 
@@ -75,18 +79,17 @@ export function validateCSRF(request: NextRequest): boolean {
 /**
  * Middleware helper to add CSRF validation to API routes
  */
-export function withCSRF<T extends unknown[]>(handler: (request: NextRequest, ...rest: T) => Promise<Response>) {
+export function withCSRF<T extends unknown[]>(
+  handler: (request: NextRequest, ...rest: T) => Promise<Response>
+) {
   return async (request: NextRequest, ...rest: T): Promise<Response> => {
     if (!validateCSRF(request)) {
-      return new Response(
-        JSON.stringify({ error: 'CSRF validation failed' }),
-        { 
-          status: 403, 
-          headers: { 'Content-Type': 'application/json' } 
-        }
-      );
+      return new Response(JSON.stringify({ error: 'CSRF validation failed' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
-    
+
     return handler(request, ...rest);
   };
 }

@@ -12,7 +12,10 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
   try {
     // Security validations
     if (!validateCSRF(request)) {
-      return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
     }
 
     const session = await getServerSession(authOptions);
@@ -21,11 +24,16 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
     }
 
     // Check Cloudinary config
-    if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 
-        !process.env.CLOUDINARY_API_KEY || 
-        !process.env.CLOUDINARY_API_SECRET) {
+    if (
+      !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+      !process.env.CLOUDINARY_API_KEY ||
+      !process.env.CLOUDINARY_API_SECRET
+    ) {
       console.error('Missing Cloudinary configuration');
-      return NextResponse.json({ error: 'Image upload not configured' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Image upload not configured' },
+        { status: 500 }
+      );
     }
 
     const formData = await request.formData();
@@ -37,16 +45,22 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
 
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.',
+        },
+        { status: 400 }
+      );
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ 
-        error: 'File too large. Maximum size is 5MB.' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'File too large. Maximum size is 5MB.',
+        },
+        { status: 400 }
+      );
     }
 
     // Convert file to buffer for upload
@@ -55,33 +69,35 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
 
     // Upload to Cloudinary
     const uploadResult = await new Promise<UploadResult>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: UPLOAD_FOLDER,
-          resource_type: 'image',
-          transformation: [
-            { quality: 'auto:good' },
-            { fetch_format: 'auto' }
-          ]
-        },
-        (error, result) => {
-          if (error) {
-            console.error('Cloudinary upload error:', error);
-            reject(error);
-          } else if (result) {
-            resolve({
-              public_id: result.public_id,
-              secure_url: result.secure_url,
-              width: result.width,
-              height: result.height,
-              format: result.format,
-              bytes: result.bytes
-            });
-          } else {
-            reject(new Error('Upload result is undefined'));
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: UPLOAD_FOLDER,
+            resource_type: 'image',
+            transformation: [
+              { quality: 'auto:good' },
+              { fetch_format: 'auto' },
+            ],
+          },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject(error);
+            } else if (result) {
+              resolve({
+                public_id: result.public_id,
+                secure_url: result.secure_url,
+                width: result.width,
+                height: result.height,
+                format: result.format,
+                bytes: result.bytes,
+              });
+            } else {
+              reject(new Error('Upload result is undefined'));
+            }
           }
-        }
-      ).end(buffer);
+        )
+        .end(buffer);
     });
 
     console.log(`Image uploaded successfully: ${uploadResult.public_id}`);
@@ -93,14 +109,16 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
       width: uploadResult.width,
       height: uploadResult.height,
       format: uploadResult.format,
-      size: uploadResult.bytes
+      size: uploadResult.bytes,
     });
-
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ 
-      error: 'Upload failed. Please try again.' 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Upload failed. Please try again.',
+      },
+      { status: 500 }
+    );
   }
 }
 

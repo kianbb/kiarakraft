@@ -3,7 +3,9 @@ import crypto from 'crypto';
 type Provider = 'azure' | 'deepl' | 'openai' | 'mock';
 
 const PROVIDER = (process.env.TRANSLATOR_PROVIDER || 'azure') as Provider;
-const DAILY_CHAR_LIMIT = parseInt(process.env.TRANSLATOR_DAILY_CHAR_LIMIT || '1000000'); // 1M/day default
+const DAILY_CHAR_LIMIT = parseInt(
+  process.env.TRANSLATOR_DAILY_CHAR_LIMIT || '1000000'
+); // 1M/day default
 let dailyCount = 0;
 
 // Simple in-memory LRU-ish cache for serverless runtime
@@ -16,7 +18,10 @@ export interface TranslateOptions {
   to: 'fa' | 'en';
 }
 
-export async function translateText(text: string, { from, to }: TranslateOptions): Promise<string> {
+export async function translateText(
+  text: string,
+  { from, to }: TranslateOptions
+): Promise<string> {
   if (!text || from === to) return text;
 
   const key = cacheKey(text, from, to);
@@ -41,7 +46,7 @@ export async function translateText(text: string, { from, to }: TranslateOptions
     const url = `${endpoint}/translate?api-version=3.0&from=${from}&to=${to}`;
     const headers: Record<string, string> = {
       'Ocp-Apim-Subscription-Key': apiKey,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
     if (region) {
       // Required for Azure AI services (multi-service) or regional endpoints
@@ -50,7 +55,7 @@ export async function translateText(text: string, { from, to }: TranslateOptions
     const resp = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify([{ Text: text }])
+      body: JSON.stringify([{ Text: text }]),
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -85,7 +90,7 @@ export async function translateProductFields(
 ) {
   const [title, description] = await Promise.all([
     translateText(src.title, { from, to }),
-    translateText(src.description, { from, to })
+    translateText(src.description, { from, to }),
   ]);
   return { title, description };
 }
