@@ -180,10 +180,12 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         orderBy = 'ORDER BY relevance DESC, p."createdAt" DESC';
     }
 
-    // Build the search query with proper parameter placeholders
-    const searchQueryParam = `$${paramIndex}`;
-    const limitParam = `$${paramIndex + 1}`;
-    const offsetParam = `$${paramIndex + 2}`;
+  // Build the search query with proper parameter placeholders
+  const searchQueryParam = `$${paramIndex}`;
+  // Also bind locale for joining translations (so English searches match translated titles)
+  const localeParam = `$${paramIndex + 1}`;
+  const limitParam = `$${paramIndex + 2}`;
+  const offsetParam = `$${paramIndex + 3}`;
     
     // Advanced search query with multiple ranking factors
   const searchSql = `
@@ -198,7 +200,11 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
         c.slug as category_slug,
         (
           -- Use the new PostgreSQL function for optimized search ranking
-      product_search_rank(unaccent(${searchQueryParam}), unaccent(p.title), unaccent(p.description)) +
+      product_search_rank(
+            unaccent(${searchQueryParam}),
+            unaccent(COALESCE(pt.title, p.title)),
+            unaccent(COALESCE(pt.description, p.description))
+          ) +
           -- Add business logic bonuses
           CASE 
             WHEN sp.verified THEN 0.3  -- Verified seller bonus
@@ -215,21 +221,22 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
       LEFT JOIN "Category" c ON p."categoryId" = c.id
+      LEFT JOIN "ProductTranslation" pt ON pt."productId" = p.id AND pt.locale = ${localeParam}
       ${whereClause}
       AND (
-        SIMILARITY(unaccent(p.title), unaccent(${searchQueryParam})) > 0.2 OR
-        SIMILARITY(unaccent(p.description), unaccent(${searchQueryParam})) > 0.2 OR
-        to_tsvector('english', unaccent(p.title || ' ' || p.description)) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR -- FTS match
-        unaccent(p.title) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-        unaccent(p.description) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-        unaccent(p.title) ILIKE unaccent(${searchQueryParam}) || '%' OR
-        LOWER(unaccent(p.title)) = LOWER(unaccent(${searchQueryParam}))
+        SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQueryParam})) > 0.2 OR
+        SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQueryParam})) > 0.2 OR
+        to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description))) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR -- FTS match
+        unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+        unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+        unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQueryParam}) || '%' OR
+        LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam}))
       )
       ${orderBy}
       LIMIT ${limitParam} OFFSET ${offsetParam}
     `;
 
-    params.push(searchQuery, limit, offset);
+    params.push(searchQuery, locale, limit, offset);
 
     const rawProducts = await prisma.$queryRawUnsafe(searchSql, ...params);
 
@@ -239,19 +246,20 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
       LEFT JOIN "Category" c ON p."categoryId" = c.id
+      LEFT JOIN "ProductTranslation" pt ON pt."productId" = p.id AND pt.locale = ${localeParam}
       ${whereClause}
       AND (
-    SIMILARITY(unaccent(p.title), unaccent(${searchQueryParam})) > 0.2 OR
-    SIMILARITY(unaccent(p.description), unaccent(${searchQueryParam})) > 0.2 OR
-    to_tsvector('english', unaccent(p.title || ' ' || p.description)) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR
-    unaccent(p.title) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-    unaccent(p.description) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-    unaccent(p.title) ILIKE unaccent(${searchQueryParam}) || '%' OR
-    LOWER(unaccent(p.title)) = LOWER(unaccent(${searchQueryParam}))
+    SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQueryParam})) > 0.2 OR
+    SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQueryParam})) > 0.2 OR
+    to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description))) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR
+    unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+    unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+    unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQueryParam}) || '%' OR
+    LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam}))
       )
     `;
 
-    const countParams = params.slice(0, -2); // Remove limit and offset
+    const countParams = params.slice(0, -2); // Remove limit and offset (keeping search and locale)
     const countResult = await prisma.$queryRawUnsafe(countSql, ...countParams) as Array<{ total: bigint }>;
     total = Number(countResult[0]?.total || 0);
 
