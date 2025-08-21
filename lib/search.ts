@@ -98,6 +98,12 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
   const baseConditions: Prisma.ProductWhereInput = {
     active: true,
     eligibilityStatus: 'APPROVED',
+    // Exclude known test/demo items
+    NOT: [
+      { slug: { startsWith: 'test-' } },
+      { seller: { shopName: 'Test Shop' } },
+      { seller: { displayName: 'Test Seller' } },
+    ],
     ...(categoryId && { categoryId }),
     ...(sellerId && { sellerId }),
     ...(minPrice && { priceToman: { gte: minPrice } }),
@@ -130,6 +136,10 @@ export async function searchProducts(filters: SearchFilters = {}): Promise<Searc
     // Add base conditions
     whereConditions.push(`p.active = true`);
     whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
+  // Exclude known test/demo items
+  whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
+  whereConditions.push(`COALESCE(sp."shopName", '') <> 'Test Shop'`);
+  whereConditions.push(`COALESCE(sp."displayName", '') <> 'Test Seller'`);
 
     if (categoryId) {
       whereConditions.push(`p."categoryId" = $${paramIndex}`);
@@ -460,6 +470,10 @@ async function generateSearchFacets(
   const whereParts: string[] = [
     'p.active = true',
     `p."eligibilityStatus" = 'APPROVED'`,
+  // Exclude known test/demo items
+  `p."slug" NOT LIKE 'test-%'`,
+  `COALESCE(sp."shopName", '') <> 'Test Shop'`,
+  `COALESCE(sp."displayName", '') <> 'Test Seller'`,
   ];
   const params: (string | number | boolean)[] = [];
   let idx = 1;

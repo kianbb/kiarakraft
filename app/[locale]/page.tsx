@@ -100,7 +100,12 @@ async function getCategoryTiles() {
             active: true,
             eligibilityStatus: 'APPROVED',
             categoryId: c.id,
-            images: { some: {} }
+            images: { some: {} },
+            NOT: [
+              { slug: { startsWith: 'test-' } },
+              { seller: { shopName: 'Test Shop' } },
+              { seller: { displayName: 'Test Seller' } },
+            ]
           },
           orderBy: { createdAt: 'desc' },
           select: {
