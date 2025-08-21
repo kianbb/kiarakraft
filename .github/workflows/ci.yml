@@ -1,52 +1,48 @@
+---
 name: CI
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: kiarakraft
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: kiarakraft/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
-        working-directory: kiarakraft
+      - run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
-        working-directory: kiarakraft
+      - run: npm run typecheck
 
-      - name: Build
-        run: npm run build
-        working-directory: kiarakraft
+      - run: npm run build
         env:
           # Minimal env to allow build that may reference these
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
           NEXT_PUBLIC_PLAUSIBLE_DOMAIN: kiarakraft.com
 
-      - name: Status checks (expect 200 and 404)
-        run: npm run check:status
-        working-directory: kiarakraft
+      - run: npm run check:status
         env:
           BASE_URL: https://www.kiarakraft.com
+        name: Status checks (expect 200 and 404)
 
-      - name: Fail if literal Loading... appears in built HTML
+      - name: Fail if literal Loading... appears in server-rendered HTML
         run: |
-          if grep -R "Loading..." -n .next/; then
-            echo "Found 'Loading...' in built output. SSR/UI placeholders leaked.";
-            exit 1;
+          # Search only server-rendered HTML to avoid false positives from client JS
+          if grep -R -n --include='*.html' "Loading..." .next/server/; then
+            echo "Found 'Loading...' in server HTML. SSR/UI placeholders leaked." >&2
+            exit 1
           fi
-        working-directory: kiarakraft

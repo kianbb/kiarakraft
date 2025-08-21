@@ -26,6 +26,7 @@
   force = false
 
 # SPA fallback for dynamic routes
+# SPA fallback for dynamic routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
