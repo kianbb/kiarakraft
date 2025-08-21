@@ -60,6 +60,9 @@ jobs:
 
       - name: Run tests
         run: npm run test
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/test
+          DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
       - name: Run i18n smoke tests
         run: npm run test:i18n
