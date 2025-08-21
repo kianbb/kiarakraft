@@ -15,6 +15,17 @@ import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
 export const revalidate = 0;
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
+  const products = await db.product.findMany({
+    where: { active: true },
+    select: { slug: true }
+  });
+  const locales: Array<'fa' | 'en'> = ['fa', 'en'];
+  return products.flatMap((p) => locales.map((locale) => ({ slug: p.slug, locale })));
+}
 
 type Params = { locale: "fa" | "en"; slug: string };
 
