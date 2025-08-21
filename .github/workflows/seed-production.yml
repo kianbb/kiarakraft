@@ -31,7 +31,6 @@ jobs:
           echo "✅ Confirmation validated"
 
       - name: Checkout code
-
         uses: actions/checkout@v5
 
       - name: Setup Node.js
