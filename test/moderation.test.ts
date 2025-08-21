@@ -7,33 +7,57 @@ async function testBasicFunctionality() {
   // Test clearly handcrafted items
   const handcraftedInput = {
     title: 'Handmade Ceramic Bowl',
-    description: 'This beautiful ceramic bowl is handcrafted by skilled artisans using traditional pottery techniques.',
-    categorySlug: 'ceramics'
+    description:
+      'This beautiful ceramic bowl is handcrafted by skilled artisans using traditional pottery techniques.',
+    categorySlug: 'ceramics',
   };
 
   const handcraftedResult = await assessProductForHandcrafted(handcraftedInput);
-  assert.equal(handcraftedResult.status, 'APPROVED', 'Should approve clearly handcrafted items');
-  assert.ok(handcraftedResult.confidence! > 50, 'Should have high confidence for handcrafted items');
+  assert.equal(
+    handcraftedResult.status,
+    'APPROVED',
+    'Should approve clearly handcrafted items'
+  );
+  assert.ok(
+    handcraftedResult.confidence! > 50,
+    'Should have high confidence for handcrafted items'
+  );
 
   // Test mass-produced items
   const massProducedInput = {
     title: 'Factory Made Plastic Widget',
-    description: 'Mass produced in our factory. Wholesale prices available. Made in China. OEM replica.'
+    description:
+      'Mass produced in our factory. Wholesale prices available. Made in China. OEM replica.',
   };
 
-  const massProducedResult = await assessProductForHandcrafted(massProducedInput);
-  assert.equal(massProducedResult.status, 'REJECTED', 'Should reject mass-produced items');
-  assert.ok(massProducedResult.confidence! < 50, 'Should have low confidence for mass-produced items');
+  const massProducedResult =
+    await assessProductForHandcrafted(massProducedInput);
+  assert.equal(
+    massProducedResult.status,
+    'REJECTED',
+    'Should reject mass-produced items'
+  );
+  assert.ok(
+    massProducedResult.confidence! < 50,
+    'Should have low confidence for mass-produced items'
+  );
 
   // Test ambiguous items
   const ambiguousInput = {
     title: 'Nice Product',
-    description: 'This is a good quality item.'
+    description: 'This is a good quality item.',
   };
 
   const ambiguousResult = await assessProductForHandcrafted(ambiguousInput);
-  assert.equal(ambiguousResult.status, 'REVIEW', 'Should put ambiguous items under review');
-  assert.ok(ambiguousResult.confidence! >= 0 && ambiguousResult.confidence! <= 100, 'Confidence should be between 0-100');
+  assert.equal(
+    ambiguousResult.status,
+    'REVIEW',
+    'Should put ambiguous items under review'
+  );
+  assert.ok(
+    ambiguousResult.confidence! >= 0 && ambiguousResult.confidence! <= 100,
+    'Confidence should be between 0-100'
+  );
 
   console.log('✓ Basic functionality tests passed');
 }
@@ -45,30 +69,46 @@ async function testPersianLanguageSupport() {
   const persianHandcraft = {
     title: 'سفال دست‌ساز',
     description: 'این سفال کاملاً دست‌ساز و هنری است. صنایع دستی اصیل ایرانی.',
-    categorySlug: 'ceramics'
+    categorySlug: 'ceramics',
   };
 
   const persianResult = await assessProductForHandcrafted(persianHandcraft);
-  assert.equal(persianResult.status, 'APPROVED', 'Should approve Persian handcraft items');
-  assert.ok(persianResult.confidence! > 50, 'Should have high confidence for Persian handcraft');
+  assert.equal(
+    persianResult.status,
+    'APPROVED',
+    'Should approve Persian handcraft items'
+  );
+  assert.ok(
+    persianResult.confidence! > 50,
+    'Should have high confidence for Persian handcraft'
+  );
 
   // Test Persian mass-production keywords
   const persianMassProduced = {
     title: 'محصول کارخانه‌ای',
-    description: 'تولید انبوه در کارخانه. جنس وارداتی.'
+    description: 'تولید انبوه در کارخانه. جنس وارداتی.',
   };
 
-  const persianMassResult = await assessProductForHandcrafted(persianMassProduced);
-  assert.equal(persianMassResult.status, 'REJECTED', 'Should reject Persian mass-produced items');
+  const persianMassResult =
+    await assessProductForHandcrafted(persianMassProduced);
+  assert.equal(
+    persianMassResult.status,
+    'REJECTED',
+    'Should reject Persian mass-produced items'
+  );
 
   // Test mixed Persian-English
   const mixedInput = {
     title: 'Handmade سفال',
-    description: 'Beautiful دست‌ساز pottery made with care'
+    description: 'Beautiful دست‌ساز pottery made with care',
   };
 
   const mixedResult = await assessProductForHandcrafted(mixedInput);
-  assert.equal(mixedResult.status, 'APPROVED', 'Should approve mixed Persian-English handcraft items');
+  assert.equal(
+    mixedResult.status,
+    'APPROVED',
+    'Should approve mixed Persian-English handcraft items'
+  );
 
   console.log('✓ Persian language support tests passed');
 }
@@ -78,30 +118,36 @@ async function testCategoryInfluence() {
 
   const baseInput = {
     title: 'Beautiful Item',
-    description: 'Nice quality product'
+    description: 'Nice quality product',
   };
 
   const craftCategory = await assessProductForHandcrafted({
     ...baseInput,
-    categorySlug: 'ceramics'
+    categorySlug: 'ceramics',
   });
 
   const neutralCategory = await assessProductForHandcrafted({
     ...baseInput,
-    categorySlug: 'electronics'
+    categorySlug: 'electronics',
   });
 
-  assert.ok(craftCategory.confidence! >= neutralCategory.confidence!, 'Craft-friendly categories should boost confidence');
+  assert.ok(
+    craftCategory.confidence! >= neutralCategory.confidence!,
+    'Craft-friendly categories should boost confidence'
+  );
 
   // Test without category
   const noCategoryInput = {
     title: 'Handmade Item',
-    description: 'Artisanal product'
+    description: 'Artisanal product',
   };
 
   const noCategoryResult = await assessProductForHandcrafted(noCategoryInput);
   assert.ok(noCategoryResult.status, 'Should work without category');
-  assert.ok(typeof noCategoryResult.confidence === 'number', 'Should return confidence without category');
+  assert.ok(
+    typeof noCategoryResult.confidence === 'number',
+    'Should return confidence without category'
+  );
 
   console.log('✓ Category influence tests passed');
 }
@@ -111,26 +157,35 @@ async function testKeywordScoring() {
 
   const singleKeyword = await assessProductForHandcrafted({
     title: 'Handmade Item',
-    description: 'Nice product'
+    description: 'Nice product',
   });
 
   const multipleKeywords = await assessProductForHandcrafted({
     title: 'Handmade Artisan Crafted Item',
-    description: 'Beautiful handcrafted artisanal pottery'
+    description: 'Beautiful handcrafted artisanal pottery',
   });
 
-  assert.ok(multipleKeywords.confidence! > singleKeyword.confidence!, 'Multiple keywords should increase confidence');
+  assert.ok(
+    multipleKeywords.confidence! > singleKeyword.confidence!,
+    'Multiple keywords should increase confidence'
+  );
 
   // Test conflicting keywords
   const conflictingInput = {
     title: 'Handmade Factory Product',
-    description: 'Mass produced wholesale item but also handcrafted'
+    description: 'Mass produced wholesale item but also handcrafted',
   };
 
   const conflictingResult = await assessProductForHandcrafted(conflictingInput);
-  assert.ok(typeof conflictingResult.confidence === 'number', 'Should handle conflicting keywords');
+  assert.ok(
+    typeof conflictingResult.confidence === 'number',
+    'Should handle conflicting keywords'
+  );
   assert.ok(Array.isArray(conflictingResult.reasons), 'Should provide reasons');
-  assert.ok(conflictingResult.reasons!.length > 0, 'Should have non-empty reasons');
+  assert.ok(
+    conflictingResult.reasons!.length > 0,
+    'Should have non-empty reasons'
+  );
 
   console.log('✓ Keyword scoring tests passed');
 }
@@ -141,7 +196,11 @@ async function testEdgeCases() {
   // Test empty strings
   const emptyInput = { title: '', description: '' };
   const emptyResult = await assessProductForHandcrafted(emptyInput);
-  assert.equal(emptyResult.status, 'REVIEW', 'Empty input should result in REVIEW');
+  assert.equal(
+    emptyResult.status,
+    'REVIEW',
+    'Empty input should result in REVIEW'
+  );
 
   // Test long descriptions
   const longDescription = 'handmade '.repeat(100);
@@ -152,23 +211,32 @@ async function testEdgeCases() {
   // Test special characters
   const specialCharsInput = {
     title: 'Handmade @#$% Item!',
-    description: 'Artisan-crafted... with [special] (characters) & symbols!'
+    description: 'Artisan-crafted... with [special] (characters) & symbols!',
   };
-  const specialCharsResult = await assessProductForHandcrafted(specialCharsInput);
-  assert.equal(specialCharsResult.status, 'APPROVED', 'Should handle special characters');
+  const specialCharsResult =
+    await assessProductForHandcrafted(specialCharsInput);
+  assert.equal(
+    specialCharsResult.status,
+    'APPROVED',
+    'Should handle special characters'
+  );
 
   // Test case insensitivity
   const upperCase = await assessProductForHandcrafted({
     title: 'HANDMADE ITEM',
-    description: 'ARTISAN CRAFTED PRODUCT'
+    description: 'ARTISAN CRAFTED PRODUCT',
   });
 
   const lowerCase = await assessProductForHandcrafted({
     title: 'handmade item',
-    description: 'artisan crafted product'
+    description: 'artisan crafted product',
   });
 
-  assert.equal(upperCase.status, lowerCase.status, 'Should be case insensitive');
+  assert.equal(
+    upperCase.status,
+    lowerCase.status,
+    'Should be case insensitive'
+  );
 
   console.log('✓ Edge cases tests passed');
 }
@@ -179,7 +247,7 @@ async function testConfidenceScoring() {
   const testInputs = [
     { title: 'Factory made', description: 'Mass produced wholesale' },
     { title: 'Regular item', description: 'Normal product' },
-    { title: 'Handmade pottery', description: 'Artisan crafted ceramic bowl' }
+    { title: 'Handmade pottery', description: 'Artisan crafted ceramic bowl' },
   ];
 
   for (const input of testInputs) {
@@ -191,11 +259,14 @@ async function testConfidenceScoring() {
   // Test reasons are provided
   const reasonsInput = {
     title: 'Handmade Ceramic Bowl',
-    description: 'Factory produced wholesale item'
+    description: 'Factory produced wholesale item',
   };
 
   const reasonsResult = await assessProductForHandcrafted(reasonsInput);
-  assert.ok(Array.isArray(reasonsResult.reasons), 'Should provide reasons array');
+  assert.ok(
+    Array.isArray(reasonsResult.reasons),
+    'Should provide reasons array'
+  );
   assert.ok(reasonsResult.reasons!.length > 0, 'Should have non-empty reasons');
 
   console.log('✓ Confidence scoring tests passed');
@@ -209,36 +280,46 @@ async function testRealWorldScenarios() {
     {
       title: 'فرش دستباف کاشان',
       description: 'فرش دستباف اصیل کاشان با نقشه‌های سنتی و کیفیت بالا',
-      categorySlug: 'textiles'
+      categorySlug: 'textiles',
     },
     {
       title: 'خاتم‌کاری اصفهان',
       description: 'صنایع دستی خاتم‌کاری با طرح‌های سنتی اصفهان',
-      categorySlug: 'woodwork'
-    }
+      categorySlug: 'woodwork',
+    },
   ];
 
   for (const craft of persianCrafts) {
     const result = await assessProductForHandcrafted(craft);
-    assert.equal(result.status, 'APPROVED', `Should approve traditional Persian craft: ${craft.title}`);
-    assert.ok(result.confidence! > 60, `Should have high confidence for: ${craft.title}`);
+    assert.equal(
+      result.status,
+      'APPROVED',
+      `Should approve traditional Persian craft: ${craft.title}`
+    );
+    assert.ok(
+      result.confidence! > 60,
+      `Should have high confidence for: ${craft.title}`
+    );
   }
 
   // Test obvious non-handcraft items
   const massProducedItems = [
     {
       title: 'iPhone 15 Pro Max',
-      description: 'Brand new factory sealed Apple iPhone 15 Pro Max'
+      description: 'Brand new factory sealed Apple iPhone 15 Pro Max',
     },
     {
       title: 'Samsung TV 55 inch',
-      description: 'Factory manufactured Samsung smart TV with warranty'
-    }
+      description: 'Factory manufactured Samsung smart TV with warranty',
+    },
   ];
 
   for (const item of massProducedItems) {
     const result = await assessProductForHandcrafted(item);
-    assert.ok(['REJECTED', 'REVIEW'].includes(result.status), `Should reject/review mass-produced: ${item.title}`);
+    assert.ok(
+      ['REJECTED', 'REVIEW'].includes(result.status),
+      `Should reject/review mass-produced: ${item.title}`
+    );
   }
 
   console.log('✓ Real-world scenarios tests passed');
@@ -265,7 +346,7 @@ async function testAzureAIIntegration() {
   process.env.AZURE_AI_KEY = 'test-key';
 
   const configuredResult = await assessProductForHandcrafted(input);
-  const hasAzureSignal = configuredResult.reasons?.some(reason => 
+  const hasAzureSignal = configuredResult.reasons?.some(reason =>
     reason.toLowerCase().includes('azure ai')
   );
   assert.ok(hasAzureSignal, 'Should include Azure AI signals when configured');

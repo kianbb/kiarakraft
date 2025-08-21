@@ -2,12 +2,22 @@
 
 declare global {
   interface Window {
-    plausible?: (eventName: string, options?: { props?: Record<string, string | number> }) => void;
+    plausible?: (
+      eventName: string,
+      options?: { props?: Record<string, string | number> }
+    ) => void;
   }
 }
 
-export function trackEvent(eventName: string, props?: Record<string, string | number>) {
-  if (typeof window !== 'undefined' && window.plausible && process.env.NODE_ENV === 'production') {
+export function trackEvent(
+  eventName: string,
+  props?: Record<string, string | number>
+) {
+  if (
+    typeof window !== 'undefined' &&
+    window.plausible &&
+    process.env.NODE_ENV === 'production'
+  ) {
     window.plausible(eventName, props ? { props } : undefined);
   }
 }

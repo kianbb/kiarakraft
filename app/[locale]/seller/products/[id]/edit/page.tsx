@@ -11,7 +11,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ArrowLeft, Edit } from 'lucide-react';
 import ImageUploadManager from '@/components/seller/ImageUploadManager';
 
@@ -40,7 +46,7 @@ const productSchema = z.object({
   stock: z.number().min(0, 'Stock cannot be negative'),
   category: z.enum(['ceramics', 'textiles', 'jewelry', 'woodwork', 'painting']),
   imageUrl: z.string().min(1).optional(),
-  tags: z.string().optional()
+  tags: z.string().optional(),
 });
 
 type ProductForm = z.infer<typeof productSchema>;
@@ -54,8 +60,10 @@ export default function EditProductPage() {
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
   const _tCategories = useTranslations('categories');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
-  const tCategories = isHydrated ? _tCategories : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const tCategories = isHydrated
+    ? _tCategories
+    : (((k: string) => k) as (k: string) => string);
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<FormCompatibleProduct | null>(null);
@@ -65,9 +73,9 @@ export default function EditProductPage() {
     handleSubmit,
     setValue,
     reset,
-    formState: { errors }
+    formState: { errors },
   } = useForm<ProductForm>({
-    resolver: zodResolver(productSchema)
+    resolver: zodResolver(productSchema),
   });
 
   const fetchProduct = useCallback(async () => {
@@ -76,7 +84,7 @@ export default function EditProductPage() {
       if (response.ok) {
         const productData = await response.json();
         setProduct(productData);
-        
+
         // Populate form with existing data
         reset({
           name: productData.name,
@@ -85,7 +93,7 @@ export default function EditProductPage() {
           stock: productData.stock,
           category: productData.category,
           imageUrl: productData.imageUrl,
-          tags: productData.tags || ''
+          tags: productData.tags || '',
         });
       } else {
         router.push('/seller/products');
@@ -100,7 +108,7 @@ export default function EditProductPage() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push('/auth/login');
       return;
@@ -137,7 +145,7 @@ export default function EditProductPage() {
       const response = await fetch(`/api/seller/products/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
 
       if (response.ok) {
@@ -158,18 +166,21 @@ export default function EditProductPage() {
     { value: 'textiles', label: tCategories('textiles') },
     { value: 'jewelry', label: tCategories('jewelry') },
     { value: 'woodwork', label: tCategories('woodwork') },
-    { value: 'painting', label: tCategories('painting') }
+    { value: 'painting', label: tCategories('painting') },
   ];
 
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="mb-8">
-          <Link href="/seller/products" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link
+            href="/seller/products"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
+          >
             <ArrowLeft className="h-4 w-4" />
             {t('backToProducts')}
           </Link>
-          
+
           <div className="flex items-center gap-3">
             <Edit className="h-8 w-8 text-primary" />
             <div>
@@ -189,7 +200,9 @@ export default function EditProductPage() {
                 placeholder={t('productTitlePlaceholder')}
               />
               {errors.name && (
-                <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.name.message}
+                </p>
               )}
             </div>
 
@@ -202,7 +215,9 @@ export default function EditProductPage() {
                 className="w-full min-h-[120px] px-3 py-2 border border-input rounded-md resize-none"
               />
               {errors.description && (
-                <p className="text-sm text-destructive mt-1">{errors.description.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.description.message}
+                </p>
               )}
             </div>
 
@@ -218,7 +233,9 @@ export default function EditProductPage() {
                   placeholder="0"
                 />
                 {errors.price && (
-                  <p className="text-sm text-destructive mt-1">{errors.price.message}</p>
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.price.message}
+                  </p>
                 )}
               </div>
 
@@ -232,19 +249,34 @@ export default function EditProductPage() {
                   placeholder="0"
                 />
                 {errors.stock && (
-                  <p className="text-sm text-destructive mt-1">{errors.stock.message}</p>
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.stock.message}
+                  </p>
                 )}
               </div>
             </div>
 
             <div>
               <Label htmlFor="category">{t('category')}</Label>
-              <Select onValueChange={(value) => setValue('category', value as 'ceramics' | 'textiles' | 'jewelry' | 'woodwork' | 'painting')} defaultValue={product.category}>
+              <Select
+                onValueChange={value =>
+                  setValue(
+                    'category',
+                    value as
+                      | 'ceramics'
+                      | 'textiles'
+                      | 'jewelry'
+                      | 'woodwork'
+                      | 'painting'
+                  )
+                }
+                defaultValue={product.category}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categories.map(category => (
                     <SelectItem key={category.value} value={category.value}>
                       {category.label}
                     </SelectItem>
@@ -252,7 +284,9 @@ export default function EditProductPage() {
                 </SelectContent>
               </Select>
               {errors.category && (
-                <p className="text-sm text-destructive mt-1">{errors.category.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.category.message}
+                </p>
               )}
             </div>
 
@@ -274,7 +308,9 @@ export default function EditProductPage() {
                 placeholder="https://images.unsplash.com/photo-..."
               />
               {errors.imageUrl && (
-                <p className="text-sm text-destructive mt-1">{errors.imageUrl.message}</p>
+                <p className="text-sm text-destructive mt-1">
+                  {errors.imageUrl.message}
+                </p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
                 Legacy field - use image uploader above for new images
@@ -288,7 +324,9 @@ export default function EditProductPage() {
                 {...register('tags')}
                 placeholder={t('productTagsPlaceholder')}
               />
-              <p className="text-xs text-muted-foreground mt-1">{t('tagsHelpText')}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('tagsHelpText')}
+              </p>
             </div>
           </div>
 

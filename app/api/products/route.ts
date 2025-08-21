@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+        { description: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     // Add category filter
     if (category) {
       where.category = {
-        slug: category
+        slug: category,
       };
     }
 
@@ -51,24 +51,38 @@ export async function GET(request: NextRequest) {
         seller: true,
         category: true,
         images: true,
-        ...( { translations: true } as Record<string, true> )
+        ...({ translations: true } as Record<string, true>),
       },
       orderBy,
-      take: 50 // Limit to 50 products
+      take: 50, // Limit to 50 products
     });
 
-    const locale = (new URL(request.url)).searchParams.get('locale') || 'fa';
-  type WithTranslations = typeof products[number] & { translations?: Array<{ locale: string; title: string; description: string }>; eligibilityStatus?: string };
-  let mapped = (products as WithTranslations[]).map((p) => {
-    if (locale === 'en' && Array.isArray(p.translations)) {
-      const en = p.translations.find((t) => t.locale === 'en');
-      if (en) return { ...p, title: en.title, description: en.description } as typeof p;
-    }
-    return p;
-  });
+    const locale = new URL(request.url).searchParams.get('locale') || 'fa';
+    type WithTranslations = (typeof products)[number] & {
+      translations?: Array<{
+        locale: string;
+        title: string;
+        description: string;
+      }>;
+      eligibilityStatus?: string;
+    };
+    let mapped = (products as WithTranslations[]).map(p => {
+      if (locale === 'en' && Array.isArray(p.translations)) {
+        const en = p.translations.find(t => t.locale === 'en');
+        if (en)
+          return {
+            ...p,
+            title: en.title,
+            description: en.description,
+          } as typeof p;
+      }
+      return p;
+    });
 
-  // Soft-filter: hide non-handcrafted items if eligibilityStatus is present and REJECTED
-  mapped = mapped.filter((p) => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED');
+    // Soft-filter: hide non-handcrafted items if eligibilityStatus is present and REJECTED
+    mapped = mapped.filter(
+      p => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED'
+    );
 
     return NextResponse.json(mapped);
   } catch (error) {

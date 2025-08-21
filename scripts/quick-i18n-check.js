@@ -2,7 +2,7 @@
 
 /**
  * Quick i18n Verification Script
- * 
+ *
  * A simplified version for regular checks during development
  */
 
@@ -15,7 +15,7 @@ console.log('🔍 Quick i18n verification...\n');
 function checkTranslationParity() {
   const en = JSON.parse(fs.readFileSync('./locales/en.json', 'utf8'));
   const fa = JSON.parse(fs.readFileSync('./locales/fa.json', 'utf8'));
-  
+
   function flattenKeys(obj, prefix = '') {
     let keys = [];
     for (let key in obj) {
@@ -28,13 +28,13 @@ function checkTranslationParity() {
     }
     return keys;
   }
-  
+
   const enKeys = flattenKeys(en);
   const faKeys = flattenKeys(fa);
-  
+
   const missingInFA = enKeys.filter(k => !faKeys.includes(k));
   const missingInEN = faKeys.filter(k => !enKeys.includes(k));
-  
+
   if (missingInFA.length === 0 && missingInEN.length === 0) {
     console.log(`✅ Translation keys: ${enKeys.length} keys in sync`);
     return true;
@@ -55,7 +55,7 @@ async function quickEndpointTest() {
   const { exec } = require('child_process');
   const util = require('util');
   const execAsync = util.promisify(exec);
-  
+
   try {
     // Try port 3001 first, then 3000
     let serverUrl = null;
@@ -66,11 +66,15 @@ async function quickEndpointTest() {
       await execAsync('curl -f http://localhost:3000 > /dev/null 2>&1');
       serverUrl = 'http://localhost:3000';
     }
-    
+
     // Test both locales
-    const enTest = await execAsync(`curl -s "${serverUrl}/en" | grep -c "Featured Categories"`);
-    const faTest = await execAsync(`curl -s "${serverUrl}/fa" | grep -c "دسته‌بندی‌های ویژه"`);
-    
+    const enTest = await execAsync(
+      `curl -s "${serverUrl}/en" | grep -c "Featured Categories"`
+    );
+    const faTest = await execAsync(
+      `curl -s "${serverUrl}/fa" | grep -c "دسته‌بندی‌های ویژه"`
+    );
+
     if (enTest.stdout.trim() === '1' && faTest.stdout.trim() === '1') {
       console.log('✅ Server endpoints: Both locales working');
       return true;
@@ -88,9 +92,9 @@ async function quickEndpointTest() {
 async function main() {
   const keyCheck = checkTranslationParity();
   const endpointCheck = await quickEndpointTest();
-  
+
   console.log('\n' + '='.repeat(40));
-  
+
   if (keyCheck && (endpointCheck === null || endpointCheck)) {
     console.log('🎉 i18n system is healthy!');
     process.exit(0);

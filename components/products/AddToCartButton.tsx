@@ -21,7 +21,7 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('product');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -39,8 +39,8 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: product.id,
-          quantity
-        })
+          quantity,
+        }),
       });
 
       if (response.ok) {
@@ -53,11 +53,14 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
         type ApiError = { error?: string; message?: string };
         let payload: ApiError | null = null;
         try {
-          payload = await response.json() as ApiError;
+          payload = (await response.json()) as ApiError;
         } catch {
           payload = null;
         }
-        const msg = payload?.error || payload?.message || `Failed to add to cart (${response.status})`;
+        const msg =
+          payload?.error ||
+          payload?.message ||
+          `Failed to add to cart (${response.status})`;
         throw new Error(msg);
       }
     } catch (error) {

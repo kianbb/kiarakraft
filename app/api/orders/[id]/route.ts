@@ -9,13 +9,13 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -25,19 +25,19 @@ export async function GET(
     const order = await prisma.order.findFirst({
       where: {
         id: params.id,
-        userId: user.id
+        userId: user.id,
       },
       include: {
         items: {
           include: {
             product: {
               include: {
-                seller: true
-              }
-            }
-          }
-        }
-      }
+                seller: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!order) {

@@ -21,7 +21,9 @@ export interface PreflightIssue {
   reason: PreflightIssueReason;
 }
 
-export function collectPreflightIssues(items: PreflightItem[]): PreflightIssue[] {
+export function collectPreflightIssues(
+  items: PreflightItem[]
+): PreflightIssue[] {
   const issues: PreflightIssue[] = [];
   for (const it of items) {
     const available = it.product?.stock ?? 0;
@@ -33,7 +35,7 @@ export function collectPreflightIssues(items: PreflightItem[]): PreflightIssue[]
         title,
         requested: it.quantity,
         available,
-        reason: 'inactive'
+        reason: 'inactive',
       });
     } else if (available < it.quantity) {
       issues.push({
@@ -41,7 +43,7 @@ export function collectPreflightIssues(items: PreflightItem[]): PreflightIssue[]
         title,
         requested: it.quantity,
         available,
-        reason: 'insufficient_stock'
+        reason: 'insufficient_stock',
       });
     }
   }

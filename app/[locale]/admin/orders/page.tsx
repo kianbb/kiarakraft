@@ -12,8 +12,8 @@ async function getData() {
     include: {
       user: { select: { email: true, name: true } },
       payment: true,
-      items: { include: { product: { select: { title: true } } } }
-    }
+      items: { include: { product: { select: { title: true } } } },
+    },
   });
   return orders;
 }
@@ -41,17 +41,28 @@ export default async function AdminOrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
+            {orders.map(o => (
               <tr key={o.id} className="border-t">
-                <td className="p-3 font-mono"><Link href={`/${'fa'}/order/${o.id}`} className="text-blue-600 underline">{o.id}</Link></td>
+                <td className="p-3 font-mono">
+                  <Link
+                    href={`/${'fa'}/order/${o.id}`}
+                    className="text-blue-600 underline"
+                  >
+                    {o.id}
+                  </Link>
+                </td>
                 <td className="p-3">{o.user.name || o.user.email}</td>
                 <td className="p-3">{o.status}</td>
-                <td className="p-3">{o.payment ? `${o.payment.gateway}:${o.payment.status}` : '—'}</td>
+                <td className="p-3">
+                  {o.payment ? `${o.payment.gateway}:${o.payment.status}` : '—'}
+                </td>
                 <td className="p-3">{o.totalToman.toLocaleString('fa-IR')}</td>
                 <td className="p-3">
-                  {o.payment && o.payment.gateway === 'OFFLINE' && o.payment.status !== 'PAID' && (
-                    <MarkPaidButton orderId={o.id} />
-                  )}
+                  {o.payment &&
+                    o.payment.gateway === 'OFFLINE' &&
+                    o.payment.status !== 'PAID' && (
+                      <MarkPaidButton orderId={o.id} />
+                    )}
                 </td>
               </tr>
             ))}

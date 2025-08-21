@@ -6,7 +6,7 @@ const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
   defaultLocale: 'fa', // Persian remains the default
   localePrefix: 'always',
-  localeDetection: false
+  localeDetection: false,
 });
 
 const authMiddleware = withAuth(
@@ -17,16 +17,19 @@ const authMiddleware = withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         const pathname = req.nextUrl.pathname.toLowerCase();
-        
+
         // Exact path matching to prevent traversal attacks
-        const isSellerPath = pathname.startsWith('/fa/seller') || pathname.startsWith('/en/seller');
-        const isAdminPath = pathname.startsWith('/fa/admin') || pathname.startsWith('/en/admin');
-        
+        const isSellerPath =
+          pathname.startsWith('/fa/seller') ||
+          pathname.startsWith('/en/seller');
+        const isAdminPath =
+          pathname.startsWith('/fa/admin') || pathname.startsWith('/en/admin');
+
         // Check if the route requires seller role
         if (isSellerPath) {
           return token?.role === 'SELLER';
         }
-        // Check if the route requires admin role  
+        // Check if the route requires admin role
         if (isAdminPath) {
           return token?.role === 'ADMIN';
         }
@@ -43,14 +46,19 @@ const authMiddleware = withAuth(
 export default function middleware(req: NextRequest) {
   // Apply auth middleware only to protected routes - exact matching to prevent traversal
   const pathname = req.nextUrl.pathname.toLowerCase();
-  const isProtectedPath = pathname.startsWith('/fa/seller') || 
-                         pathname.startsWith('/en/seller') ||
-                         pathname.startsWith('/fa/admin') || 
-                         pathname.startsWith('/en/admin');
+  const isProtectedPath =
+    pathname.startsWith('/fa/seller') ||
+    pathname.startsWith('/en/seller') ||
+    pathname.startsWith('/fa/admin') ||
+    pathname.startsWith('/en/admin');
 
   // If the URL already contains an explicit locale prefix, avoid rewriting to preserve
   // correct status codes (e.g., ensure notFound() yields HTTP 404 instead of a soft 200).
-  const isLocalePrefixed = pathname === '/fa' || pathname === '/en' || pathname.startsWith('/fa/') || pathname.startsWith('/en/');
+  const isLocalePrefixed =
+    pathname === '/fa' ||
+    pathname === '/en' ||
+    pathname.startsWith('/fa/') ||
+    pathname.startsWith('/en/');
 
   if (isLocalePrefixed) {
     if (isProtectedPath) {
@@ -65,5 +73,5 @@ export default function middleware(req: NextRequest) {
 
 export const config = {
   // exclude static assets and ALL APIs from locale handling
-  matcher: ['/((?!_next|.*\\..*|api).*)']
+  matcher: ['/((?!_next|.*\\..*|api).*)'],
 };

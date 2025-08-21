@@ -12,7 +12,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatPrice } from '@/lib/utils';
 import { CreditCard, MapPin, Package } from 'lucide-react';
 import { CartItemWithProduct } from '@/types/database';
@@ -24,7 +30,7 @@ const checkoutSchema = z.object({
   city: z.string().min(1, 'City is required'),
   province: z.string().min(1, 'Province is required'),
   postalCode: z.string().min(1, 'Postal code is required'),
-  paymentMethod: z.enum(['cash_on_delivery', 'bank_transfer'])
+  paymentMethod: z.enum(['cash_on_delivery', 'bank_transfer']),
 });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
@@ -35,12 +41,18 @@ export default function CheckoutPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('checkout');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [preflightIssues, setPreflightIssues] = useState<
-    Array<{ productId: string; title?: string; requested: number; available: number; reason: 'inactive' | 'insufficient_stock' }>
+    Array<{
+      productId: string;
+      title?: string;
+      requested: number;
+      available: number;
+      reason: 'inactive' | 'insufficient_stock';
+    }>
   >([]);
 
   const {
@@ -48,12 +60,12 @@ export default function CheckoutPage() {
     handleSubmit,
     setValue,
     watch,
-    formState: { errors }
+    formState: { errors },
   } = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      paymentMethod: 'cash_on_delivery'
-    }
+      paymentMethod: 'cash_on_delivery',
+    },
   });
 
   useEffect(() => {
@@ -80,7 +92,7 @@ export default function CheckoutPage() {
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total: number, item: CartItemWithProduct) => {
-      return total + (item.product.priceToman * item.quantity);
+      return total + item.product.priceToman * item.quantity;
     }, 0);
   };
 
@@ -94,7 +106,7 @@ export default function CheckoutPage() {
 
   const onSubmit = async (data: CheckoutForm) => {
     setPlacing(true);
-  setPreflightIssues([]);
+    setPreflightIssues([]);
     try {
       // Create order first
       const orderResponse = await fetch('/api/orders', {
@@ -102,8 +114,8 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shippingInfo: data,
-          paymentMethod: data.paymentMethod
-        })
+          paymentMethod: data.paymentMethod,
+        }),
       });
 
       if (!orderResponse.ok) {
@@ -124,8 +136,8 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: order.id
-        })
+          orderId: order.id,
+        }),
       });
 
       if (paymentResponse.ok) {
@@ -192,7 +204,9 @@ export default function CheckoutPage() {
         <div className="container mx-auto px-4 text-center">
           <Package className="h-16 w-16 mx-auto mb-6 text-muted-foreground opacity-50" />
           <h1 className="text-2xl font-bold mb-4">{t('emptyCart')}</h1>
-          <p className="text-muted-foreground mb-6">{t('emptyCartDescription')}</p>
+          <p className="text-muted-foreground mb-6">
+            {t('emptyCartDescription')}
+          </p>
           <Link href="/explore">
             <Button size="lg">{t('startShopping')}</Button>
           </Link>
@@ -209,21 +223,28 @@ export default function CheckoutPage() {
         {preflightIssues.length > 0 && (
           <div className="mb-8 rounded-md border border-red-300 bg-red-50 p-4 text-red-900">
             <p className="font-semibold mb-2">{t('paymentPreflightIssues')}</p>
-            <p className="text-sm mb-3 text-red-800">{t('paymentPreflightDescription')}</p>
+            <p className="text-sm mb-3 text-red-800">
+              {t('paymentPreflightDescription')}
+            </p>
             <ul className="list-disc pl-6 space-y-1 text-sm">
               {preflightIssues.map((iss, idx) => (
                 <li key={idx}>
-                  <span className="font-medium">{iss.title || 'Item'}</span>: {' '}
+                  <span className="font-medium">{iss.title || 'Item'}</span>:{' '}
                   {iss.reason === 'inactive'
                     ? t('inactiveProduct')
-                    : t('insufficientStockDetail', { available: iss.available, requested: iss.requested })}
+                    : t('insufficientStockDetail', {
+                        available: iss.available,
+                        requested: iss.requested,
+                      })}
                 </li>
               ))}
             </ul>
             <p className="text-sm mt-3">{t('adjustCart')}</p>
             <div className="mt-3">
               <Link href="/cart">
-                <Button variant="destructive" size="sm">{t('goToCart')}</Button>
+                <Button variant="destructive" size="sm">
+                  {t('goToCart')}
+                </Button>
               </Link>
             </div>
           </div>
@@ -247,7 +268,9 @@ export default function CheckoutPage() {
                     placeholder={t('fullName')}
                   />
                   {errors.fullName && (
-                    <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.fullName.message}
+                    </p>
                   )}
                 </div>
 
@@ -259,7 +282,9 @@ export default function CheckoutPage() {
                     placeholder={t('phone')}
                   />
                   {errors.phone && (
-                    <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.phone.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -272,7 +297,9 @@ export default function CheckoutPage() {
                   placeholder={t('address')}
                 />
                 {errors.address && (
-                  <p className="text-sm text-destructive mt-1">{errors.address.message}</p>
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.address.message}
+                  </p>
                 )}
               </div>
 
@@ -285,7 +312,9 @@ export default function CheckoutPage() {
                     placeholder={t('city')}
                   />
                   {errors.city && (
-                    <p className="text-sm text-destructive mt-1">{errors.city.message}</p>
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.city.message}
+                    </p>
                   )}
                 </div>
 
@@ -297,7 +326,9 @@ export default function CheckoutPage() {
                     placeholder={t('province')}
                   />
                   {errors.province && (
-                    <p className="text-sm text-destructive mt-1">{errors.province.message}</p>
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.province.message}
+                    </p>
                   )}
                 </div>
 
@@ -309,7 +340,9 @@ export default function CheckoutPage() {
                     placeholder={t('postalCode')}
                   />
                   {errors.postalCode && (
-                    <p className="text-sm text-destructive mt-1">{errors.postalCode.message}</p>
+                    <p className="text-sm text-destructive mt-1">
+                      {errors.postalCode.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -318,19 +351,30 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
-                  <h2 className="text-xl font-semibold">{t('paymentMethod')}</h2>
+                  <h2 className="text-xl font-semibold">
+                    {t('paymentMethod')}
+                  </h2>
                 </div>
 
                 <Select
                   value={watch('paymentMethod')}
-                  onValueChange={(value) => setValue('paymentMethod', value as 'cash_on_delivery' | 'bank_transfer')}
+                  onValueChange={value =>
+                    setValue(
+                      'paymentMethod',
+                      value as 'cash_on_delivery' | 'bank_transfer'
+                    )
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t('selectPaymentMethod')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash_on_delivery">{t('cashOnDelivery')}</SelectItem>
-                    <SelectItem value="bank_transfer">{t('bankTransfer')}</SelectItem>
+                    <SelectItem value="cash_on_delivery">
+                      {t('cashOnDelivery')}
+                    </SelectItem>
+                    <SelectItem value="bank_transfer">
+                      {t('bankTransfer')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -339,22 +383,32 @@ export default function CheckoutPage() {
             {/* Order Summary */}
             <div className="space-y-6">
               <h2 className="text-xl font-semibold">{t('orderSummary')}</h2>
-              
+
               {/* Items */}
               <div className="space-y-3">
                 {cartItems.map((item: CartItemWithProduct) => (
-                  <div key={item.id} className="flex justify-between items-center">
+                  <div
+                    key={item.id}
+                    className="flex justify-between items-center"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
                         <Image
-                          src={item.product.images?.[0]?.url || '/placeholder-product.jpg'}
-                          alt={item.product.images?.[0]?.alt || item.product.title}
+                          src={
+                            item.product.images?.[0]?.url ||
+                            '/placeholder-product.jpg'
+                          }
+                          alt={
+                            item.product.images?.[0]?.alt || item.product.title
+                          }
                           fill
                           className="object-cover"
                         />
                       </div>
                       <div>
-                        <div className="font-medium text-sm">{item.product.title}</div>
+                        <div className="font-medium text-sm">
+                          {item.product.title}
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           {t('quantity')}: {item.quantity}
                         </div>

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -13,30 +13,36 @@ interface ExplorePaginationProps {
   locale: string;
 }
 
-export function ExplorePagination({ currentPage, totalPages, searchParams, locale }: ExplorePaginationProps) {
+export function ExplorePagination({
+  currentPage,
+  totalPages,
+  searchParams,
+  locale,
+}: ExplorePaginationProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('common');
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
 
   const isFa = locale === 'fa';
-  const toFaDigits = (val: number | string) => String(val).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+  const toFaDigits = (val: number | string) =>
+    String(val).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
 
   const createPageUrl = (page: number) => {
     const params = new URLSearchParams();
-    
+
     // Add existing search params
     Object.entries(searchParams).forEach(([key, value]) => {
       if (value && key !== 'page') {
         params.set(key, value);
       }
     });
-    
+
     // Add page param if not first page
     if (page > 1) {
       params.set('page', page.toString());
     }
-    
+
     const queryString = params.toString();
     return `/${locale}/explore${queryString ? `?${queryString}` : ''}`;
   };
@@ -47,7 +53,11 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
     const range = [];
     const rangeWithDots = [];
 
-    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
       range.push(i);
     }
 
@@ -73,7 +83,10 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center space-x-2" dir={isFa ? 'rtl' : undefined}>
+    <div
+      className="flex items-center justify-center space-x-2"
+      dir={isFa ? 'rtl' : undefined}
+    >
       {/* Previous Button */}
       {currentPage > 1 ? (
         <Link href={createPageUrl(currentPage - 1)}>
@@ -99,15 +112,20 @@ export function ExplorePagination({ currentPage, totalPages, searchParams, local
 
       {/* Page Numbers */}
       {/* Force LTR flow for numerals in Persian to keep increasing order visually */}
-      <div className="flex items-center space-x-1" dir={isFa ? 'ltr' : undefined}>
+      <div
+        className="flex items-center space-x-1"
+        dir={isFa ? 'ltr' : undefined}
+      >
         {visiblePages.map((page, index) => (
           <div key={index}>
             {page === '...' ? (
-              <span className="px-3 py-2 text-sm text-muted-foreground">...</span>
+              <span className="px-3 py-2 text-sm text-muted-foreground">
+                ...
+              </span>
             ) : (
               <Link href={createPageUrl(page as number)}>
                 <Button
-                  variant={currentPage === page ? "default" : "outline"}
+                  variant={currentPage === page ? 'default' : 'outline'}
                   size="sm"
                   className="min-w-[2.5rem]"
                 >

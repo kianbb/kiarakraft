@@ -12,7 +12,7 @@ export default function ExploreLoading() {
         <div className="mb-8 space-y-4">
           {/* Search Bar */}
           <div className="h-10 bg-gray-200 rounded-lg animate-pulse"></div>
-          
+
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
@@ -31,13 +31,13 @@ export default function ExploreLoading() {
             <div key={i} className="animate-pulse">
               {/* Product Image */}
               <div className="bg-gray-200 aspect-square rounded-lg mb-4"></div>
-              
+
               {/* Product Title */}
               <div className="bg-gray-200 h-4 rounded mb-2"></div>
-              
+
               {/* Product Price */}
               <div className="bg-gray-200 h-4 rounded w-2/3 mb-2"></div>
-              
+
               {/* Seller Info */}
               <div className="bg-gray-200 h-3 rounded w-1/2"></div>
             </div>

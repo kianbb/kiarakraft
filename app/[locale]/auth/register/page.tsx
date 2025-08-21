@@ -20,56 +20,69 @@ export default function RegisterPage() {
   const _t = useTranslations('auth');
   const _locale = useLocale();
   const locale = isHydrated ? _locale : 'en';
-  const t = isHydrated ? _t : ((k: string) => k) as (k: string) => string;
+  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   // Build localized schema after translations are available
-  const registerSchema = z.object({
-    name: z.string().min(1, t('nameRequired')),
-    email: z.string().email(t('invalidEmail')),
-    password: z
-      .string()
-      .min(12, t('passwordMin12') || 'Password must be at least 12 characters long')
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-        t('passwordComplexity') || 'Password must include upper, lower, number and special character'
-      ),
-    confirmPassword: z.string(),
-    role: z.enum(['BUYER', 'SELLER']),
-    // Seller fields
-    shopName: z.string().optional(),
-    displayName: z.string().optional(),
-    bio: z.string().optional(),
-    region: z.string().optional()
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: t('passwordsNotMatch'),
-    path: ["confirmPassword"],
-  })
-  .superRefine((data, ctx) => {
-    if (data.role === 'SELLER') {
-      if (!data.shopName?.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['shopName'], message: t('shopNameRequired') || 'Shop name is required' });
+  const registerSchema = z
+    .object({
+      name: z.string().min(1, t('nameRequired')),
+      email: z.string().email(t('invalidEmail')),
+      password: z
+        .string()
+        .min(
+          12,
+          t('passwordMin12') || 'Password must be at least 12 characters long'
+        )
+        .regex(
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+          t('passwordComplexity') ||
+            'Password must include upper, lower, number and special character'
+        ),
+      confirmPassword: z.string(),
+      role: z.enum(['BUYER', 'SELLER']),
+      // Seller fields
+      shopName: z.string().optional(),
+      displayName: z.string().optional(),
+      bio: z.string().optional(),
+      region: z.string().optional(),
+    })
+    .refine(data => data.password === data.confirmPassword, {
+      message: t('passwordsNotMatch'),
+      path: ['confirmPassword'],
+    })
+    .superRefine((data, ctx) => {
+      if (data.role === 'SELLER') {
+        if (!data.shopName?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['shopName'],
+            message: t('shopNameRequired') || 'Shop name is required',
+          });
+        }
+        if (!data.displayName?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['displayName'],
+            message: t('displayNameRequired') || 'Display name is required',
+          });
+        }
       }
-      if (!data.displayName?.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['displayName'], message: t('displayNameRequired') || 'Display name is required' });
-      }
-    }
-  });
+    });
   type RegisterForm = z.infer<typeof registerSchema>;
 
   const {
     register,
     handleSubmit,
     watch,
-    formState: { errors }
+    formState: { errors },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      role: 'BUYER'
-    }
+      role: 'BUYER',
+    },
   });
 
   const watchRole = watch('role');
@@ -91,7 +104,8 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         // Prefer server-provided detailed messages when available (Zod issues)
-        const details: Array<{ message?: string }> | undefined = result?.details;
+        const details: Array<{ message?: string }> | undefined =
+          result?.details;
         if (Array.isArray(details) && details.length > 0) {
           const first = details[0]?.message?.toString();
           setError(first || result.error || t('registrationFailed'));
@@ -133,9 +147,7 @@ export default function RegisterPage() {
           <h2 className="text-3xl font-bold text-foreground">
             {t('register')}
           </h2>
-          <p className="mt-2 text-muted-foreground">
-            {t('registerSubtitle')}
-          </p>
+          <p className="mt-2 text-muted-foreground">{t('registerSubtitle')}</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
@@ -188,7 +200,8 @@ export default function RegisterPage() {
                 className="mt-1"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {t('passwordMin12')}: {t('passwordComplexity')} — {t('passwordExample')}
+                {t('passwordMin12')}: {t('passwordComplexity')} —{' '}
+                {t('passwordExample')}
               </p>
               {errors.password && (
                 <p className="mt-1 text-sm text-destructive">
@@ -274,11 +287,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t('creating') : t('register')}
             </Button>
           </div>

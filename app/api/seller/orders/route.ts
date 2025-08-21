@@ -6,13 +6,13 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -20,33 +20,35 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+    const limit = searchParams.get('limit')
+      ? parseInt(searchParams.get('limit')!)
+      : undefined;
 
     const orders = await prisma.order.findMany({
       where: {
         items: {
           some: {
             product: {
-              sellerId: user.id
-            }
-          }
-        }
+              sellerId: user.id,
+            },
+          },
+        },
       },
       include: {
         user: true,
         items: {
           where: {
             product: {
-              sellerId: user.id
-            }
+              sellerId: user.id,
+            },
           },
           include: {
-            product: true
-          }
-        }
+            product: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit
+      take: limit,
     });
 
     return NextResponse.json(orders);

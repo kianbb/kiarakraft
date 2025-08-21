@@ -31,7 +31,7 @@ jobs:
           NEXTAUTH_URL: https://www.kiarakraft.com
           LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
           LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
-          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: "Weekly performance audit"
+          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: 'Weekly performance audit'
 
       - name: Check production analytics
         run: npm run check:analytics

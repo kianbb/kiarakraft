@@ -1,8 +1,8 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function formatPrice(price: number, locale: string = 'fa'): string {
@@ -11,7 +11,7 @@ export function formatPrice(price: number, locale: string = 'fa'): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(price);
-  
+
   if (isRTL) {
     return `${formatted} تومان`;
   } else {
@@ -26,6 +26,6 @@ export function formatDate(date: string | Date, locale: string = 'fa'): string {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(new Date(date));
 }

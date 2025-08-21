@@ -13,12 +13,12 @@ interface QuantitySelectorProps {
   disabled?: boolean;
 }
 
-export function QuantitySelector({ 
-  value, 
-  onChange, 
-  max = 99, 
-  min = 1, 
-  disabled = false 
+export function QuantitySelector({
+  value,
+  onChange,
+  max = 99,
+  min = 1,
+  disabled = false,
 }: QuantitySelectorProps) {
   const [inputValue, setInputValue] = useState(value.toString());
 
@@ -37,7 +37,7 @@ export function QuantitySelector({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputVal = e.target.value;
     setInputValue(inputVal);
-    
+
     const numVal = parseInt(inputVal);
     if (!isNaN(numVal) && numVal >= min && numVal <= max) {
       onChange(numVal);
@@ -52,7 +52,11 @@ export function QuantitySelector({
   };
 
   return (
-    <div className="flex items-center border rounded-md" role="group" aria-label="Quantity selector">
+    <div
+      className="flex items-center border rounded-md"
+      role="group"
+      aria-label="Quantity selector"
+    >
       <Button
         variant="ghost"
         size="icon"
@@ -63,7 +67,7 @@ export function QuantitySelector({
       >
         <Minus className="h-3 w-3" aria-hidden="true" />
       </Button>
-      
+
       <Input
         type="number"
         value={inputValue}
@@ -79,7 +83,7 @@ export function QuantitySelector({
         aria-valuemax={max}
         aria-valuenow={value}
       />
-      
+
       <Button
         variant="ghost"
         size="icon"

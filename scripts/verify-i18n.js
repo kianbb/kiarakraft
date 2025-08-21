@@ -14,40 +14,40 @@ const tests = [
     name: 'English Locale Navigation',
     url: `${SERVER_URL}/en`,
     shouldContain: ['Home', 'Explore', 'Kiara Kraft'],
-    shouldNotContain: ['خانه', 'کاوش', 'کیارا کرفت']
+    shouldNotContain: ['خانه', 'کاوش', 'کیارا کرفت'],
   },
   {
     name: 'English Locale Auth Buttons',
     url: `${SERVER_URL}/en`,
     shouldContain: ['Login', 'Register'],
-    shouldNotContain: ['ورود', 'ثبت‌نام']
+    shouldNotContain: ['ورود', 'ثبت‌نام'],
   },
   {
     name: 'English Locale HTML Lang',
     url: `${SERVER_URL}/en`,
     shouldContain: ['<html lang="en" dir="ltr"'],
-    shouldNotContain: ['<html lang="fa" dir="rtl"']
+    shouldNotContain: ['<html lang="fa" dir="rtl"'],
   },
   {
     name: 'Persian Locale Navigation',
     url: `${SERVER_URL}/fa`,
     shouldContain: ['خانه', 'کاوش', 'کیارا کرفت'],
-    shouldNotContain: ['Home', 'Explore', 'Kiara Kraft']
+    shouldNotContain: ['Home', 'Explore', 'Kiara Kraft'],
   },
   {
     name: 'Persian Locale HTML Lang',
     url: `${SERVER_URL}/fa`,
     shouldContain: ['<html lang="fa" dir="rtl"'],
-    shouldNotContain: ['<html lang="en" dir="ltr"']
-  }
+    shouldNotContain: ['<html lang="en" dir="ltr"'],
+  },
 ];
 
 async function runTest(test) {
   try {
     console.log(`Testing: ${test.name}`);
-    
+
     const response = execSync(`curl -s "${test.url}"`, { encoding: 'utf8' });
-    
+
     let passed = true;
     let details = [];
 
@@ -71,7 +71,9 @@ async function runTest(test) {
       }
     }
 
-    console.log(`${passed ? '✅' : '❌'} ${test.name}: ${passed ? 'PASSED' : 'FAILED'}`);
+    console.log(
+      `${passed ? '✅' : '❌'} ${test.name}: ${passed ? 'PASSED' : 'FAILED'}`
+    );
     if (!passed || process.env.VERBOSE) {
       details.forEach(detail => console.log(`  ${detail}`));
     }
@@ -87,7 +89,7 @@ async function runTest(test) {
 
 async function main() {
   console.log('🔍 Starting i18n Verification Tests\n');
-  
+
   let totalTests = tests.length;
   let passedTests = 0;
 
@@ -97,7 +99,7 @@ async function main() {
   }
 
   console.log(`📊 Results: ${passedTests}/${totalTests} tests passed`);
-  
+
   if (passedTests === totalTests) {
     console.log('🎉 All i18n tests passed!');
     process.exit(0);

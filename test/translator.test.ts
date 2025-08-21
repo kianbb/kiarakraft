@@ -15,7 +15,10 @@ async function testTranslateText() {
 
   // Test Persian to English
   const persianText = 'سفال دست‌ساز زیبا';
-  const persianResult = await translateText(persianText, { from: 'fa', to: 'en' });
+  const persianResult = await translateText(persianText, {
+    from: 'fa',
+    to: 'en',
+  });
   assert.equal(typeof persianResult, 'string', 'Should return string');
   assert.ok(persianResult.length > 0, 'Should return non-empty result');
 
@@ -34,20 +37,28 @@ async function testTranslateProductFields() {
   // Test with Persian content
   const product = {
     title: 'سفال زیبا',
-    description: 'این یک سفال دست‌ساز بسیار زیبا است'
+    description: 'این یک سفال دست‌ساز بسیار زیبا است',
   };
 
   const result = await translateProductFields(product, 'fa', 'en');
   assert.ok('title' in result, 'Should have title property');
   assert.ok('description' in result, 'Should have description property');
   assert.equal(typeof result.title, 'string', 'Title should be string');
-  assert.equal(typeof result.description, 'string', 'Description should be string');
+  assert.equal(
+    typeof result.description,
+    'string',
+    'Description should be string'
+  );
 
   // Test empty fields
   const emptyProduct = { title: '', description: '' };
   const emptyResult = await translateProductFields(emptyProduct, 'fa', 'en');
   assert.equal(emptyResult.title, '', 'Empty title should remain empty');
-  assert.equal(emptyResult.description, '', 'Empty description should remain empty');
+  assert.equal(
+    emptyResult.description,
+    '',
+    'Empty description should remain empty'
+  );
 
   console.log('✓ translateProductFields tests passed');
 }
@@ -59,8 +70,16 @@ async function testPersianDetection() {
   const englishText = 'Handmade pottery';
   const hasPersianRegex = /[\u0600-\u06FF]/;
 
-  assert.equal(hasPersianRegex.test(persianText), true, 'Should detect Persian text');
-  assert.equal(hasPersianRegex.test(englishText), false, 'Should not detect Persian in English text');
+  assert.equal(
+    hasPersianRegex.test(persianText),
+    true,
+    'Should detect Persian text'
+  );
+  assert.equal(
+    hasPersianRegex.test(englishText),
+    false,
+    'Should not detect Persian in English text'
+  );
 
   console.log('✓ Persian detection tests passed');
 }
@@ -71,7 +90,11 @@ async function testErrorHandling() {
   // Test that function doesn't throw
   try {
     const result = await translateText('Test text', { from: 'en', to: 'fa' });
-    assert.equal(typeof result, 'string', 'Should return string even on errors');
+    assert.equal(
+      typeof result,
+      'string',
+      'Should return string even on errors'
+    );
   } catch (error) {
     assert.fail('translateText should not throw errors');
   }

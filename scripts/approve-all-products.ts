@@ -7,8 +7,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   const updated = await prisma.product.updateMany({
-    where: { active: true, eligibilityStatus: { in: ['PENDING','REVIEW'] } },
-    data: { eligibilityStatus: 'APPROVED' }
+    where: { active: true, eligibilityStatus: { in: ['PENDING', 'REVIEW'] } },
+    data: { eligibilityStatus: 'APPROVED' },
   });
   console.log(JSON.stringify({ approved: updated.count }));
 }

@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.kiarakraft.com';
-  
+
   try {
     // Get all products with their slugs and last modified dates
     const products = await db.product.findMany({
@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'daily',
         priority: 1,
       },
-      // Explore pages  
+      // Explore pages
       {
         url: `${baseUrl}/fa/explore`,
         lastModified: new Date(),
@@ -64,29 +64,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
 
     // Category pages
-    const categoryPages: MetadataRoute.Sitemap = categories.flatMap((category) => [
-      {
-        url: `${baseUrl}/fa/explore?category=${category.slug}`,
-        lastModified: new Date(),
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-        alternates: {
-          languages: {
-            fa: `${baseUrl}/fa/explore?category=${category.slug}`,
-            en: `${baseUrl}/en/explore?category=${category.slug}`,
+    const categoryPages: MetadataRoute.Sitemap = categories.flatMap(
+      category => [
+        {
+          url: `${baseUrl}/fa/explore?category=${category.slug}`,
+          lastModified: new Date(),
+          changeFrequency: 'daily' as const,
+          priority: 0.7,
+          alternates: {
+            languages: {
+              fa: `${baseUrl}/fa/explore?category=${category.slug}`,
+              en: `${baseUrl}/en/explore?category=${category.slug}`,
+            },
           },
         },
-      },
-      {
-        url: `${baseUrl}/en/explore?category=${category.slug}`,
-        lastModified: new Date(),
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-      },
-    ]);
+        {
+          url: `${baseUrl}/en/explore?category=${category.slug}`,
+          lastModified: new Date(),
+          changeFrequency: 'daily' as const,
+          priority: 0.7,
+        },
+      ]
+    );
 
     // Product pages
-    const productPages: MetadataRoute.Sitemap = products.flatMap((product) => [
+    const productPages: MetadataRoute.Sitemap = products.flatMap(product => [
       {
         url: `${baseUrl}/fa/product/${product.slug}`,
         lastModified: product.updatedAt,
@@ -108,10 +110,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
 
     return [...staticPages, ...categoryPages, ...productPages];
-
   } catch (error) {
     console.error('Error generating sitemap:', error);
-    
+
     // Return minimal sitemap if database fails
     return [
       {

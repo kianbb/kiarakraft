@@ -1,137 +1,142 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>آفلاین - کیارا کرفت</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Tahoma, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }
-        
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Tahoma, Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 400px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 40px 30px;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .logo {
+        width: 80px;
+        height: 80px;
+        background: white;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 30px;
+        font-size: 40px;
+        font-weight: bold;
+        color: #667eea;
+      }
+
+      h1 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+
+      p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 30px;
+        opacity: 0.9;
+      }
+
+      .retry-btn {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .retry-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .status {
+        margin-top: 20px;
+        font-size: 14px;
+        opacity: 0.7;
+      }
+
+      @media (max-width: 480px) {
         .container {
-            max-width: 400px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 40px 30px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+          padding: 30px 20px;
         }
-        
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: white;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 30px;
-            font-size: 40px;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
+
         h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            font-weight: 600;
+          font-size: 20px;
         }
-        
+
         p {
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 30px;
-            opacity: 0.9;
+          font-size: 14px;
         }
-        
-        .retry-btn {
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .retry-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .status {
-            margin-top: 20px;
-            font-size: 14px;
-            opacity: 0.7;
-        }
-        
-        @media (max-width: 480px) {
-            .container {
-                padding: 30px 20px;
-            }
-            
-            h1 {
-                font-size: 20px;
-            }
-            
-            p {
-                font-size: 14px;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="logo">K</div>
-        <h1>شما آفلاین هستید</h1>
-        <p>اتصال اینترنت شما قطع شده است. لطفاً اتصال خود را بررسی کنید و دوباره تلاش کنید.</p>
-        <button class="retry-btn" onclick="window.location.reload()">تلاش مجدد</button>
-        <div class="status" id="status">در حال بررسی اتصال...</div>
+      <div class="logo">K</div>
+      <h1>شما آفلاین هستید</h1>
+      <p>
+        اتصال اینترنت شما قطع شده است. لطفاً اتصال خود را بررسی کنید و دوباره
+        تلاش کنید.
+      </p>
+      <button class="retry-btn" onclick="window.location.reload()">
+        تلاش مجدد
+      </button>
+      <div class="status" id="status">در حال بررسی اتصال...</div>
     </div>
 
     <script>
-        // Check connection status
-        function updateConnectionStatus() {
-            const status = document.getElementById('status');
-            if (navigator.onLine) {
-                status.textContent = 'اتصال برقرار شد - می‌توانید تلاش مجدد کنید';
-                status.style.color = '#4ade80';
-            } else {
-                status.textContent = 'هنوز آفلاین هستید';
-                status.style.color = '#f87171';
-            }
+      // Check connection status
+      function updateConnectionStatus() {
+        const status = document.getElementById('status');
+        if (navigator.onLine) {
+          status.textContent = 'اتصال برقرار شد - می‌توانید تلاش مجدد کنید';
+          status.style.color = '#4ade80';
+        } else {
+          status.textContent = 'هنوز آفلاین هستید';
+          status.style.color = '#f87171';
         }
+      }
 
-        // Listen for connection changes
-        window.addEventListener('online', updateConnectionStatus);
-        window.addEventListener('offline', updateConnectionStatus);
+      // Listen for connection changes
+      window.addEventListener('online', updateConnectionStatus);
+      window.addEventListener('offline', updateConnectionStatus);
 
-        // Initial check
-        setTimeout(updateConnectionStatus, 1000);
+      // Initial check
+      setTimeout(updateConnectionStatus, 1000);
 
-        // Auto-retry when back online
-        window.addEventListener('online', () => {
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        });
+      // Auto-retry when back online
+      window.addEventListener('online', () => {
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      });
     </script>
-</body>
+  </body>
 </html>
