@@ -13,6 +13,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+  "check:status": "tsx scripts/check-status.ts",
+  "check:analytics": "tsx scripts/check-analytics.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:production": "tsx prisma/seed-production.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",

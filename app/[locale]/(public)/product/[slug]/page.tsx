@@ -31,6 +31,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     getTranslations({ locale: params.locale, namespace: 'home' })
   ]);
 
+  // If product does not exist, return a hard 404 as early as possible to avoid soft-404 (200 + NEXT_NOT_FOUND)
+  if (!p) {
+    return notFound();
+  }
+
   // Localize demo products that were seeded in Persian-only
   let title = p?.title ?? tProduct('notFound');
   let description = p?.description ?? tProduct('notFoundDescription');

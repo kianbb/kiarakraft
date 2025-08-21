@@ -1,6 +1,6 @@
 import createMiddleware from 'next-intl/middleware';
 import { withAuth } from 'next-auth/middleware';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
@@ -48,10 +48,18 @@ export default function middleware(req: NextRequest) {
                          pathname.startsWith('/fa/admin') || 
                          pathname.startsWith('/en/admin');
 
-  if (isProtectedPath) {
-    return (authMiddleware as any)(req);
+  // If the URL already contains an explicit locale prefix, avoid rewriting to preserve
+  // correct status codes (e.g., ensure notFound() yields HTTP 404 instead of a soft 200).
+  const isLocalePrefixed = pathname === '/fa' || pathname === '/en' || pathname.startsWith('/fa/') || pathname.startsWith('/en/');
+
+  if (isLocalePrefixed) {
+    if (isProtectedPath) {
+      return (authMiddleware as any)(req);
+    }
+    return NextResponse.next();
   }
 
+  // For non-locale-prefixed paths (e.g., "/"), apply locale middleware to redirect/rewrite
   return intlMiddleware(req);
 }
 
