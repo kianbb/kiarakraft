@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
       },
       include: {
         user: true,
+        address: true,
+        shipping: true,
         items: {
           where: {
             product: {

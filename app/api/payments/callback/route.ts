@@ -171,6 +171,7 @@ export const GET = withRateLimit(
               where: { id: payment!.orderId },
               include: {
                 user: { select: { email: true, name: true } },
+                address: true,
                 items: { include: { product: { select: { title: true } } } },
               },
             });
@@ -183,13 +184,13 @@ export const GET = withRateLimit(
               }));
 
               const shippingAddress = {
-                fullName: completeOrder.fullName,
-                address1: completeOrder.address1,
-                address2: completeOrder.address2 || undefined,
-                city: completeOrder.city,
-                province: completeOrder.province,
-                postalCode: completeOrder.postalCode,
-                phone: completeOrder.phone,
+                fullName: completeOrder.address.fullName,
+                address1: completeOrder.address.line1,
+                address2: completeOrder.address.line2 || undefined,
+                city: completeOrder.address.city,
+                province: completeOrder.address.province,
+                postalCode: completeOrder.address.postal || '',
+                phone: completeOrder.address.phone,
               };
 
               const paymentMethodName =

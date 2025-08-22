@@ -11,7 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
 import { OrderWithItems } from '@/types/database';
-import { CheckCircle, Package, MapPin, CreditCard, Home } from 'lucide-react';
+import {
+  CheckCircle,
+  Package,
+  MapPin,
+  CreditCard,
+  Home,
+  Truck,
+} from 'lucide-react';
+import { OrderTracking } from '@/components/order/OrderTracking';
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -127,17 +135,17 @@ export default function OrderConfirmationPage() {
 
               <div className="space-y-2 text-sm">
                 <div>
-                  <strong>{order.fullName}</strong>
+                  <strong>{order.address.fullName}</strong>
                 </div>
-                <div>{order.phone}</div>
+                <div>{order.address.phone}</div>
                 <div>
-                  {order.address1}
-                  {order.address2 ? `, ${order.address2}` : ''}
+                  {order.address.line1}
+                  {order.address.line2 ? `, ${order.address.line2}` : ''}
                 </div>
                 <div>
-                  {order.city}, {order.province}
+                  {order.address.city}, {order.address.province}
                 </div>
-                <div>{order.postalCode}</div>
+                <div>{order.address.postal}</div>
               </div>
             </div>
 
@@ -150,6 +158,22 @@ export default function OrderConfirmationPage() {
 
               <div className="text-sm">{t('cashOnDelivery')}</div>
             </div>
+
+            {/* Shipping Tracking */}
+            {order.shipping && (
+              <div className="border rounded-lg p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Truck className="h-5 w-5" />
+                  <h2 className="text-xl font-semibold">
+                    {t('shippingTracking')}
+                  </h2>
+                </div>
+                <OrderTracking
+                  shipping={order.shipping}
+                  locale={params.locale as string}
+                />
+              </div>
+            )}
           </div>
 
           {/* Order Items */}

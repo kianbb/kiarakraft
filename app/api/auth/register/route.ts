@@ -53,45 +53,32 @@ export const POST = withRateLimit(
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user with seller profile if role is SELLER
-      interface UserCreateData {
-        email: string;
-        password: string;
-        name: string;
-        role: string;
-        sellerProfile?: {
-          create: {
-            shopName: string;
-            displayName: string;
-            bio?: string | null;
-            region?: string | null;
-          };
-        };
-      }
-
-      const userData: UserCreateData = {
-        email,
-        password: hashedPassword,
-        name,
-        role,
-      };
-
-      if (role === 'SELLER' && shopName && displayName) {
-        userData.sellerProfile = {
-          create: {
-            shopName,
-            displayName,
-            bio: bio || null,
-            region: region || null,
-          },
-        };
-      }
-
+      // Build data object; if SELLER ensure sellerProfile.create has handle
       const user = await prisma.user.create({
-        data: userData,
-        include: {
-          sellerProfile: true,
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          role,
+          ...(role === 'SELLER' && shopName && displayName
+            ? {
+                sellerProfile: {
+                  create: {
+                    shopName,
+                    displayName,
+                    bio: bio || null,
+                    region: region || null,
+                    handle:
+                      (shopName || displayName)
+                        .toLowerCase()
+                        .replace(/[^a-z0-9-]+/g, '-')
+                        .slice(0, 30) || `shop-${Date.now()}`,
+                  },
+                },
+              }
+            : {}),
         },
+        include: { sellerProfile: true },
       });
 
       // Remove password from response

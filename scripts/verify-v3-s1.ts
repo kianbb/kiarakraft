@@ -45,7 +45,6 @@ async function main() {
   console.log('\n2️⃣ Handle Uniqueness');
   const allHandles = await prisma.sellerProfile.findMany({
     select: { handle: true },
-    where: { handle: { not: null } },
   });
 
   const handleCounts = allHandles.reduce(
@@ -69,7 +68,7 @@ async function main() {
 
   // 3. Sample shop URLs for manual testing
   console.log('\n3️⃣ Shop URLs for Testing');
-  const sampleSellers = sellers.filter(s => s.handle).slice(0, 3);
+  const sampleSellers = sellers.slice(0, 3);
   sampleSellers.forEach(seller => {
     console.log(`   🔗 /fa/shop/${seller.handle} (${seller.shopName})`);
   });
