@@ -69,7 +69,19 @@ export const PUT = withRateLimit(
 
       const data = await request.json();
 
-      // Handle and banner validation will be added in V3-S1 implementation
+      // V3-S1: Validate handle uniqueness if provided
+      if (data.handle) {
+        const existingHandle = await prisma.sellerProfile.findUnique({
+          where: { handle: data.handle },
+        });
+
+        if (existingHandle && existingHandle.userId !== user.id) {
+          return NextResponse.json(
+            { error: 'Handle already taken. Please choose a different one.' },
+            { status: 409 }
+          );
+        }
+      }
 
       // Update user name if provided
       if (data.displayName) {
@@ -86,19 +98,23 @@ export const PUT = withRateLimit(
         where: { userId: user.id },
         create: {
           userId: user.id,
+          handle: data.handle,
           shopName: data.shopName || 'My Shop',
           displayName: data.displayName || user.name || 'Seller',
           bio: data.bio,
           avatarUrl: data.avatarUrl,
+          bannerUrl: data.bannerUrl,
           phone: data.phone,
           address: data.address,
           website: data.website,
         },
         update: {
+          ...(data.handle !== undefined && { handle: data.handle }),
           ...(data.shopName && { shopName: data.shopName }),
           ...(data.displayName && { displayName: data.displayName }),
           bio: data.bio,
           avatarUrl: data.avatarUrl,
+          bannerUrl: data.bannerUrl,
           phone: data.phone,
           address: data.address,
           website: data.website,
