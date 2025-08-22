@@ -15,7 +15,10 @@ interface ShopPageProps {
   };
 }
 
-async function getSellerByHandle(handle: string) {
+const PAGE_SIZE = 20;
+
+async function getSellerByHandle(handle: string, page: number) {
+  const skip = (page - 1) * PAGE_SIZE;
   return await prisma.sellerProfile.findUnique({
     where: { handle },
     include: {
@@ -26,18 +29,12 @@ async function getSellerByHandle(handle: string) {
         },
       },
       products: {
-        where: {
-          active: true,
-          isTest: false,
-        },
+        where: { active: true, isTest: false },
         include: {
           images: {
             orderBy: { sortOrder: 'asc' },
             take: 1,
-            select: {
-              url: true,
-              alt: true,
-            },
+            select: { url: true, alt: true },
           },
           seller: {
             select: {
@@ -49,7 +46,8 @@ async function getSellerByHandle(handle: string) {
           },
         },
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        skip,
+        take: PAGE_SIZE + 1, // fetch one extra to detect next page
       },
       _count: {
         select: {
@@ -67,8 +65,10 @@ async function getSellerByHandle(handle: string) {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: ShopPageProps): Promise<Metadata> {
-  const seller = await getSellerByHandle(params.handle);
+  const page = Number(searchParams?.page || '1') || 1;
+  const seller = await getSellerByHandle(params.handle, page);
 
   if (!seller) {
     return {
@@ -98,14 +98,23 @@ export async function generateMetadata({
   };
 }
 
-export default async function ShopPage({ params }: ShopPageProps) {
-  const seller = await getSellerByHandle(params.handle);
+export default async function ShopPage({
+  params,
+  searchParams,
+}: ShopPageProps) {
+  const page = Number(searchParams?.page || '1') || 1;
+  const seller = await getSellerByHandle(params.handle, page);
 
   if (!seller) {
     notFound();
   }
 
   const isRTL = params.locale === 'fa';
+  // Pagination calculations
+  const hasNext = seller.products.length > PAGE_SIZE;
+  const products = hasNext
+    ? seller.products.slice(0, PAGE_SIZE)
+    : seller.products;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -188,7 +197,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
           {isRTL ? 'محصولات' : 'Products'}
         </h2>
 
-        {seller.products.length === 0 ? (
+        {products.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">
               {isRTL
@@ -198,7 +207,8 @@ export default async function ShopPage({ params }: ShopPageProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {seller.products.map(product => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {products.map((product: any) => (
               <ProductCard
                 key={product.id}
                 product={{
@@ -214,6 +224,26 @@ export default async function ShopPage({ params }: ShopPageProps) {
             ))}
           </div>
         )}
+
+        {/* Pagination Controls */}
+        <div className="flex justify-center gap-4 mt-10">
+          {page > 1 && (
+            <a
+              href={`/${params.locale}/shop/${seller.handle}?page=${page - 1}`}
+              className="px-4 py-2 border rounded hover:bg-gray-50"
+            >
+              {isRTL ? 'قبلی' : 'Previous'}
+            </a>
+          )}
+          {hasNext && (
+            <a
+              href={`/${params.locale}/shop/${seller.handle}?page=${page + 1}`}
+              className="px-4 py-2 border rounded hover:bg-gray-50"
+            >
+              {isRTL ? 'بعدی' : 'Next'}
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );

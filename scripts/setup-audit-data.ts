@@ -40,6 +40,7 @@ async function main() {
         userId: testUser.id,
         displayName: 'Audit Test Shop',
         shopName: 'audit-test-shop',
+        handle: 'audit-test-shop',
         bio: 'Test shop for production audit',
         verified: true,
         verifiedAt: new Date(),

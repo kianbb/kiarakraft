@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
+import { z } from 'zod';
 import * as Sentry from '@sentry/nextjs';
 
 export const GET = withRateLimit(sellerRateLimit, async function GET() {
@@ -67,7 +68,41 @@ export const PUT = withRateLimit(
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
-      const data = await request.json();
+      const body = await request.json();
+
+      // V3-S1: Server-side validation (handle required pattern if provided)
+      const schema = z.object({
+        handle: z
+          .string()
+          .min(3)
+          .max(30)
+          .regex(/^[a-z0-9-]{3,30}$/)
+          .optional(),
+        shopName: z.string().optional(),
+        displayName: z.string().optional(),
+        bio: z.string().max(500).optional().nullable(),
+        avatarUrl: z.string().url().optional().nullable(),
+        bannerUrl: z.string().url().optional().nullable(),
+        phone: z.string().optional().nullable(),
+        address: z.string().optional().nullable(),
+        website: z.string().url().optional().nullable(),
+      });
+
+      let data: z.infer<typeof schema>;
+      try {
+        data = schema.parse(body);
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          return NextResponse.json(
+            { error: 'Validation failed', issues: e.issues },
+            { status: 400 }
+          );
+        }
+        throw e;
+      }
+
+      // Normalize handle to lowercase if present
+      if (data.handle) data.handle = data.handle.toLowerCase();
 
       // V3-S1: Validate handle uniqueness if provided
       if (data.handle) {
@@ -94,11 +129,12 @@ export const PUT = withRateLimit(
       }
 
       // Update or create seller profile
+      const fallbackHandle = `shop-${user.id.slice(0, 8)}`;
       const updatedProfile = await prisma.sellerProfile.upsert({
         where: { userId: user.id },
         create: {
           userId: user.id,
-          handle: data.handle,
+          handle: data.handle || fallbackHandle,
           shopName: data.shopName || 'My Shop',
           displayName: data.displayName || user.name || 'Seller',
           bio: data.bio,

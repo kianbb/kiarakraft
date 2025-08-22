@@ -56,7 +56,7 @@ async function main() {
   // Create demo buyer with upsert
   console.log('👤 Upserting demo buyer...');
   const hashedBuyerPassword = await bcrypt.hash('password123', 10);
-  const demoUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'buyer@example.com' },
     update: {},
     create: {
@@ -91,6 +91,7 @@ async function main() {
       displayName: 'Isfahan Handicrafts',
       bio: 'فروشگاه متخصص در صنایع دستی سنتی اصفهان با بیش از 15 سال تجربه در تولید و عرضه محصولات دست‌ساز با کیفیت.',
       region: 'اصفهان',
+      handle: 'isfahan-handicrafts',
     },
   });
 

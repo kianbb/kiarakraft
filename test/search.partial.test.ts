@@ -10,6 +10,7 @@ async function seedProduct() {
       },
       shopName: 'Test Search Shop',
       displayName: 'Test Search Seller',
+      handle: `test-search-${Date.now()}`,
       verified: true,
     },
     include: { user: true },

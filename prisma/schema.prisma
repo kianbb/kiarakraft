@@ -28,7 +28,7 @@ model User {
 model SellerProfile {
   id                String           @id @default(cuid())
   userId            String           @unique
-  handle            String?          @unique
+  handle            String           @unique
   shopName          String
   displayName       String
   bio               String?          @db.Text
@@ -36,7 +36,7 @@ model SellerProfile {
   avatarUrl         String?
   bannerUrl         String?
   createdAt         DateTime         @default(now())
-  updatedAt         DateTime?        @updatedAt
+  updatedAt         DateTime         @updatedAt
   phone             String?
   address           String?
   website           String?

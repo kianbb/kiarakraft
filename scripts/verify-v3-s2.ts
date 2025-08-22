@@ -147,9 +147,18 @@ async function main() {
       const order = await prisma.order.create({
         data: {
           userId: testUser.id,
-          addressId: address1.id, // Use default address
+          addressId: address1.id,
           status: 'PENDING',
           totalToman: total,
+          items: {
+            create: [
+              {
+                productId: testProduct.id,
+                quantity: 2,
+                unitPriceToman: testProduct.priceToman,
+              },
+            ],
+          },
         },
       });
 
@@ -163,15 +172,7 @@ async function main() {
         },
       });
 
-      // Create order items
-      await prisma.orderItem.create({
-        data: {
-          orderId: order.id,
-          productId: testProduct.id,
-          quantity: 2,
-          unitPriceToman: testProduct.priceToman,
-        },
-      });
+      // Order items already created with the order above
 
       results.push({
         orderId: order.id,
