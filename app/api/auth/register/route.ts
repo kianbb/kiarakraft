@@ -61,6 +61,7 @@ export const POST = withRateLimit(
         role: string;
         sellerProfile?: {
           create: {
+            handle: string;
             shopName: string;
             displayName: string;
             bio?: string | null;
@@ -77,8 +78,24 @@ export const POST = withRateLimit(
       };
 
       if (role === 'SELLER' && shopName && displayName) {
+        // Generate unique handle from shop name
+        const baseHandle = shopName
+          .toLowerCase()
+          .replace(/[^a-z0-9\u0600-\u06FF]/g, '') // Keep alphanumeric and Persian chars
+          .substring(0, 20);
+
+        let handle = baseHandle;
+        let counter = 1;
+
+        // Ensure handle is unique
+        while (await prisma.sellerProfile.findUnique({ where: { handle } })) {
+          handle = `${baseHandle}${counter}`;
+          counter++;
+        }
+
         userData.sellerProfile = {
           create: {
+            handle,
             shopName,
             displayName,
             bio: bio || null,

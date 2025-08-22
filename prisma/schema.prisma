@@ -27,19 +27,22 @@ model User {
 model SellerProfile {
   id                String           @id @default(cuid())
   userId            String           @unique
+  handle            String           @unique
   shopName          String
   displayName       String
-  bio               String?
+  bio               String?          @db.Text
   region            String?
-  avatarUrl         String?
-  createdAt         DateTime         @default(now())
-  phone             String?
-  address           String?
-  website           String?
   city              String?
+  province          String?
+  phone             String?
+  website           String?
+  avatarUrl         String?
+  bannerUrl         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  address           String?
   docsFolder        String?
   nationalIdHash    String?
-  province          String?
   verificationNotes String?
   verified          Boolean          @default(false)
   verifiedAt        DateTime?

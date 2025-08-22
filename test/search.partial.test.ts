@@ -8,6 +8,7 @@ async function seedProduct() {
       user: {
         create: { email: `test_${Date.now()}@example.com`, password: 'x' },
       },
+      handle: `test-search-${Date.now()}`,
       shopName: 'Test Search Shop',
       displayName: 'Test Search Seller',
       verified: true,

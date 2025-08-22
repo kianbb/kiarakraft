@@ -86,6 +86,7 @@ export const PUT = withRateLimit(
         where: { userId: user.id },
         create: {
           userId: user.id,
+          handle: `seller-${user.id.slice(-8)}`, // Simple fallback handle
           shopName: data.shopName || 'My Shop',
           displayName: data.displayName || user.name || 'Seller',
           bio: data.bio,

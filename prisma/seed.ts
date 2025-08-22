@@ -46,7 +46,7 @@ async function main() {
   // Create demo buyer
   console.log('👤 Creating demo buyer...');
   const hashedBuyerPassword = await bcrypt.hash('password123', 10);
-  const demoUser = await prisma.user.create({
+  await prisma.user.create({
     data: {
       email: 'buyer@example.com',
       password: hashedBuyerPassword,
@@ -66,6 +66,7 @@ async function main() {
       role: 'SELLER',
       sellerProfile: {
         create: {
+          handle: 'atelier-kiara',
           shopName: 'Atelier Kiara',
           displayName: 'کارگاه کیارا',
           bio: 'متخصص در تولید صنایع دستی سنتی ایرانی با بیش از 15 سال تجربه',

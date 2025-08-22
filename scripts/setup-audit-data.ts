@@ -38,6 +38,7 @@ async function main() {
       update: {},
       create: {
         userId: testUser.id,
+        handle: 'audit-test-shop',
         displayName: 'Audit Test Shop',
         shopName: 'audit-test-shop',
         bio: 'Test shop for production audit',
