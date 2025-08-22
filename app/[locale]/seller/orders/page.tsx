@@ -105,7 +105,9 @@ export default function SellerOrdersPage() {
   const filteredOrders = orders.filter(
     (order: OrderWithItems) =>
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.address?.fullName
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       order.items.some((item: OrderWithItems['items'][0]) =>
         item.product.title.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -214,7 +216,7 @@ export default function SellerOrdersPage() {
                 <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">{t('customer')}:</span>
-                  <span className="text-sm">{order.fullName}</span>
+                  <span className="text-sm">{order.address?.fullName}</span>
                 </div>
 
                 {/* Order Items */}
@@ -266,16 +268,17 @@ export default function SellerOrdersPage() {
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                   <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
                   <div className="text-sm text-muted-foreground">
-                    <div>{order.fullName}</div>
+                    <div>{order.address?.fullName}</div>
                     <div>
-                      {order.address1}{' '}
-                      {order.address2 ? `, ${order.address2}` : ''}
+                      {order.address?.line1}{' '}
+                      {order.address?.line2 ? `, ${order.address.line2}` : ''}
                     </div>
                     <div>
-                      {order.city}, {order.province} {order.postalCode}
+                      {order.address?.city}, {order.address?.province}{' '}
+                      {order.address?.postal}
                     </div>
                     <div>
-                      {t('phone')}: {order.phone}
+                      {t('phone')}: {order.address?.phone}
                     </div>
                   </div>
                 </div>

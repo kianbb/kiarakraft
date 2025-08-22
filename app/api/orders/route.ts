@@ -24,34 +24,33 @@ export const POST = withRateLimit(
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
-      const { shippingInfo } = await request.json();
-
-      // Normalize shipping fields from client (address vs address1)
-      const normalized = {
-        fullName: shippingInfo?.fullName?.toString().trim() || '',
-        phone: shippingInfo?.phone?.toString().trim() || '',
-        address1: (shippingInfo?.address1 ?? shippingInfo?.address ?? '')
-          .toString()
-          .trim(),
-        address2: shippingInfo?.address2
-          ? shippingInfo.address2.toString()
-          : null,
-        city: shippingInfo?.city?.toString().trim() || '',
-        province: shippingInfo?.province?.toString().trim() || '',
-        postalCode: shippingInfo?.postalCode?.toString().trim() || '',
-      };
+      const { addressId, shippingMethod, shippingPrice } = await request.json();
 
       // Basic validation
-      if (
-        !normalized.fullName ||
-        !normalized.phone ||
-        !normalized.address1 ||
-        !normalized.city ||
-        !normalized.province ||
-        !normalized.postalCode
-      ) {
+      if (!addressId || !shippingMethod || shippingPrice === undefined) {
         return NextResponse.json(
-          { error: 'Invalid shipping information' },
+          {
+            error:
+              'Missing required fields: addressId, shippingMethod, or shippingPrice',
+          },
+          { status: 400 }
+        );
+      }
+
+      // Validate address belongs to user
+      const address = await prisma.address.findFirst({
+        where: { id: addressId, userId: user.id },
+      });
+
+      if (!address) {
+        return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
+      }
+
+      // Validate shipping method
+      const validShippingMethods = ['STANDARD', 'EXPRESS', 'PICKUP'];
+      if (!validShippingMethods.includes(shippingMethod)) {
+        return NextResponse.json(
+          { error: 'Invalid shipping method' },
           { status: 400 }
         );
       }
@@ -97,8 +96,7 @@ export const POST = withRateLimit(
         return total + item.product.priceToman * item.quantity;
       }, 0);
 
-      const shippingCost = 50000; // Fixed shipping
-      const total = subtotal + shippingCost;
+      const total = subtotal + shippingPrice;
 
       // Create order in a transaction without decrementing stock yet.
       // Stock is decremented only upon successful payment (gateway callback or admin mark-paid),
@@ -108,21 +106,24 @@ export const POST = withRateLimit(
         const newOrder = await tx.order.create({
           data: {
             userId: user.id,
+            addressId: addressId,
             status: 'PENDING',
             totalToman: total,
-            fullName: normalized.fullName,
-            phone: normalized.phone,
-            address1: normalized.address1,
-            address2: normalized.address2,
-            city: normalized.city,
-            province: normalized.province,
-            postalCode: normalized.postalCode,
           },
         });
 
-        // Create order items and reduce stock
+        // Create shipping record
+        await tx.orderShipping.create({
+          data: {
+            orderId: newOrder.id,
+            method: shippingMethod as 'STANDARD' | 'EXPRESS' | 'PICKUP',
+            priceToman: shippingPrice,
+            status: 'PROCESSING',
+          },
+        });
+
+        // Create order items
         for (const item of cartItems) {
-          // Create order item
           await tx.orderItem.create({
             data: {
               orderId: newOrder.id,

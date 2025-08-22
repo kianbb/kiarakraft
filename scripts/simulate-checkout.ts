@@ -23,18 +23,28 @@ async function main() {
     `✅ Found test product: ${testProduct.title} (Stock: ${testProduct.stock})\n`
   );
 
-  // Step 1: Create a PENDING order
+  // Step 1: Create an address first
+  const address = await prisma.address.create({
+    data: {
+      userId: testUser.id,
+      fullName: 'Audit Test User',
+      phone: '+98-912-345-6789',
+      country: 'IR',
+      province: 'Tehran',
+      city: 'Tehran',
+      line1: 'Test Address, District 1',
+      postal: '12345',
+      isDefault: true,
+    },
+  });
+
+  // Step 2: Create a PENDING order with the address
   const order = await prisma.order.create({
     data: {
       userId: testUser.id,
+      addressId: address.id,
       status: 'PENDING',
       totalToman: testProduct.priceToman * 2, // Order 2 items
-      fullName: 'Audit Test User',
-      phone: '+98-912-345-6789',
-      address1: 'Test Address, District 1',
-      city: 'Tehran',
-      province: 'Tehran',
-      postalCode: '12345',
       items: {
         create: [
           {
@@ -44,8 +54,19 @@ async function main() {
           },
         ],
       },
+      shipping: {
+        create: {
+          method: 'STANDARD',
+          priceToman: 50000,
+          status: 'PROCESSING',
+        },
+      },
     },
-    include: { items: true },
+    include: {
+      items: true,
+      address: true,
+      shipping: true,
+    },
   });
 
   console.log(`🔸 Created PENDING order:`);

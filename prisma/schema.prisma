@@ -19,6 +19,7 @@ model User {
   updatedAt           DateTime             @updatedAt
   cart                Cart?
   orders              Order[]
+  addresses           Address[]
   passwordResetTokens PasswordResetToken[]
   reviews             Review[]
   sellerProfile       SellerProfile?
@@ -137,22 +138,18 @@ model CartItem {
 }
 
 model Order {
-  id         String      @id @default(cuid())
-  userId     String
-  status     String      @default("PENDING")
-  totalToman Int
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  fullName   String
-  phone      String
-  address1   String
-  address2   String?
-  city       String
-  province   String
-  postalCode String
-  user       User        @relation(fields: [userId], references: [id])
-  items      OrderItem[]
-  payment    Payment?
+  id           String         @id @default(cuid())
+  userId       String
+  addressId    String
+  status       String         @default("PENDING")
+  totalToman   Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id])
+  address      Address        @relation(fields: [addressId], references: [id])
+  items        OrderItem[]
+  payment      Payment?
+  shipping     OrderShipping?
 }
 
 model Payment {
@@ -177,6 +174,43 @@ model OrderItem {
   quantity       Int
   order          Order   @relation(fields: [orderId], references: [id])
   product        Product @relation(fields: [productId], references: [id])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  fullName  String
+  phone     String
+  country   String
+  province  String
+  city      String
+  line1     String
+  line2     String?
+  postal    String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  orders    Order[]
+}
+
+enum ShippingMethod {
+  STANDARD
+  EXPRESS
+  PICKUP
+}
+
+model OrderShipping {
+  id          String         @id @default(cuid())
+  orderId     String         @unique
+  method      ShippingMethod
+  priceToman  Int
+  trackingNo  String?
+  status      String         @default("PROCESSING") // PROCESSING, SHIPPED, DELIVERED, RETURNED
+  history     Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  order       Order          @relation(fields: [orderId], references: [id])
 }
 
 model Review {

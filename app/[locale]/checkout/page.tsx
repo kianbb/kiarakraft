@@ -4,14 +4,9 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -20,20 +15,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatPrice } from '@/lib/utils';
-import { CreditCard, MapPin, Package } from 'lucide-react';
-import { CartItemWithProduct } from '@/types/database';
-
-const checkoutSchema = z.object({
-  fullName: z.string().min(1, 'Full name is required'),
-  phone: z.string().min(1, 'Phone is required'),
-  address: z.string().min(1, 'Address is required'),
-  city: z.string().min(1, 'City is required'),
-  province: z.string().min(1, 'Province is required'),
-  postalCode: z.string().min(1, 'Postal code is required'),
-  paymentMethod: z.enum(['cash_on_delivery', 'bank_transfer']),
-});
-
-type CheckoutForm = z.infer<typeof checkoutSchema>;
+import { CreditCard, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CartItemWithProduct, Address } from '@/types/database';
+import { AddressSelector } from '@/components/checkout/AddressSelector';
+import {
+  ShippingMethodSelector,
+  ShippingMethod,
+} from '@/components/checkout/ShippingMethodSelector';
 
 export default function CheckoutPage() {
   const { data: session } = useSession();
@@ -42,9 +30,22 @@ export default function CheckoutPage() {
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('checkout');
   const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+
+  // State
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState(1);
   const [placing, setPlacing] = useState(false);
+
+  // Checkout data
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [selectedShippingMethod, setSelectedShippingMethod] =
+    useState<ShippingMethod | null>(null);
+  const [shippingPrice, setShippingPrice] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<
+    'cash_on_delivery' | 'bank_transfer'
+  >('cash_on_delivery');
+
   const [preflightIssues, setPreflightIssues] = useState<
     Array<{
       productId: string;
@@ -54,19 +55,6 @@ export default function CheckoutPage() {
       reason: 'inactive' | 'insufficient_stock';
     }>
   >([]);
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<CheckoutForm>({
-    resolver: zodResolver(checkoutSchema),
-    defaultValues: {
-      paymentMethod: 'cash_on_delivery',
-    },
-  });
 
   useEffect(() => {
     if (!session) {
@@ -96,25 +84,64 @@ export default function CheckoutPage() {
     }, 0);
   };
 
-  const calculateShipping = () => {
-    return 50000; // Fixed shipping cost
-  };
-
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateShipping();
+    return calculateSubtotal() + shippingPrice;
   };
 
-  const onSubmit = async (data: CheckoutForm) => {
+  const handleAddressSelect = (address: Address) => {
+    setSelectedAddress(address);
+  };
+
+  const handleShippingMethodSelect = (
+    method: ShippingMethod,
+    price: number
+  ) => {
+    setSelectedShippingMethod(method);
+    setShippingPrice(price);
+  };
+
+  const canProceedToStep = (step: number) => {
+    switch (step) {
+      case 2:
+        return selectedAddress !== null;
+      case 3:
+        return selectedAddress !== null && selectedShippingMethod !== null;
+      default:
+        return true;
+    }
+  };
+
+  const handleNextStep = () => {
+    if (currentStep < 3 && canProceedToStep(currentStep + 1)) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!selectedAddress || !selectedShippingMethod) {
+      alert(t('pleaseCompleteAllSteps'));
+      return;
+    }
+
     setPlacing(true);
     setPreflightIssues([]);
+
     try {
       // Create order first
       const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          shippingInfo: data,
-          paymentMethod: data.paymentMethod,
+          addressId: selectedAddress.id,
+          shippingMethod: selectedShippingMethod,
+          shippingPrice: shippingPrice,
+          paymentMethod: paymentMethod,
         }),
       });
 
@@ -215,10 +242,24 @@ export default function CheckoutPage() {
     );
   }
 
+  const steps = [
+    {
+      number: 1,
+      title: t('shippingAddress'),
+      completed: selectedAddress !== null,
+    },
+    {
+      number: 2,
+      title: t('shippingMethod'),
+      completed: selectedShippingMethod !== null,
+    },
+    { number: 3, title: t('paymentReview'), completed: false },
+  ];
+
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
+        <h1 className="text-3xl font-bold mb-8">{t('checkout')}</h1>
 
         {preflightIssues.length > 0 && (
           <div className="mb-8 rounded-md border border-red-300 bg-red-50 p-4 text-red-900">
@@ -250,117 +291,68 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Shipping Information */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="h-5 w-5" />
-                <h2 className="text-xl font-semibold">{t('shippingInfo')}</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fullName">{t('fullName')}</Label>
-                  <Input
-                    id="fullName"
-                    {...register('fullName')}
-                    placeholder={t('fullName')}
-                  />
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.fullName.message}
-                    </p>
-                  )}
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            {steps.map((step, index) => (
+              <div key={step.number} className="flex items-center">
+                <div className="flex items-center">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      currentStep === step.number
+                        ? 'bg-blue-600 text-white'
+                        : step.completed
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {step.number}
+                  </div>
+                  <span className="ml-2 text-sm font-medium text-gray-900">
+                    {step.title}
+                  </span>
                 </div>
-
-                <div>
-                  <Label htmlFor="phone">{t('phone')}</Label>
-                  <Input
-                    id="phone"
-                    {...register('phone')}
-                    placeholder={t('phone')}
-                  />
-                  {errors.phone && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.phone.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="address">{t('address')}</Label>
-                <Input
-                  id="address"
-                  {...register('address')}
-                  placeholder={t('address')}
-                />
-                {errors.address && (
-                  <p className="text-sm text-destructive mt-1">
-                    {errors.address.message}
-                  </p>
+                {index < steps.length - 1 && (
+                  <ChevronRight className="w-4 h-4 mx-4 text-gray-400" />
                 )}
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="city">{t('city')}</Label>
-                  <Input
-                    id="city"
-                    {...register('city')}
-                    placeholder={t('city')}
-                  />
-                  {errors.city && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.city.message}
-                    </p>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Checkout Steps */}
+          <div className="space-y-8">
+            {/* Step 1: Address Selection */}
+            {currentStep === 1 && (
+              <AddressSelector
+                selectedAddressId={selectedAddress?.id}
+                onAddressSelect={handleAddressSelect}
+              />
+            )}
 
-                <div>
-                  <Label htmlFor="province">{t('province')}</Label>
-                  <Input
-                    id="province"
-                    {...register('province')}
-                    placeholder={t('province')}
-                  />
-                  {errors.province && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.province.message}
-                    </p>
-                  )}
-                </div>
+            {/* Step 2: Shipping Method */}
+            {currentStep === 2 && (
+              <ShippingMethodSelector
+                selectedMethod={selectedShippingMethod || undefined}
+                onMethodSelect={handleShippingMethodSelect}
+              />
+            )}
 
-                <div>
-                  <Label htmlFor="postalCode">{t('postalCode')}</Label>
-                  <Input
-                    id="postalCode"
-                    {...register('postalCode')}
-                    placeholder={t('postalCode')}
-                  />
-                  {errors.postalCode && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.postalCode.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div className="space-y-4">
+            {/* Step 3: Payment & Review */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
-                  <h2 className="text-xl font-semibold">
+                  <h3 className="text-lg font-semibold">
                     {t('paymentMethod')}
-                  </h2>
+                  </h3>
                 </div>
 
                 <Select
-                  value={watch('paymentMethod')}
+                  value={paymentMethod}
                   onValueChange={value =>
-                    setValue(
-                      'paymentMethod',
+                    setPaymentMethod(
                       value as 'cash_on_delivery' | 'bank_transfer'
                     )
                   }
@@ -377,77 +369,129 @@ export default function CheckoutPage() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
 
-            {/* Order Summary */}
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold">{t('orderSummary')}</h2>
+                {/* Order Review */}
+                <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                  <h4 className="font-medium">{t('orderReview')}</h4>
 
-              {/* Items */}
-              <div className="space-y-3">
-                {cartItems.map((item: CartItemWithProduct) => (
-                  <div
-                    key={item.id}
-                    className="flex justify-between items-center"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
-                        <Image
-                          src={
-                            item.product.images?.[0]?.url ||
-                            '/placeholder-product.jpg'
-                          }
-                          alt={
-                            item.product.images?.[0]?.alt || item.product.title
-                          }
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">
-                          {item.product.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t('quantity')}: {item.quantity}
-                        </div>
-                      </div>
+                  {selectedAddress && (
+                    <div className="text-sm">
+                      <p className="font-medium">{t('shippingTo')}:</p>
+                      <p>{selectedAddress.fullName}</p>
+                      <p>
+                        {selectedAddress.line1}
+                        {selectedAddress.line2 && `, ${selectedAddress.line2}`}
+                      </p>
+                      <p>
+                        {selectedAddress.city}, {selectedAddress.province}
+                      </p>
                     </div>
-                    <div className="font-semibold">
-                      {formatPrice(item.product.priceToman * item.quantity)}
+                  )}
+
+                  {selectedShippingMethod && (
+                    <div className="text-sm">
+                      <p className="font-medium">{t('shippingMethod')}:</p>
+                      <p>
+                        {t(`${selectedShippingMethod.toLowerCase()}Shipping`)}
+                      </p>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Totals */}
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between">
-                  <span>{t('subtotal')}</span>
-                  <span>{formatPrice(calculateSubtotal())}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t('shipping')}</span>
-                  <span>{formatPrice(calculateShipping())}</span>
-                </div>
-                <div className="flex justify-between font-semibold text-lg border-t pt-2">
-                  <span>{t('total')}</span>
-                  <span>{formatPrice(calculateTotal())}</span>
+                  )}
                 </div>
               </div>
+            )}
 
+            {/* Navigation Buttons */}
+            <div className="flex justify-between pt-4">
               <Button
-                type="submit"
-                size="lg"
-                className="w-full"
-                disabled={placing}
+                variant="outline"
+                onClick={handlePrevStep}
+                disabled={currentStep === 1}
               >
-                {placing ? t('placing') : t('placeOrder')}
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                {t('previous')}
               </Button>
+
+              {currentStep < 3 ? (
+                <Button
+                  onClick={handleNextStep}
+                  disabled={!canProceedToStep(currentStep + 1)}
+                >
+                  {t('next')}
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handlePlaceOrder}
+                  disabled={
+                    placing || !selectedAddress || !selectedShippingMethod
+                  }
+                >
+                  {placing ? t('placing') : t('placeOrder')}
+                </Button>
+              )}
             </div>
           </div>
-        </form>
+
+          {/* Order Summary */}
+          <div className="lg:sticky lg:top-8 space-y-6">
+            <h2 className="text-xl font-semibold">{t('orderSummary')}</h2>
+
+            {/* Items */}
+            <div className="space-y-3">
+              {cartItems.map((item: CartItemWithProduct) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100">
+                      <Image
+                        src={
+                          item.product.images?.[0]?.url ||
+                          '/placeholder-product.jpg'
+                        }
+                        alt={
+                          item.product.images?.[0]?.alt || item.product.title
+                        }
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">
+                        {item.product.title}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {t('quantity')}: {item.quantity}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="font-semibold">
+                    {formatPrice(item.product.priceToman * item.quantity)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Totals */}
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between">
+                <span>{t('subtotal')}</span>
+                <span>{formatPrice(calculateSubtotal())}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{t('shipping')}</span>
+                <span>
+                  {shippingPrice === 0 ? t('free') : formatPrice(shippingPrice)}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                <span>{t('total')}</span>
+                <span>{formatPrice(calculateTotal())}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -71,17 +71,11 @@ export interface CartItem {
 export interface Order {
   id: string;
   userId: string;
+  addressId: string;
   status: string;
   totalToman: number;
   createdAt: Date;
   updatedAt: Date;
-  fullName: string;
-  phone: string;
-  address1: string;
-  address2: string | null;
-  city: string;
-  province: string;
-  postalCode: string;
 }
 
 export interface OrderItem {
@@ -90,6 +84,34 @@ export interface OrderItem {
   productId: string;
   unitPriceToman: number;
   quantity: number;
+}
+
+export interface Address {
+  id: string;
+  userId: string;
+  fullName: string;
+  phone: string;
+  country: string;
+  province: string;
+  city: string;
+  line1: string;
+  line2: string | null;
+  postal: string | null;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OrderShipping {
+  id: string;
+  orderId: string;
+  method: 'STANDARD' | 'EXPRESS' | 'PICKUP';
+  priceToman: number;
+  trackingNo: string | null;
+  status: string;
+  history: unknown | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Review {
@@ -114,7 +136,9 @@ export interface CartItemWithProduct extends CartItem {
 }
 
 export interface OrderWithItems extends Order {
+  address: Address;
   items: (OrderItem & { product: ProductWithRelations })[];
+  shipping?: OrderShipping;
 }
 
 export interface SellerStats {

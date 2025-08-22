@@ -28,11 +28,17 @@ export async function GET(
         userId: user.id,
       },
       include: {
+        address: true,
+        shipping: true,
         items: {
           include: {
             product: {
               include: {
                 seller: true,
+                images: {
+                  orderBy: { sortOrder: 'asc' },
+                  take: 1,
+                },
               },
             },
           },
