@@ -336,7 +336,16 @@ export default async function Page({ params }: { params: Params }) {
                     <Store className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <div className="font-semibold">
-                        {localized.sellerDisplayName}
+                        {product.seller.handle ? (
+                          <Link
+                            href={`/${params.locale}/shop/${product.seller.handle}`}
+                            className="hover:text-primary transition-colors cursor-pointer"
+                          >
+                            {localized.sellerDisplayName}
+                          </Link>
+                        ) : (
+                          localized.sellerDisplayName
+                        )}
                       </div>
                       {localized.sellerRegion && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
