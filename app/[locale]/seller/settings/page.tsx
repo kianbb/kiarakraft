@@ -16,10 +16,12 @@ import { formatDate } from '@/lib/utils';
 
 interface SellerProfileData {
   id: string;
+  handle?: string;
   shopName: string;
   displayName: string;
   bio?: string;
   avatarUrl?: string;
+  bannerUrl?: string;
   phone?: string;
   address?: string;
   website?: string;
@@ -28,10 +30,24 @@ interface SellerProfileData {
 }
 
 const settingsSchema = z.object({
+  handle: z
+    .string()
+    .regex(
+      /^[a-z0-9-]{3,30}$/,
+      'Handle must be 3-30 characters, lowercase letters, numbers, and hyphens only'
+    )
+    .optional(),
   shopName: z.string().min(1, 'Shop name is required').max(100),
   displayName: z.string().min(1, 'Display name is required').max(100),
   bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
   avatarUrl: z
+    .string()
+    .optional()
+    .refine(
+      val => !val || val === '' || /^https?:\/\/.+/.test(val),
+      'Must be a valid URL'
+    ),
+  bannerUrl: z
     .string()
     .optional()
     .refine(
@@ -81,10 +97,12 @@ export default function SellerSettingsPage() {
         setProfile(profileData);
 
         reset({
+          handle: profileData.handle || '',
           shopName: profileData.shopName || '',
           displayName: profileData.displayName || '',
           bio: profileData.bio || '',
           avatarUrl: profileData.avatarUrl || '',
+          bannerUrl: profileData.bannerUrl || '',
           phone: profileData.phone || '',
           address: profileData.address || '',
           website: profileData.website || '',
@@ -200,6 +218,31 @@ export default function SellerSettingsPage() {
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4">{t('shopIdentity')}</h2>
             <div className="space-y-4">
+              {/* Handle - V3-S1 Feature */}
+              <div>
+                <Label htmlFor="handle">Shop Handle (V3-S1) 🆕</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">
+                    kiarakraft.com/shop/
+                  </span>
+                  <Input
+                    id="handle"
+                    {...register('handle')}
+                    placeholder="your-shop-name"
+                    className="flex-1"
+                  />
+                </div>
+                {errors.handle && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.handle.message}
+                  </p>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Your unique shop URL. Once set, customers can visit
+                  kiarakraft.com/shop/your-handle
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="shopName">{t('shopName')}</Label>
@@ -276,15 +319,40 @@ export default function SellerSettingsPage() {
                 </p>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-medium text-gray-700 mb-2">
-                  Coming in V3-S1:
+              {/* Banner URL - V3-S1 Feature */}
+              <div>
+                <Label htmlFor="bannerUrl">Shop Banner (V3-S1) 🆕</Label>
+                <Input
+                  id="bannerUrl"
+                  {...register('bannerUrl')}
+                  placeholder="https://example.com/banner.jpg"
+                  type="url"
+                />
+                {errors.bannerUrl && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.bannerUrl.message}
+                  </p>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Header banner for your shop page. Recommended size: 1200x400px
+                </p>
+              </div>
+
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <h3 className="font-medium text-green-700 mb-2">
+                  ✅ V3-S1 Features Now Available:
                 </h3>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Shop banner images (1200x400px recommended)</li>
-                  <li>• Custom shop handles (yourshop.kiarakraft.com)</li>
-                  <li>• Public storefront pages</li>
+                <ul className="text-sm text-green-600 space-y-1">
+                  <li>• ✅ Shop banner images (above)</li>
+                  <li>• ✅ Custom shop handles (above)</li>
+                  <li>• ✅ Public storefront pages (/shop/your-handle)</li>
                 </ul>
+                <p className="text-sm text-green-600 mt-2">
+                  Your shop is now accessible at:{' '}
+                  <code className="bg-green-100 px-1 rounded">
+                    kiarakraft.com/shop/{profile?.handle || 'your-handle'}
+                  </code>
+                </p>
               </div>
             </div>
           </div>

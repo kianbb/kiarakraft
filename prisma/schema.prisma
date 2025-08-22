@@ -27,12 +27,15 @@ model User {
 model SellerProfile {
   id                String           @id @default(cuid())
   userId            String           @unique
+  handle            String?          @unique
   shopName          String
   displayName       String
-  bio               String?
+  bio               String?          @db.Text
   region            String?
   avatarUrl         String?
+  bannerUrl         String?
   createdAt         DateTime         @default(now())
+  updatedAt         DateTime?        @updatedAt
   phone             String?
   address           String?
   website           String?
@@ -49,6 +52,7 @@ model SellerProfile {
   user              User             @relation(fields: [userId], references: [id])
 
   @@index([shopName(ops: raw("gin_trgm_ops"))], map: "seller_shop_trgm_idx", type: Gin)
+  @@index([handle])
 }
 
 model Category {
