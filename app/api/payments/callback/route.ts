@@ -37,7 +37,7 @@ export const GET = withRateLimit(
         validateCallbackParams(searchParams);
 
       // Determine preferred locale from referer path or NEXT_LOCALE cookie; default to 'fa'
-      const resolveLocale = (): 'fa' | 'en' => {
+      const resolveLocale = async (): Promise<'fa' | 'en'> => {
         try {
           const referer = request.headers.get('referer');
           if (referer) {
@@ -49,13 +49,13 @@ export const GET = withRateLimit(
           }
         } catch {}
         try {
-          const c = cookies();
+          const c = await cookies();
           const cl = c.get('NEXT_LOCALE')?.value;
           if (cl === 'fa' || cl === 'en') return cl;
         } catch {}
         return 'fa';
       };
-      const locale = resolveLocale();
+      const locale = await resolveLocale();
       const locUrl = (path: string) =>
         new URL(`/${locale}${path}`, request.url);
 
