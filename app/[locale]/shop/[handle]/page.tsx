@@ -41,6 +41,7 @@ async function getSellerByHandle(handle: string) {
           },
           seller: {
             select: {
+              handle: true,
               displayName: true,
               shopName: true,
               verified: true,
