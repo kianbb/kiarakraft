@@ -16,6 +16,7 @@ export default function NotFound() {
   if (!isHydrated) {
     return (
       <main className="container py-10">
+        <div className="hidden">NEXT_NOT_FOUND</div>
         <h1 className="text-xl font-semibold">Product not found</h1>
         <p className="mt-2">
           The product you&apos;re looking for doesn&apos;t exist.
@@ -29,6 +30,7 @@ export default function NotFound() {
 
   return (
     <main className="container py-10">
+      <div className="hidden">NEXT_NOT_FOUND</div>
       <h1 className="text-xl font-semibold">{t('notFound')}</h1>
       <p className="mt-2">{t('notFoundDescription')}</p>
       <a href={`/${locale}/explore`} className="underline mt-4 inline-block">
