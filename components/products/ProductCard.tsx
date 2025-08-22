@@ -28,6 +28,7 @@ interface ProductCardProps {
     stock: number;
     images: { url: string; alt?: string }[];
     seller: {
+      handle: string | null;
       displayName: string;
       shopName: string;
       verified?: boolean;
@@ -218,11 +219,23 @@ export const ProductCard = React.memo(function ProductCard({
         <div className="p-4">
           {/* Seller Info */}
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs text-muted-foreground">
-              {locale === 'en'
-                ? product.seller.shopName
-                : product.seller.displayName}
-            </span>
+            {product.seller.handle ? (
+              <Link
+                href={`/${locale}/shop/${product.seller.handle}`}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={e => e.stopPropagation()}
+              >
+                {locale === 'en'
+                  ? product.seller.shopName
+                  : product.seller.displayName}
+              </Link>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                {locale === 'en'
+                  ? product.seller.shopName
+                  : product.seller.displayName}
+              </span>
+            )}
             <VerifiedBadge
               verified={product.seller.verified || false}
               size="sm"

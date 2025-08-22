@@ -13,6 +13,7 @@ interface RawSearchResult {
   createdAt: Date;
   updatedAt: Date;
   seller_id: string;
+  seller_handle: string | null;
   seller_display_name: string;
   seller_shop_name: string;
   seller_verified: boolean;
@@ -54,6 +55,7 @@ export interface SearchResult {
     }>;
     seller: {
       id: string;
+      handle: string | null;
       displayName: string;
       shopName: string;
       verified: boolean;
@@ -204,6 +206,7 @@ export async function searchProducts(
       SELECT 
         p.*,
         sp.id as seller_id,
+        sp."handle" as seller_handle,
         sp."displayName" as seller_display_name,
         sp."shopName" as seller_shop_name,
         sp.verified as seller_verified,
@@ -294,6 +297,7 @@ export async function searchProducts(
         _relevance: Number(row.relevance),
         seller: {
           id: row.seller_id,
+          handle: row.seller_handle,
           displayName: row.seller_display_name,
           shopName: row.seller_shop_name,
           verified: row.seller_verified,
@@ -366,6 +370,7 @@ export async function searchProducts(
           seller: {
             select: {
               id: true,
+              handle: true,
               displayName: true,
               shopName: true,
               verified: true,

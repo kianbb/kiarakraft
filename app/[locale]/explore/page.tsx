@@ -245,6 +245,7 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
                       alt: img.alt || product.title,
                     })),
                     seller: {
+                      handle: product.seller.handle,
                       displayName: product.seller.displayName,
                       shopName: product.seller.shopName,
                       verified: product.seller.verified,
