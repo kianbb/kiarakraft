@@ -4,6 +4,7 @@ import { ProductCard } from '@/components/products/ProductCard';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Badge } from '@/components/ui/badge';
 import { Metadata } from 'next';
+import { MapPin, Phone, Globe } from 'lucide-react';
 
 interface ShopPageProps {
   params: {
@@ -21,7 +22,22 @@ async function getSellerByHandle(handle: string, page: number) {
   const skip = (page - 1) * PAGE_SIZE;
   return await prisma.sellerProfile.findUnique({
     where: { handle },
-    include: {
+    select: {
+      id: true,
+      handle: true,
+      shopName: true,
+      displayName: true,
+      bio: true,
+      region: true,
+      city: true,
+      province: true,
+      phone: true,
+      website: true,
+      avatarUrl: true,
+      bannerUrl: true,
+      verified: true,
+      createdAt: true,
+      updatedAt: true,
       user: {
         select: {
           name: true,
@@ -174,6 +190,43 @@ export default async function ShopPage({
                 {seller.bio}
               </p>
             )}
+
+            {/* Location and Contact Info */}
+            <div className="flex flex-wrap items-center gap-4 mt-4">
+              {(seller.region || seller.city || seller.province) && (
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span>
+                    {[seller.city, seller.region, seller.province]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </span>
+                </div>
+              )}
+
+              {seller.phone && (
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <Phone className="h-4 w-4" />
+                  <span>{seller.phone}</span>
+                </div>
+              )}
+
+              {seller.website && (
+                <a
+                  href={
+                    seller.website.startsWith('http')
+                      ? seller.website
+                      : `https://${seller.website}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  <Globe className="h-4 w-4" />
+                  <span>{seller.website.replace(/^https?:\/\//, '')}</span>
+                </a>
+              )}
+            </div>
 
             <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
               <span>

@@ -241,11 +241,17 @@ export async function searchProducts(
       AND (
         SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQueryParam})) > 0.2 OR
         SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQueryParam})) > 0.2 OR
-        to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description))) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR -- FTS match
+        SIMILARITY(unaccent(sp."shopName"), unaccent(${searchQueryParam})) > 0.2 OR
+        SIMILARITY(unaccent(sp."displayName"), unaccent(${searchQueryParam})) > 0.2 OR
+        to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description) || ' ' || sp."shopName" || ' ' || sp."displayName")) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR -- FTS match
         unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
         unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+        unaccent(sp."shopName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+        unaccent(sp."displayName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
         unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQueryParam}) || '%' OR
-        LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam}))
+        LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam})) OR
+        LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQueryParam})) OR
+        LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQueryParam}))
       )
       ${orderBy}
       LIMIT ${limitParam} OFFSET ${offsetParam}
@@ -266,11 +272,17 @@ export async function searchProducts(
       AND (
     SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQueryParam})) > 0.2 OR
     SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQueryParam})) > 0.2 OR
-    to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description))) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR
+    SIMILARITY(unaccent(sp."shopName"), unaccent(${searchQueryParam})) > 0.2 OR
+    SIMILARITY(unaccent(sp."displayName"), unaccent(${searchQueryParam})) > 0.2 OR
+    to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description) || ' ' || sp."shopName" || ' ' || sp."displayName")) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR
     unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
     unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+    unaccent(sp."shopName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
+    unaccent(sp."displayName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
     unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQueryParam}) || '%' OR
-    LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam}))
+    LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam})) OR
+    LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQueryParam})) OR
+    LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQueryParam}))
       )
     `;
 
