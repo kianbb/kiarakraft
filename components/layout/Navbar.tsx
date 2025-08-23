@@ -125,7 +125,7 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link
               href={`/${locale}`}
-              className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}
+              className={`flex items-center ${isRTL ? 'space-x-reverse space-x-3' : 'space-x-3'}`}
             >
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">
@@ -157,7 +157,7 @@ export default function Navbar() {
           </div>
 
           {/* Search Bar */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8" role="search">
+          <div className="hidden lg:flex flex-1 max-w-md mx-12" role="search">
             <div className="relative w-full">
               <button
                 type="button"
@@ -182,7 +182,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             {/* Language Switcher */}
             <div className="hidden sm:block">
               <LanguageSwitcher />
@@ -270,7 +270,7 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <div className="hidden sm:flex items-center space-x-2">
+              <div className="hidden sm:flex items-center space-x-3">
                 <Link href={`/${locale}/auth/login`} prefetch={false}>
                   <Button variant="ghost" size="sm">
                     {t('login')}
