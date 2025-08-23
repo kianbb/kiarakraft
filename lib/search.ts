@@ -103,8 +103,6 @@ export async function searchProducts(
     active: true,
     eligibilityStatus: 'APPROVED',
     isTest: false,
-    // Exclude only explicit test-slug products; other legacy name-based exclusions removed to avoid hiding legitimate seeded test data
-    NOT: [{ slug: { startsWith: 'test-' } }],
     ...(categoryId && { categoryId }),
     ...(sellerId && { sellerId }),
     ...(minPrice && { priceToman: { gte: minPrice } }),
@@ -139,8 +137,6 @@ export async function searchProducts(
     whereConditions.push(`p.active = true`);
     whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
     whereConditions.push(`p."isTest" = false`);
-    // Exclude explicit test slug products only
-    whereConditions.push(`p."slug" NOT LIKE 'test-%'`);
 
     if (categoryId) {
       whereConditions.push(`p."categoryId" = $${paramIndex}`);
@@ -513,7 +509,6 @@ async function generateSearchFacets({
     'p.active = true',
     `p."eligibilityStatus" = 'APPROVED'`,
     `p."isTest" = false`,
-    `p."slug" NOT LIKE 'test-%'`,
   ];
   const params: (string | number | boolean)[] = [];
   let idx = 1;
