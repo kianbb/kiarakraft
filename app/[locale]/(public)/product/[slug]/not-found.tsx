@@ -32,10 +32,8 @@ export default function NotFound() {
         <Link href="/en/explore" className="underline mt-4 inline-block">
           Back to Explore
         </Link>
-        {/* Hidden markers for automated testing */}
+        {/* Hidden marker for automated testing */}
         <div style={{ display: 'none' }}>NEXT_NOT_FOUND</div>
-        <div style={{ display: 'none' }}>این محصول یافت نشد</div>
-        <div style={{ display: 'none' }}>Product not found</div>
       </main>
     );
   }
@@ -47,10 +45,8 @@ export default function NotFound() {
       <a href={`/${locale}/explore`} className="underline mt-4 inline-block">
         {t('backToExplore')}
       </a>
-      {/* Hidden markers for automated testing */}
+      {/* Hidden marker for automated testing */}
       <div style={{ display: 'none' }}>NEXT_NOT_FOUND</div>
-      <div style={{ display: 'none' }}>این محصول یافت نشد</div>
-      <div style={{ display: 'none' }}>Product not found</div>
     </main>
   );
 }

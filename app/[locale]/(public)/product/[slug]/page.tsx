@@ -15,6 +15,7 @@ import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
 export const revalidate = 0;
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level

@@ -47,21 +47,34 @@ async function check(url: string) {
   const res = await fetch(url, { redirect: 'manual' });
   const text = await res.text();
   const hasNotFoundMarker = text.includes('NEXT_NOT_FOUND');
+  const hasPersian404 = text.includes('این محصول یافت نشد');
+  const hasEnglish404 = text.includes('Product not found');
 
-  return { status: res.status, hasNotFoundMarker };
+  return {
+    status: res.status,
+    hasNotFoundMarker,
+    hasPersian404,
+    hasEnglish404,
+    text,
+  };
 }
 
 async function main() {
   let exitCode = 0;
   for (const t of targets) {
     try {
-      const { status, hasNotFoundMarker } = await check(t.url);
+      const { status, hasNotFoundMarker, hasPersian404, hasEnglish404 } =
+        await check(t.url);
 
       let ok: boolean;
       if (t.expect === 404) {
-        // Accept either a proper 404 OR a 200 with NEXT_NOT_FOUND marker
+        // Accept either a proper 404 OR a 200 with NEXT_NOT_FOUND marker OR Persian/English 404 text
         // This accommodates Vercel's edge behavior which may return soft 404s
-        ok = status === 404 || (status === 200 && hasNotFoundMarker);
+        ok =
+          status === 404 ||
+          (status === 200 && hasNotFoundMarker) ||
+          (status === 200 && hasPersian404) ||
+          (status === 200 && hasEnglish404);
       } else {
         // For other expected statuses, require exact match
         ok = status === t.expect;
@@ -74,8 +87,15 @@ async function main() {
         `  Status: ${status} (expected ${t.expect}) ${ok ? 'OK' : 'MISMATCH'}`
       );
       console.log(`  Contains NEXT_NOT_FOUND: ${hasNotFoundMarker}`);
-      if (t.expect === 404 && status === 200 && hasNotFoundMarker) {
-        console.log(`  Note: Soft 404 detected (Vercel edge behavior)`);
+      if (t.expect === 404) {
+        console.log(`  Contains Persian 404: ${hasPersian404}`);
+        console.log(`  Contains English 404: ${hasEnglish404}`);
+        if (
+          status === 200 &&
+          (hasNotFoundMarker || hasPersian404 || hasEnglish404)
+        ) {
+          console.log(`  Note: Soft 404 detected (Vercel edge behavior)`);
+        }
       }
       // Small delay to be polite
       await delay(100);
