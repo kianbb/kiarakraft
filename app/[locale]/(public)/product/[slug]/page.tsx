@@ -14,9 +14,7 @@ import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
-// Enable proper 404 handling for non-existent products
 export const revalidate = 0;
-export const dynamicParams = false;
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
@@ -142,6 +140,12 @@ export default async function Page({ params }: { params: Params }) {
 
   if (!product) {
     console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
+    notFound();
+  }
+
+  // Additional safety check - if product is not active, also return 404
+  if (!product.active) {
+    console.log(`[DEBUG] Product not active for slug: ${params.slug}`);
     notFound();
   }
 
