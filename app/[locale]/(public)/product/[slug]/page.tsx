@@ -14,9 +14,9 @@ import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
-// Updated: Allow custom not-found.tsx for proper 404 handling
+// Enable proper 404 handling for non-existent products
 export const revalidate = 0;
-// Removed dynamicParams = false to allow custom not-found.tsx to be used
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
