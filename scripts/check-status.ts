@@ -10,7 +10,9 @@ const getBaseUrl = () => {
   // PERMANENT FIX: Test preview deployments in CI
   // Vercel automatically sets VERCEL_URL in GitHub Actions for preview deployments
   if (process.env.VERCEL_URL) {
-    const previewUrl = `https://${process.env.VERCEL_URL}`;
+    const previewUrl = process.env.VERCEL_URL.startsWith('https://')
+      ? process.env.VERCEL_URL
+      : `https://${process.env.VERCEL_URL}`;
     console.log(`Testing preview deployment: ${previewUrl}`);
     return previewUrl;
   }
