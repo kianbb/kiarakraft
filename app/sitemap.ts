@@ -7,7 +7,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // Get all products with their slugs and last modified dates
     const products = await db.product.findMany({
-      where: { active: true },
+      where: { active: true, isTest: false },
       select: {
         slug: true,
         updatedAt: true,
