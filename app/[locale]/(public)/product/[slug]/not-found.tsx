@@ -24,6 +24,8 @@ export default function NotFound() {
         <Link href="/en/explore" className="underline mt-4 inline-block">
           Back to Explore
         </Link>
+        {/* Hidden marker for automated testing */}
+        <div style={{ display: 'none' }}>NEXT_NOT_FOUND</div>
       </main>
     );
   }
@@ -35,6 +37,8 @@ export default function NotFound() {
       <a href={`/${locale}/explore`} className="underline mt-4 inline-block">
         {t('backToExplore')}
       </a>
+      {/* Hidden marker for automated testing */}
+      <div style={{ display: 'none' }}>NEXT_NOT_FOUND</div>
     </main>
   );
 }
