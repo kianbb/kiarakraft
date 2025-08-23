@@ -7,23 +7,22 @@ import { fetch } from 'undici';
 // Test against preview deployment in CI, production otherwise
 // Vercel preview URLs: https://kiarakraft-git-<branch>-<team>.vercel.app
 const getBaseUrl = () => {
-  // If we have a Vercel preview URL (from CI environment or manual override)
+  // PERMANENT FIX: Test preview deployments in CI
+  // Vercel automatically sets VERCEL_URL in GitHub Actions for preview deployments
   if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+    const previewUrl = `https://${process.env.VERCEL_URL}`;
+    console.log(`Testing preview deployment: ${previewUrl}`);
+    return previewUrl;
   }
 
-  // If we have a custom base URL override
+  // Manual override for testing
   if (process.env.BASE_URL) {
+    console.log(`Using manual override: ${process.env.BASE_URL}`);
     return process.env.BASE_URL;
   }
 
-  // In CI (GitHub Actions), construct preview URL from branch
-  if (process.env.CI && process.env.GITHUB_HEAD_REF) {
-    const branch = process.env.GITHUB_HEAD_REF.replace(/[^a-z0-9-]/g, '-');
-    return `https://kiarakraft-git-${branch}-kianbb.vercel.app`;
-  }
-
-  // Fallback to production (for local testing)
+  // Local development fallback
+  console.log('Testing production (local development)');
   return 'https://www.kiarakraft.com';
 };
 
@@ -58,7 +57,7 @@ async function main() {
 
       let ok: boolean;
       if (t.expect === 404) {
-        // For 404 cases, accept either a proper 404 OR a 200 with NEXT_NOT_FOUND marker
+        // Accept either a proper 404 OR a 200 with NEXT_NOT_FOUND marker
         // This accommodates Vercel's edge behavior which may return soft 404s
         ok = status === 404 || (status === 200 && hasNotFoundMarker);
       } else {
