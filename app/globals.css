@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --font-family-sans: var(--font-inter), 'Inter', 'system-ui', 'sans-serif';
+  --radius: 0.75rem;
+}
 
 @layer base {
   :root {
