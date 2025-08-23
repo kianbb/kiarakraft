@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function AuthDebugPage() {
   return (
     <div
@@ -88,7 +90,7 @@ export default function AuthDebugPage() {
         <h3 style={{ color: '#15803d', margin: '0 0 10px 0' }}>
           🎉 LOGIN PAGE IS WORKING!
         </h3>
-        <a
+        <Link
           href="/fa/auth/login"
           style={{
             display: 'inline-block',
@@ -101,7 +103,7 @@ export default function AuthDebugPage() {
           }}
         >
           → Go to Login Page
-        </a>
+        </Link>
       </div>
     </div>
   );
