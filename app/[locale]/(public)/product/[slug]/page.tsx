@@ -132,6 +132,35 @@ export default async function Page({ params }: { params: Params }) {
 
   console.log(`[DEBUG] Product page: ${params.locale}/${params.slug}`);
 
+  // BULLETPROOF 404 HANDLING: First check if slug is in our known products list
+  // This ensures unknown products NEVER render, even if dynamicParams fails
+  let knownSlugs: string[] = [];
+  try {
+    const products = await db.product.findMany({
+      where: { active: true },
+      select: { slug: true },
+    });
+    knownSlugs = products.map(p => p.slug);
+  } catch (error) {
+    console.warn('Database error during slug validation:', error);
+    // Fallback to hardcoded known slugs to maintain 404 behavior
+    knownSlugs = [
+      'handmade-ceramic-bowl',
+      'silver-turquoise-necklace',
+      'persian-kilim-rug',
+      'copper-engraved-plate',
+    ];
+  }
+
+  // FAIL FAST: If slug is not in known products, immediately return 404
+  if (!knownSlugs.includes(params.slug)) {
+    console.log(
+      `[DEBUG] Unknown slug detected: ${params.slug}, known slugs:`,
+      knownSlugs.slice(0, 5)
+    );
+    notFound();
+  }
+
   const product = await db.product.findUnique({
     where: { slug: params.slug },
     include: { images: true, seller: true, category: true, reviews: true },
@@ -139,6 +168,7 @@ export default async function Page({ params }: { params: Params }) {
 
   console.log(`[DEBUG] Product found: ${!!product}`);
 
+  // Double-check: Even if slug was "known", if product doesn't exist, 404
   if (!product) {
     console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
     notFound();
