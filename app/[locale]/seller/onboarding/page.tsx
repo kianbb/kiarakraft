@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -594,9 +595,9 @@ export default function SellerOnboardingPage() {
                 />
                 <Label htmlFor="agreeToTerms" className="text-sm">
                   {t('agreeToTerms')}{' '}
-                  <a href="/legal/terms" className="text-primary underline">
+                  <Link href="/legal/terms" className="text-primary underline">
                     {t('termsAndConditions')}
-                  </a>
+                  </Link>
                 </Label>
               </div>
               {verificationErrors.agreeToTerms && (
