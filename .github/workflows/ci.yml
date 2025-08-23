@@ -96,17 +96,6 @@ jobs:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
-      - name: Run Lighthouse CI
-        run: npm run lhci
-        env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
-          NEXTAUTH_SECRET: test-secret-key
-          NEXTAUTH_URL: http://localhost:3000
-          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
-          LHCI_BUILD_CONTEXT__COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
-          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
-          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
 
   security:
     runs-on: ubuntu-latest
