@@ -110,10 +110,10 @@ export const POST = withRateLimit(
         );
       }
 
-      // Check if product exists and is active
+      // Check if product exists and is active and not a test product
       // Note: findUnique only accepts unique fields; using findFirst for compound filters
       const product = await prisma.product.findFirst({
-        where: { id: productId, active: true },
+        where: { id: productId, active: true, isTest: false },
       });
 
       if (!product) {
