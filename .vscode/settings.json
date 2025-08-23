@@ -21,5 +21,8 @@
     "**/coverage": true
   },
   "typescript.tsserver.maxTsServerMemory": 4096,
-  "typescript.preferences.preferTypeOnlyAutoImports": true
+  "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml"
+  }
 }
