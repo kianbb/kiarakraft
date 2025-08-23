@@ -44,13 +44,13 @@ jobs:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
-      - name: Security audit (production dependencies)
-        run: npm audit --audit-level=high --omit=dev
+      - name: Security audit
+        run: |
+          echo "🔍 Auditing production dependencies (strict)..."
+          npm audit --audit-level=high --omit=dev
+          echo "🔍 Auditing dev dependencies (advisory)..."
+          npm audit --audit-level=high --omit=prod || echo "⚠️ Dev dependency vulnerabilities found - documented for review"
         continue-on-error: false
-
-      - name: Security audit (dev dependencies)
-        run: npm audit --audit-level=high --omit=prod || echo "⚠️ Dev dependency vulnerabilities found - documented for review"
-        continue-on-error: true
 
       - name: Check code formatting
         run: npm run format:check
@@ -81,15 +81,11 @@ jobs:
           NEXT_PUBLIC_PLAUSIBLE_DOMAIN: kiarakraft.com
           CI: 'true'
 
-      - name: Run status checks against production
+      - name: Run status checks against preview deployment
         run: npm run check:status
-        env:
-          BASE_URL: https://www.kiarakraft.com
 
       - name: Check analytics integration
         run: npm run check:analytics
-        env:
-          BASE_URL: https://www.kiarakraft.com
 
       - name: Check for SSR placeholder leaks
         run: npm run check:ssr
