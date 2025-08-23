@@ -79,13 +79,13 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">
                   K
                 </span>
               </div>
-              <span className="text-xl font-bold text-foreground hidden sm:block ml-2">
+              <span className="text-xl font-bold text-foreground hidden sm:block">
                 Kiara Kraft
               </span>
             </div>
@@ -125,7 +125,7 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link
               href={`/${locale}`}
-              className={`flex items-center ${isRTL ? 'space-x-reverse space-x-3' : 'space-x-3'}`}
+              className={`flex items-center ${isRTL ? 'flex-row-reverse gap-3' : 'gap-3'}`}
             >
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">
@@ -157,7 +157,7 @@ export default function Navbar() {
           </div>
 
           {/* Search Bar */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-12" role="search">
+          <div className="hidden lg:flex flex-1 max-w-md mx-8" role="search">
             <div className="relative w-full">
               <button
                 type="button"
@@ -182,7 +182,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center gap-4">
             {/* Language Switcher */}
             <div className="hidden sm:block">
               <LanguageSwitcher />
@@ -270,7 +270,7 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <div className="hidden sm:flex items-center space-x-3">
+              <div className="hidden sm:flex items-center gap-2">
                 <Link href={`/${locale}/auth/login`} prefetch={false}>
                   <Button variant="ghost" size="sm">
                     {t('login')}
