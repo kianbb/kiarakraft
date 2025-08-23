@@ -17,9 +17,9 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const { locale } = params;
+  const { locale } = await params;
   setRequestLocale(locale);
   const isRTL = locale === 'fa';
 
@@ -180,8 +180,12 @@ async function getCategoryTiles() {
   }
 }
 
-export default async function Home({ params }: { params: { locale: string } }) {
-  const { locale } = params;
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
   setRequestLocale(locale);
   // Use explicit locale to avoid default-locale bleed during SSG/ISR
   const t = await getTranslations({ locale, namespace: 'home' });

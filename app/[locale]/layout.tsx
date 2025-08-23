@@ -17,7 +17,7 @@ import { Metadata } from 'next';
 
 interface LocaleLayoutProps {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
 // Ensure both locales are statically generated so SSR uses the right messages
@@ -28,7 +28,7 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: LocaleLayoutProps): Promise<Metadata> {
-  const { locale } = params;
+  const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'home' });
 
@@ -115,7 +115,7 @@ export default async function LocaleLayout({
   children,
   params,
 }: LocaleLayoutProps) {
-  const { locale } = params;
+  const { locale } = await params;
   setRequestLocale(locale);
   // Ensure messages are loaded for the current locale explicitly
   const messages = await getMessages({ locale });
