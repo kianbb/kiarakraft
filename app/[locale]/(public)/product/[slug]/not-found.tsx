@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import Link from 'next/link';
 
 export default function NotFound() {
   const [isHydrated, setIsHydrated] = useState(false);
@@ -20,9 +21,9 @@ export default function NotFound() {
         <p className="mt-2">
           The product you&apos;re looking for doesn&apos;t exist.
         </p>
-        <a href="/en/explore" className="underline mt-4 inline-block">
+        <Link href="/en/explore" className="underline mt-4 inline-block">
           Back to Explore
-        </a>
+        </Link>
       </main>
     );
   }
