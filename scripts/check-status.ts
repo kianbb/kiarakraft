@@ -4,7 +4,31 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { fetch } from 'undici';
 
-const BASE = process.env.BASE_URL || 'https://www.kiarakraft.com';
+// Test against preview deployment in CI, production otherwise
+// Vercel preview URLs: https://kiarakraft-git-<branch>-<team>.vercel.app
+const getBaseUrl = () => {
+  // If we have a Vercel preview URL (from CI environment or manual override)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // If we have a custom base URL override
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL;
+  }
+
+  // In CI (GitHub Actions), construct preview URL from branch
+  if (process.env.CI && process.env.GITHUB_HEAD_REF) {
+    const branch = process.env.GITHUB_HEAD_REF.replace(/[^a-z0-9-]/g, '-');
+    return `https://kiarakraft-git-${branch}-kianbb.vercel.app`;
+  }
+
+  // Fallback to production (for local testing)
+  return 'https://www.kiarakraft.com';
+};
+
+const BASE = getBaseUrl();
+console.log(`Testing against: ${BASE}`);
 const targets = [
   {
     url: `${BASE}/fa/product/handmade-ceramic-bowl`,
