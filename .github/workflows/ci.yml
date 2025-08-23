@@ -96,7 +96,6 @@ jobs:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
-
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 10
