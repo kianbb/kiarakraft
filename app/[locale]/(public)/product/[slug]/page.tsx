@@ -14,9 +14,8 @@ import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
 // Disable caching temporarily to ensure locale fixes take effect immediately
-// Updated: Force deployment refresh for 404 fix
 export const revalidate = 0;
-export const dynamicParams = false; // Force 404 for routes not in generateStaticParams
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
@@ -133,6 +132,35 @@ export default async function Page({ params }: { params: Params }) {
 
   console.log(`[DEBUG] Product page: ${params.locale}/${params.slug}`);
 
+  // BULLETPROOF 404 HANDLING: First check if slug is in our known products list
+  // This ensures unknown products NEVER render, even if dynamicParams fails
+  let knownSlugs: string[] = [];
+  try {
+    const products = await db.product.findMany({
+      where: { active: true },
+      select: { slug: true },
+    });
+    knownSlugs = products.map(p => p.slug);
+  } catch (error) {
+    console.warn('Database error during slug validation:', error);
+    // Fallback to hardcoded known slugs to maintain 404 behavior
+    knownSlugs = [
+      'handmade-ceramic-bowl',
+      'silver-turquoise-necklace',
+      'persian-kilim-rug',
+      'copper-engraved-plate',
+    ];
+  }
+
+  // FAIL FAST: If slug is not in known products, immediately return 404
+  if (!knownSlugs.includes(params.slug)) {
+    console.log(
+      `[DEBUG] Unknown slug detected: ${params.slug}, known slugs:`,
+      knownSlugs.slice(0, 5)
+    );
+    notFound();
+  }
+
   const product = await db.product.findUnique({
     where: { slug: params.slug },
     include: { images: true, seller: true, category: true, reviews: true },
@@ -140,8 +168,15 @@ export default async function Page({ params }: { params: Params }) {
 
   console.log(`[DEBUG] Product found: ${!!product}`);
 
+  // Double-check: Even if slug was "known", if product doesn't exist, 404
   if (!product) {
     console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
+    notFound();
+  }
+
+  // Additional safety check - if product is not active, also return 404
+  if (!product.active) {
+    console.log(`[DEBUG] Product not active for slug: ${params.slug}`);
     notFound();
   }
 

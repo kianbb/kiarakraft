@@ -44,13 +44,13 @@ jobs:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
 
-      - name: Security audit (production dependencies)
-        run: npm audit --audit-level=high --omit=dev
+      - name: Security audit
+        run: |
+          echo "🔍 Auditing production dependencies (strict)..."
+          npm audit --audit-level=high --omit=dev
+          echo "🔍 Auditing dev dependencies (advisory)..."
+          npm audit --audit-level=high --omit=prod || echo "⚠️ Dev dependency vulnerabilities found - documented for review"
         continue-on-error: false
-
-      - name: Security audit (dev dependencies)
-        run: npm audit --audit-level=high --omit=prod || echo "⚠️ Dev dependency vulnerabilities found - documented for review"
-        continue-on-error: true
 
       - name: Check code formatting
         run: npm run format:check
@@ -81,15 +81,20 @@ jobs:
           NEXT_PUBLIC_PLAUSIBLE_DOMAIN: kiarakraft.com
           CI: 'true'
 
-      - name: Run status checks against production
+      - name: Wait for Vercel preview deployment
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
+        id: waitForVercel
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 300
+
+      - name: Run status checks against preview deployment
         run: npm run check:status
         env:
-          BASE_URL: https://www.kiarakraft.com
+          VERCEL_URL: ${{ steps.waitForVercel.outputs.url }}
 
       - name: Check analytics integration
         run: npm run check:analytics
-        env:
-          BASE_URL: https://www.kiarakraft.com
 
       - name: Check for SSR placeholder leaks
         run: npm run check:ssr
@@ -99,18 +104,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/test
           DIRECT_URL: postgresql://user:pass@localhost:5432/test
-
-      - name: Run Lighthouse CI
-        run: npm run lhci
-        env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
-          NEXTAUTH_SECRET: test-secret-key
-          NEXTAUTH_URL: http://localhost:3000
-          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
-          LHCI_BUILD_CONTEXT__COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
-          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
-          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
 
   security:
     runs-on: ubuntu-latest

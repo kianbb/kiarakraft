@@ -76,8 +76,8 @@ async function check(
 
   // Test shiraz-gabbeh-blanket - check if it shows loading state or works
   const shirazUrl = `https://www.kiarakraft.com/fa/product/shiraz-gabbeh-blanket`;
-  const res = await fetch(shirazUrl);
-  const html = (await res.text()).slice(0, 4000);
+  const res = await fetchWithRetries(shirazUrl);
+  const html = await res.text();
 
   if (html.includes('Loading...')) {
     console.log(
