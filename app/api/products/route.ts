@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
 
     const where: PrismaWhereClause = {
       active: true,
+      isTest: false,
     };
 
     // Add search filter

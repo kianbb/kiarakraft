@@ -21,7 +21,7 @@ export async function generateStaticParams() {
   // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
   try {
     const products = await db.product.findMany({
-      where: { active: true },
+      where: { active: true, isTest: false },
       select: { slug: true },
     });
     const locales: Array<'fa' | 'en'> = ['fa', 'en'];
@@ -59,8 +59,8 @@ export async function generateMetadata({
   setRequestLocale(params.locale);
 
   const [p, tProduct, tHome] = await Promise.all([
-    db.product.findUnique({
-      where: { slug: params.slug },
+    db.product.findFirst({
+      where: { slug: params.slug, isTest: false },
       select: {
         title: true,
         description: true,
@@ -137,7 +137,7 @@ export default async function Page({ params }: { params: Params }) {
   let knownSlugs: string[] = [];
   try {
     const products = await db.product.findMany({
-      where: { active: true },
+      where: { active: true, isTest: false },
       select: { slug: true },
     });
     knownSlugs = products.map(p => p.slug);
@@ -161,8 +161,8 @@ export default async function Page({ params }: { params: Params }) {
     notFound();
   }
 
-  const product = await db.product.findUnique({
-    where: { slug: params.slug },
+  const product = await db.product.findFirst({
+    where: { slug: params.slug, isTest: false },
     include: { images: true, seller: true, category: true, reviews: true },
   });
 
@@ -174,9 +174,11 @@ export default async function Page({ params }: { params: Params }) {
     notFound();
   }
 
-  // Additional safety check - if product is not active, also return 404
-  if (!product.active) {
-    console.log(`[DEBUG] Product not active for slug: ${params.slug}`);
+  // Additional safety check - if product is not active or is a test product, also return 404
+  if (!product.active || product.isTest) {
+    console.log(
+      `[DEBUG] Product not active or is test for slug: ${params.slug}`
+    );
     notFound();
   }
 
