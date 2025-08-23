@@ -81,13 +81,13 @@ jobs:
           NEXT_PUBLIC_PLAUSIBLE_DOMAIN: kiarakraft.com
           CI: 'true'
 
-      - name: Wait for Vercel preview deployment  
+      - name: Wait for Vercel preview deployment
         uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
         id: waitForVercel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_timeout: 300
-          
+
       - name: Run status checks against preview deployment
         run: npm run check:status
         env:
