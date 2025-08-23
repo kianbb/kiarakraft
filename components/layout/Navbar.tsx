@@ -127,14 +127,14 @@ export default function Navbar() {
               href={`/${locale}`}
               className={`flex items-center ${isRTL ? 'gap-3' : 'gap-3'}`}
             >
-              <span className="text-xl font-bold text-foreground hidden sm:block">
-                Kiara Kraft
-              </span>
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">
                   K
                 </span>
               </div>
+              <span className="text-xl font-bold text-foreground hidden sm:block">
+                Kiara Kraft
+              </span>
             </Link>
           </div>
 
