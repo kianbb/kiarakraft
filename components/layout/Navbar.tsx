@@ -79,15 +79,15 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <span className="text-xl font-bold text-foreground hidden sm:block">
-                Kiara Kraft
-              </span>
+            <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">
                   K
                 </span>
               </div>
+              <span className="text-xl font-bold text-foreground hidden sm:block">
+                Kiara Kraft
+              </span>
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link
               href={`/${locale}`}
-              className={`flex items-center ${isRTL ? 'gap-3' : 'gap-3'}`}
+              className={`flex items-center ${isRTL ? 'space-x-2' : 'space-x-2'}`}
             >
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">
