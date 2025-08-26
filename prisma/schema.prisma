@@ -23,6 +23,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   reviews             Review[]
   wishlistItems       WishlistItem[]
+  pushSubscriptions   PushSubscription[]
+  notificationLogs    NotificationLog[]
   sellerProfile       SellerProfile?
 }
 
@@ -280,4 +282,31 @@ model WishlistItem {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
+}
+
+model PushSubscription {
+  id       String   @id @default(cuid())
+  userId   String
+  endpoint String   @unique
+  p256dh   String
+  auth     String
+  createdAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String   // order_paid, order_shipped, order_delivered, review_approved
+  channel   String   // email, push
+  status    String   // sent, failed, pending
+  data      Json?    // notification context data
+  error     String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, type])
+  @@index([createdAt])
 }

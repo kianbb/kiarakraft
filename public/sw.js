@@ -313,4 +313,74 @@ if (
   });
 }
 
+// Push notification handlers
+self.addEventListener('push', event => {
+  console.log('[SW] Push notification received');
+
+  if (!event.data) {
+    console.warn('[SW] Push event has no data');
+    return;
+  }
+
+  try {
+    const data = event.data.json();
+    const options = {
+      body: data.body,
+      icon: '/android-chrome-192x192.png',
+      badge: '/android-chrome-192x192.png',
+      tag: data.tag || 'kiarakraft-notification',
+      data: data.data || {},
+      actions: data.actions || [],
+      vibrate: [100, 50, 100],
+      requireInteraction: false,
+    };
+
+    event.waitUntil(self.registration.showNotification(data.title, options));
+  } catch (error) {
+    console.error('[SW] Error handling push event:', error);
+  }
+});
+
+self.addEventListener('notificationclick', event => {
+  console.log('[SW] Notification clicked:', event.notification.tag);
+
+  event.notification.close();
+
+  // Handle action clicks
+  if (event.action) {
+    console.log('[SW] Notification action clicked:', event.action);
+  }
+
+  // Open app or navigate to specific page
+  const urlToOpen = event.notification.data?.url || '/fa';
+
+  event.waitUntil(
+    clients
+      .matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      .then(clientList => {
+        // Check if app is already open
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            if (event.notification.data?.url) {
+              client.navigate(urlToOpen);
+            }
+            return client.focus();
+          }
+        }
+
+        // Open new window if app is not open
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
+  );
+});
+
+self.addEventListener('notificationclose', event => {
+  console.log('[SW] Notification closed:', event.notification.tag);
+});
+
 console.log('[SW] Service Worker loaded successfully');

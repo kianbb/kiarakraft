@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import { sendNotification } from '@/lib/notifications';
 
 const updateShippingSchema = z.object({
   status: z.enum(['PROCESSING', 'SHIPPED', 'DELIVERED', 'RETURNED']),
@@ -33,7 +34,7 @@ export async function PUT(
         order: {
           include: {
             user: {
-              select: { email: true, name: true },
+              select: { id: true, email: true, name: true },
             },
           },
         },
@@ -86,7 +87,7 @@ export async function PUT(
         order: {
           include: {
             user: {
-              select: { email: true, name: true },
+              select: { id: true, email: true, name: true },
             },
             address: true,
           },
@@ -94,8 +95,35 @@ export async function PUT(
       },
     });
 
-    // TODO: Send notification email to customer about shipping status update
-    // This would integrate with the email system when V3-S5 (Notifications) is implemented
+    // Send notification for shipping status updates (best-effort)
+    if (
+      validatedData.status === 'SHIPPED' ||
+      validatedData.status === 'DELIVERED'
+    ) {
+      setImmediate(async () => {
+        try {
+          const notificationType =
+            validatedData.status === 'SHIPPED'
+              ? 'order_shipped'
+              : 'order_delivered';
+          await sendNotification({
+            userId: updatedShipping.order.user.id,
+            type: notificationType,
+            data: {
+              orderId: updatedShipping.order.id,
+              customerName: updatedShipping.order.user.email.split('@')[0],
+              trackingNumber: updatedShipping.trackingNo || undefined,
+              locale: 'fa',
+            },
+          });
+        } catch (notificationError) {
+          console.error(
+            `Error sending ${validatedData.status.toLowerCase()} notification:`,
+            notificationError
+          );
+        }
+      });
+    }
 
     return NextResponse.json({
       message: 'Shipping status updated successfully',
@@ -131,7 +159,7 @@ export async function GET(
         order: {
           include: {
             user: {
-              select: { email: true, name: true },
+              select: { id: true, email: true, name: true },
             },
             address: true,
             items: {
