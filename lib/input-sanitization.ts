@@ -1,51 +1,50 @@
 /**
  * Comprehensive input sanitization utilities
  * Provides security against XSS, injection attacks, and malicious content
+ * Fixed regex patterns to prevent ReDoS attacks and improve security
  */
 
 import { z } from 'zod';
 
 // Security patterns to detect potential threats
+// Using safer, more specific patterns to avoid ReDoS attacks
 const THREAT_PATTERNS = {
-  // Script injection patterns
+  // Script injection patterns - simplified to avoid ReDoS
   scripts: [
-    /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
-    /<script[\s>]/gi,
+    /<script\b[^>]{0,200}>/gi,
+    /<\/script>/gi,
     /javascript:/gi,
-    /on\w+\s*=/gi, // Event handlers like onclick, onload, etc.
+    /\bon[a-zA-Z]{1,20}\s*=/gi, // Event handlers like onclick, onload, etc.
   ],
 
-  // SQL injection patterns
+  // SQL injection patterns - more specific to avoid false positives
   sqlInjection: [
-    /(\b(select|insert|update|delete|drop|create|alter|exec|execute)\b)/gi,
-    /(\b(union|having|group\s+by|order\s+by)\b)/gi,
-    /(--|\/\*|\*\/)/gi,
-    /(\b(char|ascii|substring|length|user|database|version)\b\s*\()/gi,
+    /\b(select|insert|update|delete|drop|create|alter)\s+/gi,
+    /\b(union|having)\s+/gi,
+    /--[^\r\n]{0,100}/gi, // SQL comments with length limit
+    /\/\*[\s\S]{0,500}?\*\//gi, // SQL block comments with length limit
   ],
 
-  // Command injection patterns
+  // Command injection patterns - more specific
   commandInjection: [
-    /(\b(eval|exec|system|shell_exec|passthru|proc_open|popen)\b\s*\()/gi,
-    /(\$\{|\`|\|\||&&|;)/gi,
+    /\b(eval|exec|system|shell_exec|passthru)\s*\(/gi,
+    /\$\{[^}]{0,100}\}/gi, // Template literals with length limit
+    /\|\||&&/gi, // Command chaining
   ],
 
   // PHP injection patterns
-  phpInjection: [
-    /<\?php/gi,
-    /<\?=/gi,
-    /\$_GET|\$_POST|\$_REQUEST|\$_SESSION/gi,
-  ],
+  phpInjection: [/<\?(?:php|=)/gi, /\$_(GET|POST|REQUEST|SESSION)\b/gi],
 
-  // Spam and suspicious content
+  // Spam patterns - simplified
   spam: [
-    /\b(viagra|cialis|casino|poker|betting|lottery|winner|congratulations|urgent|act\s+now)\b/gi,
-    /\b(click\s+here|limited\s+time|make\s+money|work\s+from\s+home)\b/gi,
+    /\b(viagra|cialis|casino|betting|lottery)\b/gi,
+    /\b(click\s+here|limited\s+time)\b/gi,
   ],
 
-  // Suspicious URLs and domains
+  // Suspicious URLs - more specific
   suspiciousUrls: [
-    /https?:\/\/[^\s]*\.(tk|ml|ga|cf|bit\.ly|tinyurl|goo\.gl)/gi,
-    /https?:\/\/[^\s]*\/(redirect|r\/|goto|link|url)/gi,
+    /https?:\/\/[a-zA-Z0-9.-]{1,100}\.(tk|ml|ga|cf)\b/gi,
+    /\b(bit\.ly|tinyurl|goo\.gl)\/[\w]{1,20}/gi,
   ],
 };
 
@@ -74,7 +73,7 @@ export function sanitizeHtml(
   // For strict sanitization, remove all HTML tags
   if (level === SanitizationLevel.STRICT) {
     return input
-      .replace(/<[^>]*>/g, '') // Remove all HTML tags
+      .replace(/<[^<>]{0,200}>/g, '') // Remove all HTML tags with length limit
       .replace(/&lt;/g, '<') // Decode common entities
       .replace(/&gt;/g, '>')
       .replace(/&amp;/g, '&')
@@ -85,9 +84,12 @@ export function sanitizeHtml(
   // Remove dangerous elements and attributes
   let sanitized = input;
 
-  // Remove script tags and their content
-  sanitized = sanitized.replace(/<script[\s\S]*?<\/script>/gi, '');
-  sanitized = sanitized.replace(/<script[^>]*>/gi, '');
+  // Remove script tags and their content - using safer regex
+  sanitized = sanitized.replace(
+    /<script\b[^>]{0,200}>[\s\S]{0,5000}?<\/script>/gi,
+    ''
+  );
+  sanitized = sanitized.replace(/<script\b[^>]{0,200}>/gi, '');
 
   // Remove other dangerous tags
   const dangerousTags = [
@@ -100,12 +102,15 @@ export function sanitizeHtml(
     'meta',
   ];
   dangerousTags.forEach(tag => {
-    const regex = new RegExp(`<${tag}[^>]*>`, 'gi');
+    const regex = new RegExp(`<${tag}\\b[^>]{0,200}>`, 'gi');
     sanitized = sanitized.replace(regex, '');
   });
 
-  // Remove event handlers and javascript: URLs
-  sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+  // Remove event handlers and javascript: URLs - using character classes
+  sanitized = sanitized.replace(
+    /\s*on[a-zA-Z]{1,20}\s*=\s*["'][^"']{0,200}["']/gi,
+    ''
+  );
   sanitized = sanitized.replace(/\s*javascript\s*:/gi, '');
 
   return sanitized;
@@ -120,7 +125,7 @@ export function stripHtml(input: string): string {
   }
 
   return input
-    .replace(/<[^>]*>/g, '') // Remove all HTML tags
+    .replace(/<[^<>]{0,200}>/g, '') // Remove HTML tags with length limit
     .replace(/&lt;/g, '<') // Decode HTML entities
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
@@ -141,7 +146,7 @@ export function escapeHtml(input: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/\"/g, '&quot;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
 }
@@ -167,9 +172,13 @@ export function detectThreats(input: string): {
     return { isSafe: true, threats: [] };
   }
 
-  // Check for script injection
+  // Truncate input to prevent ReDoS attacks
+  const truncatedInput = input.slice(0, 10000);
+
+  // Check for script injection - reset regex state to prevent ReDoS
   THREAT_PATTERNS.scripts.forEach((pattern, index) => {
-    if (pattern.test(input)) {
+    pattern.lastIndex = 0; // Reset regex state
+    if (pattern.test(truncatedInput)) {
       threats.push({
         type: 'script_injection',
         description: `Script injection pattern detected (${index + 1})`,
@@ -180,7 +189,8 @@ export function detectThreats(input: string): {
 
   // Check for SQL injection
   THREAT_PATTERNS.sqlInjection.forEach((pattern, index) => {
-    if (pattern.test(input)) {
+    pattern.lastIndex = 0; // Reset regex state
+    if (pattern.test(truncatedInput)) {
       threats.push({
         type: 'sql_injection',
         description: `SQL injection pattern detected (${index + 1})`,
@@ -191,7 +201,8 @@ export function detectThreats(input: string): {
 
   // Check for command injection
   THREAT_PATTERNS.commandInjection.forEach((pattern, index) => {
-    if (pattern.test(input)) {
+    pattern.lastIndex = 0; // Reset regex state
+    if (pattern.test(truncatedInput)) {
       threats.push({
         type: 'command_injection',
         description: `Command injection pattern detected (${index + 1})`,
@@ -202,7 +213,8 @@ export function detectThreats(input: string): {
 
   // Check for PHP injection
   THREAT_PATTERNS.phpInjection.forEach((pattern, index) => {
-    if (pattern.test(input)) {
+    pattern.lastIndex = 0; // Reset regex state
+    if (pattern.test(truncatedInput)) {
       threats.push({
         type: 'php_injection',
         description: `PHP code injection detected (${index + 1})`,
@@ -213,7 +225,8 @@ export function detectThreats(input: string): {
 
   // Check for spam content
   THREAT_PATTERNS.spam.forEach((pattern, index) => {
-    if (pattern.test(input)) {
+    pattern.lastIndex = 0; // Reset regex state
+    if (pattern.test(truncatedInput)) {
       threats.push({
         type: 'spam',
         description: `Spam content pattern detected (${index + 1})`,
@@ -224,7 +237,8 @@ export function detectThreats(input: string): {
 
   // Check for suspicious URLs
   THREAT_PATTERNS.suspiciousUrls.forEach((pattern, index) => {
-    if (pattern.test(input)) {
+    pattern.lastIndex = 0; // Reset regex state
+    if (pattern.test(truncatedInput)) {
       threats.push({
         type: 'suspicious_url',
         description: `Suspicious URL pattern detected (${index + 1})`,
