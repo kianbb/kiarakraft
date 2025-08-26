@@ -41,6 +41,7 @@
       "products": "محصولات ویژه"
     },
     "viewAllProducts": "مشاهده همه محصولات",
+    "noFeaturedProducts": "در حال حاضر محصول ویژه‌ای موجود نیست.",
     "sampleProducts": {
       "ceramicBowl": {
         "title": "کاسه سرامیکی دست‌ساز",

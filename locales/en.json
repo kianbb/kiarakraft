@@ -41,6 +41,7 @@
       "products": "Featured Products"
     },
     "viewAllProducts": "View All Products",
+    "noFeaturedProducts": "No featured products available at the moment.",
     "sampleProducts": {
       "ceramicBowl": {
         "title": "Handmade Ceramic Bowl",
