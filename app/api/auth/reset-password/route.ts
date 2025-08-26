@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
+import { validatePasswordComplexity } from '@/lib/auth-security';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 
 const resetPasswordSchema = z
   .object({
     token: z.string().min(1, 'Reset token is required'),
-    password: z.string().min(6, 'Password must be at least 6 characters long'),
+    password: z.string().min(8, 'Password must be at least 8 characters long'),
     confirmPassword: z.string().min(1, 'Password confirmation is required'),
   })
   .refine(data => data.password === data.confirmPassword, {
@@ -22,6 +23,18 @@ export const POST = withRateLimit(
     try {
       const body = await request.json();
       const { token, password } = resetPasswordSchema.parse(body);
+
+      // Validate password complexity
+      const passwordValidation = validatePasswordComplexity(password);
+      if (!passwordValidation.valid) {
+        return NextResponse.json(
+          {
+            error: 'Password does not meet security requirements',
+            details: passwordValidation.errors,
+          },
+          { status: 400 }
+        );
+      }
 
       // Find valid reset token
       const resetToken = await prisma.passwordResetToken.findFirst({

@@ -9,6 +9,7 @@ import {
 } from '@/lib/cloudinary';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
+import { validateFile, performSecurityChecks } from '@/lib/file-validation';
 import * as Sentry from '@sentry/nextjs';
 
 export const POST = withRateLimit(
@@ -46,21 +47,46 @@ export const POST = withRateLimit(
         );
       }
 
-      // Validate file type and size
-      const allowedTypes = [
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'application/pdf',
-      ];
-      if (!allowedTypes.includes(file.type)) {
+      // Convert file to buffer for validation
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      // Validate file content using magic bytes
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+
+      const fileValidation = validateFile(buffer, file.type, allowedTypes);
+
+      if (!fileValidation.isValid) {
+        console.warn(`Document validation failed: ${fileValidation.error}`);
         return NextResponse.json(
           {
             error: 'VALIDATION_ERROR',
-            message:
-              'Invalid file type. Only JPEG, PNG, and PDF files are allowed.',
+            message: fileValidation.error || 'Invalid file content detected',
           },
           { status: 400 }
+        );
+      }
+
+      // Perform additional security checks
+      const securityCheck = performSecurityChecks(buffer);
+      if (!securityCheck.isSafe) {
+        console.warn(
+          `Security threats in document: ${securityCheck.threats.join(', ')}`
+        );
+        return NextResponse.json(
+          {
+            error: 'VALIDATION_ERROR',
+            message: 'Security threat detected in file content',
+          },
+          { status: 400 }
+        );
+      }
+
+      // Log warnings if MIME type doesn't match detected type
+      if (fileValidation.warnings) {
+        console.warn(
+          'Document validation warnings:',
+          fileValidation.warnings.join(', ')
         );
       }
 
@@ -85,9 +111,7 @@ export const POST = withRateLimit(
         );
       }
 
-      // Convert file to buffer
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+      // Buffer already created during validation
 
       // Create secure folder path
       const fileName = `${type || 'document'}-${Date.now()}`;

@@ -73,7 +73,6 @@ export const PATCH = withRateLimit(
               type: notificationType,
               data: {
                 orderId: updated.id,
-                customerName: updated.user.email.split('@')[0],
                 trackingNumber: updated.shipping?.trackingNo || undefined,
                 locale: 'fa',
               },

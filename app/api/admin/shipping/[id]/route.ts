@@ -111,7 +111,6 @@ export async function PUT(
             type: notificationType,
             data: {
               orderId: updatedShipping.order.id,
-              customerName: updatedShipping.order.user.email.split('@')[0],
               trackingNumber: updatedShipping.trackingNo || undefined,
               locale: 'fa',
             },

@@ -111,7 +111,6 @@ export const POST = withRateLimit(
               type: 'order_paid',
               data: {
                 orderId: orderForNotification.id,
-                customerName: orderForNotification.user.email.split('@')[0],
                 locale: 'fa',
               },
             });

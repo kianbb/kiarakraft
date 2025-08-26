@@ -134,7 +134,7 @@ export const GET = withRateLimit(
               });
 
               // Update order
-              const updatedOrder = await tx.order.update({
+              await tx.order.update({
                 where: { id: payment!.orderId },
                 data: { status: 'PAID' },
                 include: {
@@ -184,7 +184,6 @@ export const GET = withRateLimit(
                 type: 'order_paid',
                 data: {
                   orderId: orderForNotification.id,
-                  customerName: orderForNotification.user.email.split('@')[0],
                   locale: 'fa',
                 },
               });
