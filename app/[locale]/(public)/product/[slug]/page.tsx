@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { RatingStars } from '@/components/products/RatingStars';
 import { AddToCartButton } from '@/components/products/AddToCartButton';
 import { formatPrice } from '@/lib/utils';
-import { ArrowLeft, Heart, Share2, Store, MapPin } from 'lucide-react';
+import { ArrowLeft, Share2, Store, MapPin } from 'lucide-react';
+import { WishlistButton } from '@/components/wishlist/WishlistButton';
 import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
@@ -425,10 +426,14 @@ export default async function Page({ params }: { params: Params }) {
                     <AddToCartButton product={product} />
 
                     <div className="flex gap-3">
-                      <Button variant="outline" size="lg" className="flex-1">
-                        <Heart className="h-4 w-4 mr-2" />
-                        {t('addToWishlist')}
-                      </Button>
+                      <div className="flex-1">
+                        <WishlistButton
+                          productId={product.id}
+                          initialIsInWishlist={false}
+                          variant="large"
+                          className="w-full h-12 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                        />
+                      </div>
 
                       <Button variant="outline" size="lg">
                         <Share2 className="h-4 w-4" />

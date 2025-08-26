@@ -6,17 +6,13 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RatingStars } from '@/components/products/RatingStars';
 import { Price } from '@/components/ui/price';
 import { VerifiedBadge } from '@/components/ui/verified-badge';
+import { WishlistButton } from '@/components/wishlist/WishlistButton';
 import { cn } from '@/lib/utils';
-import {
-  isFavorite,
-  toggleFavorite,
-  onFavoritesUpdated,
-} from '@/lib/favorites';
 
 interface ProductCardProps {
   product: {
@@ -36,25 +32,28 @@ interface ProductCardProps {
   };
   compact?: boolean;
   className?: string;
+  showWishlistButton?: boolean;
+  locale?: string;
 }
 
 export const ProductCard = React.memo(function ProductCard({
   product,
   compact = false,
   className,
+  showWishlistButton = true,
+  locale: propLocale,
 }: ProductCardProps) {
   // Keep hook order stable: call hooks unconditionally and use safe fallback until hydrated
   const [isHydrated, setIsHydrated] = React.useState(false);
   const [addingToCart, setAddingToCart] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
-  const [favorite, setFavorite] = React.useState(false);
   React.useEffect(() => setIsHydrated(true), []);
   const _locale = useLocale();
   const _t = useTranslations('common');
   const _tProduct = useTranslations('product');
   const { data: session } = useSession();
   const router = useRouter();
-  const locale = isHydrated ? _locale : 'en';
+  const locale = propLocale || (isHydrated ? _locale : 'en');
   const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const tProduct = isHydrated
     ? _tProduct
@@ -72,15 +71,7 @@ export const ProductCard = React.memo(function ProductCard({
     : product.images[0]?.url || '/kk-logo-original.png';
   const isOutOfStock = product.stock === 0;
 
-  // Initialize and subscribe to favorites state
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setFavorite(isFavorite(product.id));
-    const off = onFavoritesUpdated(() => setFavorite(isFavorite(product.id)));
-    return () => {
-      off();
-    };
-  }, [product.id]);
+  // Removed old favorites logic - now using WishlistButton component
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -134,17 +125,7 @@ export const ProductCard = React.memo(function ProductCard({
     }
   };
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // If user not logged in, redirect to login to encourage account creation
-    if (!session) {
-      router.push(`/${locale}/auth/login`);
-      return;
-    }
-    const nowFav = toggleFavorite(product.id);
-    setFavorite(nowFav);
-  };
+  // Removed handleToggleFavorite - now handled by WishlistButton
 
   return (
     <Link
@@ -175,24 +156,19 @@ export const ProductCard = React.memo(function ProductCard({
             onError={() => setImageError(true)}
           />
 
-          {/* Overlay Actions */}
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm"
-              onClick={handleToggleFavorite}
-              aria-label={`Add ${product.title} to favorites`}
-            >
-              <Heart
-                className={cn(
-                  'w-4 h-4',
-                  favorite ? 'fill-red-500 text-red-500' : ''
-                )}
-                aria-hidden="true"
-              />
-            </Button>
-          </div>
+          {/* Wishlist Button */}
+          {showWishlistButton && (
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="rounded-full bg-background/80 backdrop-blur-sm">
+                <WishlistButton
+                  productId={product.id}
+                  initialIsInWishlist={false}
+                  variant="minimal"
+                  className="bg-transparent hover:bg-background/90"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Stock Status */}
           {isOutOfStock && (

@@ -886,5 +886,24 @@
       "responseTimeValue": "Within 30 days",
       "addressValue": "Tehran, Islamic Republic of Iran"
     }
+  },
+  "wishlist": {
+    "title": "My Wishlist",
+    "subtitle": "Your saved products ({count} items)",
+    "pageTitle": "Wishlist - Kiara Kraft",
+    "pageDescription": "View and manage your saved favorite products",
+    "home": "Home",
+    "account": "Account",
+    "wishlist": "Wishlist",
+    "itemCount": "{count, plural, =0 {No items} =1 {1 item} other {# items}} in your wishlist",
+    "continueShopping": "Continue Shopping",
+    "saved": "Saved",
+    "showingFirst20": "Showing first 20 items",
+    "empty": {
+      "title": "Your wishlist is empty",
+      "description": "Save products you love to easily find them later. Click the heart icon on any product to add it here.",
+      "exploreProducts": "Explore Products",
+      "backToHome": "Back to Home"
+    }
   }
 }
