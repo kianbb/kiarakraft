@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { cloudinary, UPLOAD_FOLDER, type UploadResult } from '@/lib/cloudinary';
 import { validateCSRF } from '@/lib/csrf';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import { validateFile, performSecurityChecks } from '@/lib/file-validation';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -43,13 +44,43 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    // Convert file to buffer for validation
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // Validate file content using magic bytes
+    const fileValidation = validateFile(buffer, file.type, ALLOWED_TYPES);
+
+    if (!fileValidation.isValid) {
+      console.warn(`File validation failed: ${fileValidation.error}`);
       return NextResponse.json(
         {
-          error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.',
+          error: fileValidation.error || 'Invalid file content detected',
         },
         { status: 400 }
+      );
+    }
+
+    // Perform additional security checks
+    const securityCheck = performSecurityChecks(buffer);
+    if (!securityCheck.isSafe) {
+      console.warn(
+        `Security threats detected: ${securityCheck.threats.join(', ')}`
+      );
+      return NextResponse.json(
+        {
+          error: 'Security threat detected in file content',
+          details: securityCheck.threats,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Log warnings if MIME type doesn't match detected type
+    if (fileValidation.warnings) {
+      console.warn(
+        'File validation warnings:',
+        fileValidation.warnings.join(', ')
       );
     }
 
@@ -63,9 +94,7 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Convert file to buffer for upload
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Buffer already created during validation
 
     // Upload to Cloudinary
     const uploadResult = await new Promise<UploadResult>((resolve, reject) => {

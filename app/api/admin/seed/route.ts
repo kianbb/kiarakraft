@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    message: 'Use POST to seed the production database',
-    usage: 'POST /api/admin/seed with x-seed-token header',
-  });
+  // Don't expose sensitive information about seeding endpoints
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }

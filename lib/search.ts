@@ -51,7 +51,6 @@ export interface SearchResult {
     images: Array<{
       url: string;
       alt: string | null;
-      sortOrder: number;
     }>;
     seller: {
       id: string;
@@ -65,19 +64,50 @@ export interface SearchResult {
       name: string;
       slug: string;
     } | null;
-    _relevance?: number;
   }>;
   pagination: {
     page: number;
     limit: number;
     total: number;
-    pages: number;
+    totalPages: number;
+    pages: number; // Add this for backward compatibility
+    hasNext: boolean;
+    hasPrev: boolean;
   };
-  facets: {
+  facets?: {
     categories: Array<{ id: string; name: string; count: number }>;
     priceRanges: Array<{ min: number; max: number; count: number }>;
     verifiedSellers: number;
   };
+}
+
+/**
+ * Validate search input to prevent injection attacks
+ */
+function validateSearchInput(input: unknown): string {
+  if (typeof input !== 'string') {
+    throw new Error('Search query must be a string');
+  }
+
+  const sanitized = input.trim();
+
+  // Length validation
+  if (sanitized.length === 0) {
+    return '';
+  }
+
+  if (sanitized.length > 200) {
+    throw new Error('Search query too long (max 200 characters)');
+  }
+
+  // Pattern validation - allow letters, numbers, spaces, and common punctuation
+  if (
+    !/^[\p{L}\p{N}\s\-_.,!?'"()\[\]{}+=@#$%&*<>/:;|\\~`^]+$/u.test(sanitized)
+  ) {
+    throw new Error('Search query contains invalid characters');
+  }
+
+  return sanitized;
 }
 
 export async function searchProducts(
@@ -96,109 +126,31 @@ export async function searchProducts(
     locale = 'fa',
   } = filters;
 
-  const offset = (page - 1) * limit;
+  // Input validation
+  const searchQuery = query ? validateSearchInput(query) : '';
+  const validLocale = ['fa', 'en'].includes(locale) ? locale : 'fa';
+  const validLimit = Math.min(Math.max(1, limit), 100); // Max 100 results per page
+  const validPage = Math.max(1, page);
+  const offset = (validPage - 1) * validLimit;
 
-  // Base WHERE conditions
-  const baseConditions: Prisma.ProductWhereInput = {
-    active: true,
-    eligibilityStatus: 'APPROVED',
-    isTest: false,
-    ...(categoryId && { categoryId }),
-    ...(sellerId && { sellerId }),
-    ...(minPrice && { priceToman: { gte: minPrice } }),
-    ...(maxPrice && { priceToman: { lte: maxPrice } }),
-    ...(minPrice &&
-      maxPrice && {
-        priceToman: {
-          gte: minPrice,
-          lte: maxPrice,
-        },
-      }),
-    ...(verifiedOnly && {
-      seller: {
-        verified: true,
-      },
-    }),
-  };
+  // Validate numeric inputs
+  const validMinPrice = minPrice && minPrice > 0 ? minPrice : null;
+  const validMaxPrice = maxPrice && maxPrice > 0 ? maxPrice : null;
+
+  // Validate IDs (should be cuid format)
+  const cuidPattern = /^[a-z0-9]{25}$/i;
+  const validCategoryId =
+    categoryId && cuidPattern.test(categoryId) ? categoryId : null;
+  const validSellerId =
+    sellerId && cuidPattern.test(sellerId) ? sellerId : null;
 
   let products;
   let total;
+  let facets;
 
-  if (query && query.trim().length > 0) {
-    // Use advanced search with trigram similarity and full-text search
-    const searchQuery = query.trim();
-
-    // Build WHERE clause for raw query
-    const whereConditions = [];
-    const params: (string | number)[] = [];
-    let paramIndex = 1;
-
-    // Add base conditions
-    whereConditions.push(`p.active = true`);
-    whereConditions.push(`p."eligibilityStatus" = 'APPROVED'`);
-    whereConditions.push(`p."isTest" = false`);
-
-    if (categoryId) {
-      whereConditions.push(`p."categoryId" = $${paramIndex}`);
-      params.push(categoryId);
-      paramIndex++;
-    }
-
-    if (sellerId) {
-      whereConditions.push(`p."sellerId" = $${paramIndex}`);
-      params.push(sellerId);
-      paramIndex++;
-    }
-
-    if (minPrice) {
-      whereConditions.push(`p."priceToman" >= $${paramIndex}`);
-      params.push(minPrice);
-      paramIndex++;
-    }
-
-    if (maxPrice) {
-      whereConditions.push(`p."priceToman" <= $${paramIndex}`);
-      params.push(maxPrice);
-      paramIndex++;
-    }
-
-    if (verifiedOnly) {
-      whereConditions.push(`sp.verified = true`);
-    }
-
-    const whereClause =
-      whereConditions.length > 0
-        ? `WHERE ${whereConditions.join(' AND ')}`
-        : '';
-
-    // Determine sort order
-    let orderBy = '';
-    switch (sortBy) {
-      case 'price_asc':
-        orderBy = 'ORDER BY p."priceToman" ASC, relevance DESC';
-        break;
-      case 'price_desc':
-        orderBy = 'ORDER BY p."priceToman" DESC, relevance DESC';
-        break;
-      case 'newest':
-        orderBy = 'ORDER BY p."createdAt" DESC, relevance DESC';
-        break;
-      case 'oldest':
-        orderBy = 'ORDER BY p."createdAt" ASC, relevance DESC';
-        break;
-      default:
-        orderBy = 'ORDER BY relevance DESC, p."createdAt" DESC';
-    }
-
-    // Build the search query with proper parameter placeholders
-    const searchQueryParam = `$${paramIndex}`;
-    // Also bind locale for joining translations (so English searches match translated titles)
-    const localeParam = `$${paramIndex + 1}`;
-    const limitParam = `$${paramIndex + 2}`;
-    const offsetParam = `$${paramIndex + 3}`;
-
-    // Advanced search query with multiple ranking factors
-    const searchSql = `
+  if (searchQuery && searchQuery.length > 0) {
+    // Use secure advanced search with Prisma.sql template literals
+    const searchSql = Prisma.sql`
       SELECT 
         p.*,
         sp.id as seller_id,
@@ -210,9 +162,9 @@ export async function searchProducts(
         c.name as category_name,
         c.slug as category_slug,
         (
-          -- Use the new PostgreSQL function for optimized search ranking
-      product_search_rank(
-            unaccent(${searchQueryParam}),
+          -- Use the PostgreSQL function for optimized search ranking
+          product_search_rank(
+            unaccent(${searchQuery}),
             unaccent(COALESCE(pt.title, p.title)),
             unaccent(COALESCE(pt.description, p.description))
           ) +
@@ -227,154 +179,194 @@ export async function searchProducts(
             ELSE -0.5                     -- Out of stock penalty
           END +
           -- Recency bonus (newer products get slight boost)
-          (EXTRACT(EPOCH FROM NOW() - p."createdAt") / 86400.0 / -365.0 * 0.1) -- Days since creation as negative years * 0.1
+          (EXTRACT(EPOCH FROM NOW() - p."createdAt") / 86400.0 / -365.0 * 0.1)
         ) as relevance
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
       LEFT JOIN "Category" c ON p."categoryId" = c.id
-      LEFT JOIN "ProductTranslation" pt ON pt."productId" = p.id AND pt.locale = ${localeParam}
-      ${whereClause}
-      AND (
-        SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQueryParam})) > 0.2 OR
-        SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQueryParam})) > 0.2 OR
-        SIMILARITY(unaccent(sp."shopName"), unaccent(${searchQueryParam})) > 0.2 OR
-        SIMILARITY(unaccent(sp."displayName"), unaccent(${searchQueryParam})) > 0.2 OR
-        to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description) || ' ' || sp."shopName" || ' ' || sp."displayName")) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR -- FTS match
-        unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-        unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-        unaccent(sp."shopName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-        unaccent(sp."displayName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-        unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQueryParam}) || '%' OR
-        LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam})) OR
-        LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQueryParam})) OR
-        LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQueryParam}))
-      )
-      ${orderBy}
-      LIMIT ${limitParam} OFFSET ${offsetParam}
+      LEFT JOIN "ProductTranslation" pt ON pt."productId" = p.id AND pt.locale = ${validLocale}
+      WHERE p.active = true 
+        AND p."eligibilityStatus" = 'APPROVED' 
+        AND p."isTest" = false
+        ${validCategoryId ? Prisma.sql`AND p."categoryId" = ${validCategoryId}` : Prisma.empty}
+        ${validSellerId ? Prisma.sql`AND p."sellerId" = ${validSellerId}` : Prisma.empty}
+        ${validMinPrice ? Prisma.sql`AND p."priceToman" >= ${validMinPrice}` : Prisma.empty}
+        ${validMaxPrice ? Prisma.sql`AND p."priceToman" <= ${validMaxPrice}` : Prisma.empty}
+        ${verifiedOnly ? Prisma.sql`AND sp.verified = true` : Prisma.empty}
+        AND (
+          SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQuery})) > 0.2 OR
+          SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQuery})) > 0.2 OR
+          SIMILARITY(unaccent(sp."shopName"), unaccent(${searchQuery})) > 0.2 OR
+          SIMILARITY(unaccent(sp."displayName"), unaccent(${searchQuery})) > 0.2 OR
+          to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description) || ' ' || sp."shopName" || ' ' || sp."displayName")) @@ plainto_tsquery('english', unaccent(${searchQuery})) OR
+          unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(sp."shopName") ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(sp."displayName") ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQuery}) || '%' OR
+          LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQuery})) OR
+          LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
+          LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery}))
+        )
+      ${
+        sortBy === 'price_asc'
+          ? Prisma.sql`ORDER BY p."priceToman" ASC, relevance DESC`
+          : sortBy === 'price_desc'
+            ? Prisma.sql`ORDER BY p."priceToman" DESC, relevance DESC`
+            : sortBy === 'newest'
+              ? Prisma.sql`ORDER BY p."createdAt" DESC, relevance DESC`
+              : sortBy === 'oldest'
+                ? Prisma.sql`ORDER BY p."createdAt" ASC, relevance DESC`
+                : Prisma.sql`ORDER BY relevance DESC, p."createdAt" DESC`
+      }
+      LIMIT ${validLimit} OFFSET ${offset}
     `;
 
-    params.push(searchQuery, locale, limit, offset);
+    const rawProducts = await prisma.$queryRaw<RawSearchResult[]>(searchSql);
 
-    const rawProducts = await prisma.$queryRawUnsafe(searchSql, ...params);
-
-    // Count total results
-    const countSql = `
+    // Count total results with same security measures
+    const countSql = Prisma.sql`
       SELECT COUNT(*) as total
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
       LEFT JOIN "Category" c ON p."categoryId" = c.id
-      LEFT JOIN "ProductTranslation" pt ON pt."productId" = p.id AND pt.locale = ${localeParam}
-      ${whereClause}
-      AND (
-    SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQueryParam})) > 0.2 OR
-    SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQueryParam})) > 0.2 OR
-    SIMILARITY(unaccent(sp."shopName"), unaccent(${searchQueryParam})) > 0.2 OR
-    SIMILARITY(unaccent(sp."displayName"), unaccent(${searchQueryParam})) > 0.2 OR
-    to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description) || ' ' || sp."shopName" || ' ' || sp."displayName")) @@ plainto_tsquery('english', unaccent(${searchQueryParam})) OR
-    unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-    unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-    unaccent(sp."shopName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-    unaccent(sp."displayName") ILIKE '%' || unaccent(${searchQueryParam}) || '%' OR
-    unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQueryParam}) || '%' OR
-    LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQueryParam})) OR
-    LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQueryParam})) OR
-    LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQueryParam}))
-      )
+      LEFT JOIN "ProductTranslation" pt ON pt."productId" = p.id AND pt.locale = ${validLocale}
+      WHERE p.active = true 
+        AND p."eligibilityStatus" = 'APPROVED' 
+        AND p."isTest" = false
+        ${validCategoryId ? Prisma.sql`AND p."categoryId" = ${validCategoryId}` : Prisma.empty}
+        ${validSellerId ? Prisma.sql`AND p."sellerId" = ${validSellerId}` : Prisma.empty}
+        ${validMinPrice ? Prisma.sql`AND p."priceToman" >= ${validMinPrice}` : Prisma.empty}
+        ${validMaxPrice ? Prisma.sql`AND p."priceToman" <= ${validMaxPrice}` : Prisma.empty}
+        ${verifiedOnly ? Prisma.sql`AND sp.verified = true` : Prisma.empty}
+        AND (
+          SIMILARITY(unaccent(COALESCE(pt.title, p.title)), unaccent(${searchQuery})) > 0.2 OR
+          SIMILARITY(unaccent(COALESCE(pt.description, p.description)), unaccent(${searchQuery})) > 0.2 OR
+          SIMILARITY(unaccent(sp."shopName"), unaccent(${searchQuery})) > 0.2 OR
+          SIMILARITY(unaccent(sp."displayName"), unaccent(${searchQuery})) > 0.2 OR
+          to_tsvector('english', unaccent(COALESCE(pt.title, p.title) || ' ' || COALESCE(pt.description, p.description) || ' ' || sp."shopName" || ' ' || sp."displayName")) @@ plainto_tsquery('english', unaccent(${searchQuery})) OR
+          unaccent(COALESCE(pt.title, p.title)) ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(COALESCE(pt.description, p.description)) ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(sp."shopName") ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(sp."displayName") ILIKE '%' || unaccent(${searchQuery}) || '%' OR
+          unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQuery}) || '%' OR
+          LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQuery})) OR
+          LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
+          LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery}))
+        )
     `;
 
-    const countParams = params.slice(0, -2); // Remove limit and offset (keeping search and locale)
-    const countResult = (await prisma.$queryRawUnsafe(
-      countSql,
-      ...countParams
-    )) as Array<{ total: bigint }>;
+    const countResult =
+      await prisma.$queryRaw<Array<{ total: bigint }>>(countSql);
     total = Number(countResult[0]?.total || 0);
 
+    // Get images for the products from the raw search results
+    const productIds = rawProducts.map(row => row.id);
+    const images = await prisma.listingImage.findMany({
+      where: {
+        productId: {
+          in: productIds,
+        },
+      },
+      select: {
+        productId: true,
+        url: true,
+        alt: true,
+      },
+    });
+
+    // Create a map of productId -> images for efficient lookup
+    const imagesByProductId = new Map<
+      string,
+      Array<{ url: string; alt: string | null }>
+    >();
+    images.forEach(img => {
+      if (!imagesByProductId.has(img.productId)) {
+        imagesByProductId.set(img.productId, []);
+      }
+      imagesByProductId.get(img.productId)!.push({
+        url: img.url,
+        alt: img.alt,
+      });
+    });
+
     // Transform raw results to match expected format
-    products = (rawProducts as RawSearchResult[]).map(
-      (row: RawSearchResult) => ({
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        description: row.description,
-        priceToman: row.priceToman,
-        stock: row.stock,
-        active: row.active,
-        eligibilityStatus: row.eligibilityStatus,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        _relevance: Number(row.relevance),
-        seller: {
-          id: row.seller_id,
-          handle: row.seller_handle,
-          displayName: row.seller_display_name,
-          shopName: row.seller_shop_name,
-          verified: row.seller_verified,
-        },
-        category: row.category_id
-          ? {
-              id: row.category_id,
-              name: row.category_name,
-              slug: row.category_slug,
-            }
-          : null,
-        images: [], // Will be populated separately
-      })
-    );
-
-    // Apply translations for search results if needed
-    if (locale === 'en' && products.length > 0) {
-      const productIds = products.map(p => p.id);
-      const translations = await prisma.productTranslation.findMany({
-        where: {
-          productId: { in: productIds },
-          locale: 'en',
-        },
-      });
-
-      const translationMap = new Map(
-        translations.map(t => [
-          t.productId,
-          { title: t.title, description: t.description },
-        ])
-      );
-
-      products = products.map(product => {
-        const translation = translationMap.get(product.id);
-        if (translation) {
-          return {
-            ...product,
-            title: translation.title,
-            description: translation.description,
-          };
-        }
-        return product;
-      });
-    }
+    products = rawProducts.map(row => ({
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      description: row.description,
+      priceToman: row.priceToman,
+      stock: row.stock,
+      active: row.active,
+      eligibilityStatus: row.eligibilityStatus,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      images: imagesByProductId.get(row.id) || [],
+      seller: {
+        id: row.seller_id,
+        handle: row.seller_handle,
+        displayName: row.seller_display_name,
+        shopName: row.seller_shop_name,
+        verified: row.seller_verified,
+      },
+      category: row.category_id
+        ? {
+            id: row.category_id,
+            name: row.category_name!,
+            slug: row.category_slug!,
+          }
+        : null,
+    }));
   } else {
-    // Simple filtering without search query
-    let orderBy: Prisma.ProductOrderByWithRelationInput[] = [];
+    // Simple search without query - use Prisma query builder for safety
+    const where: Prisma.ProductWhereInput = {
+      active: true,
+      eligibilityStatus: 'APPROVED',
+      isTest: false,
+      ...(validCategoryId && { categoryId: validCategoryId }),
+      ...(validSellerId && { sellerId: validSellerId }),
+      ...(validMinPrice && { priceToman: { gte: validMinPrice } }),
+      ...(validMaxPrice && { priceToman: { lte: validMaxPrice } }),
+      ...(validMinPrice &&
+        validMaxPrice && {
+          priceToman: {
+            gte: validMinPrice,
+            lte: validMaxPrice,
+          },
+        }),
+      ...(verifiedOnly && {
+        seller: {
+          verified: true,
+        },
+      }),
+    };
 
-    switch (sortBy) {
-      case 'price_asc':
-        orderBy = [{ priceToman: 'asc' }];
-        break;
-      case 'price_desc':
-        orderBy = [{ priceToman: 'desc' }];
-        break;
-      case 'newest':
-        orderBy = [{ createdAt: 'desc' }];
-        break;
-      case 'oldest':
-        orderBy = [{ createdAt: 'asc' }];
-        break;
-      default:
-        orderBy = [{ createdAt: 'desc' }];
-    }
+    const orderBy: Prisma.ProductOrderByWithRelationInput[] = (() => {
+      switch (sortBy) {
+        case 'price_asc':
+          return [{ priceToman: 'asc' }, { createdAt: 'desc' }];
+        case 'price_desc':
+          return [{ priceToman: 'desc' }, { createdAt: 'desc' }];
+        case 'newest':
+          return [{ createdAt: 'desc' }];
+        case 'oldest':
+          return [{ createdAt: 'asc' }];
+        default:
+          return [{ createdAt: 'desc' }];
+      }
+    })();
 
     const [productsResult, totalResult] = await Promise.all([
       prisma.product.findMany({
-        where: baseConditions,
+        where,
         include: {
+          images: {
+            select: {
+              url: true,
+              alt: true,
+            },
+          },
           seller: {
             select: {
               id: true,
@@ -391,109 +383,47 @@ export async function searchProducts(
               slug: true,
             },
           },
-          images: {
-            select: {
-              url: true,
-              alt: true,
-              sortOrder: true,
-            },
-            orderBy: {
-              sortOrder: 'asc',
-            },
-          },
-          translations: {
-            where: { locale },
-          },
         },
         orderBy,
+        take: validLimit,
         skip: offset,
-        take: limit,
       }),
-      prisma.product.count({ where: baseConditions }),
+      prisma.product.count({ where }),
     ]);
 
-    // Apply translations if available
-    products = productsResult.map(product => {
-      if (locale === 'en' && product.translations.length > 0) {
-        const translation = product.translations[0];
-        return {
-          ...product,
-          title: translation.title,
-          description: translation.description,
-        };
-      }
-      return product;
-    });
+    products = productsResult;
     total = totalResult;
-  }
 
-  // Populate images for search results if not already included
-  if (query && products.length > 0) {
-    const productIds = products.map(p => p.id);
-    const images = await prisma.listingImage.findMany({
-      where: {
-        productId: { in: productIds },
-      },
-      select: {
-        productId: true,
-        url: true,
-        alt: true,
-        sortOrder: true,
-      },
-      orderBy: {
-        sortOrder: 'asc',
-      },
-    });
-
-    // Group images by product ID
-    const imagesByProduct = images.reduce(
-      (acc, img) => {
-        if (!acc[img.productId]) acc[img.productId] = [];
-        acc[img.productId].push({
-          url: img.url,
-          alt: img.alt,
-          sortOrder: img.sortOrder,
-        });
-        return acc;
-      },
-      {} as Record<
-        string,
-        Array<{ url: string; alt: string | null; sortOrder: number }>
-      >
-    );
-
-    // Assign images to products
-    products.forEach(product => {
-      (
-        product as {
-          id: string;
-          images: Array<{ url: string; alt: string | null; sortOrder: number }>;
-        }
-      ).images = imagesByProduct[product.id] || [];
+    // Generate facets for simple search
+    facets = await generateSearchFacets({
+      categoryId: validCategoryId || undefined,
+      minPrice: validMinPrice || undefined,
+      maxPrice: validMaxPrice || undefined,
+      sellerId: validSellerId || undefined,
+      verifiedOnly,
     });
   }
 
-  // Generate facets for filtering UI (optimized, fewer queries)
-  const facets = await generateSearchFacets({
-    categoryId,
-    minPrice,
-    maxPrice,
-    sellerId,
-    verifiedOnly,
-  });
+  const totalPages = Math.ceil(total / validLimit);
 
   return {
-    products: products as SearchResult['products'],
+    products,
     pagination: {
-      page,
-      limit,
+      page: validPage,
+      limit: validLimit,
       total,
-      pages: Math.ceil(total / limit),
+      totalPages,
+      pages: totalPages, // Add for backward compatibility
+      hasNext: validPage < totalPages,
+      hasPrev: validPage > 1,
     },
-    facets,
+    ...(facets && { facets }),
   };
 }
 
+/**
+ * Secure faceted search implementation using Prisma.sql template literals
+ */
 async function generateSearchFacets({
   categoryId,
   minPrice,
@@ -504,66 +434,53 @@ async function generateSearchFacets({
   SearchFilters,
   'categoryId' | 'minPrice' | 'maxPrice' | 'sellerId' | 'verifiedOnly'
 >) {
-  // Build WHERE clause and params once for reuse across facet queries
-  const whereParts: string[] = [
-    'p.active = true',
-    `p."eligibilityStatus" = 'APPROVED'`,
-    `p."isTest" = false`,
-  ];
-  const params: (string | number | boolean)[] = [];
-  let idx = 1;
+  // Validate inputs
+  const cuidPattern = /^[a-z0-9]{25}$/i;
+  const validCategoryId =
+    categoryId && cuidPattern.test(categoryId) ? categoryId : null;
+  const validSellerId =
+    sellerId && cuidPattern.test(sellerId) ? sellerId : null;
+  const validMinPrice = minPrice && minPrice > 0 ? minPrice : null;
+  const validMaxPrice = maxPrice && maxPrice > 0 ? maxPrice : null;
 
-  if (categoryId) {
-    whereParts.push(`p."categoryId" = $${idx++}`);
-    params.push(categoryId);
-  }
-  if (sellerId) {
-    whereParts.push(`p."sellerId" = $${idx++}`);
-    params.push(sellerId);
-  }
-  if (typeof minPrice === 'number') {
-    whereParts.push(`p."priceToman" >= $${idx++}`);
-    params.push(minPrice);
-  }
-  if (typeof maxPrice === 'number') {
-    whereParts.push(`p."priceToman" <= $${idx++}`);
-    params.push(maxPrice);
-  }
-  if (verifiedOnly) {
-    whereParts.push(`sp.verified = true`);
-  }
-
-  const whereClause = whereParts.length
-    ? `WHERE ${whereParts.join(' AND ')}`
-    : '';
-
-  // 1) Category facets in a single query
-  const categoriesPromise = prisma.$queryRawUnsafe<
-    Array<{ id: string; name: string; count: number }>
-  >(
-    `
+  // 1) Category facets using secure Prisma.sql
+  const categoriesSql = Prisma.sql`
     SELECT c.id, c.name, COUNT(*)::int AS count
     FROM "Product" p
     LEFT JOIN "Category" c ON c.id = p."categoryId"
     LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
-    ${whereClause}
-    AND p."categoryId" IS NOT NULL
+    WHERE p.active = true 
+      AND p."eligibilityStatus" = 'APPROVED' 
+      AND p."isTest" = false
+      AND p."categoryId" IS NOT NULL
+      ${validCategoryId ? Prisma.sql`AND p."categoryId" = ${validCategoryId}` : Prisma.empty}
+      ${validSellerId ? Prisma.sql`AND p."sellerId" = ${validSellerId}` : Prisma.empty}
+      ${validMinPrice ? Prisma.sql`AND p."priceToman" >= ${validMinPrice}` : Prisma.empty}
+      ${validMaxPrice ? Prisma.sql`AND p."priceToman" <= ${validMaxPrice}` : Prisma.empty}
+      ${verifiedOnly ? Prisma.sql`AND sp.verified = true` : Prisma.empty}
     GROUP BY c.id, c.name
     ORDER BY count DESC
-    `,
-    ...params
-  );
+  `;
 
-  // 2) Price ranges using width_bucket in a single query (up to 5 buckets)
-  const priceRangesPromise = prisma.$queryRawUnsafe<
-    Array<{ bucket: number; count: number; min: number; max: number }>
-  >(
-    `
+  const categoriesPromise =
+    prisma.$queryRaw<Array<{ id: string; name: string; count: number }>>(
+      categoriesSql
+    );
+
+  // 2) Price ranges using secure Prisma.sql
+  const priceRangesSql = Prisma.sql`
     WITH bounds AS (
       SELECT MIN(p."priceToman")::float AS min_price, MAX(p."priceToman")::float AS max_price
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
-      ${whereClause}
+      WHERE p.active = true 
+        AND p."eligibilityStatus" = 'APPROVED' 
+        AND p."isTest" = false
+        ${validCategoryId ? Prisma.sql`AND p."categoryId" = ${validCategoryId}` : Prisma.empty}
+        ${validSellerId ? Prisma.sql`AND p."sellerId" = ${validSellerId}` : Prisma.empty}
+        ${validMinPrice ? Prisma.sql`AND p."priceToman" >= ${validMinPrice}` : Prisma.empty}
+        ${validMaxPrice ? Prisma.sql`AND p."priceToman" <= ${validMaxPrice}` : Prisma.empty}
+        ${verifiedOnly ? Prisma.sql`AND sp.verified = true` : Prisma.empty}
     ),
     buckets AS (
       SELECT
@@ -574,7 +491,14 @@ async function generateSearchFacets({
         END AS bucket
       FROM "Product" p
       LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
-      ${whereClause}
+      WHERE p.active = true 
+        AND p."eligibilityStatus" = 'APPROVED' 
+        AND p."isTest" = false
+        ${validCategoryId ? Prisma.sql`AND p."categoryId" = ${validCategoryId}` : Prisma.empty}
+        ${validSellerId ? Prisma.sql`AND p."sellerId" = ${validSellerId}` : Prisma.empty}
+        ${validMinPrice ? Prisma.sql`AND p."priceToman" >= ${validMinPrice}` : Prisma.empty}
+        ${validMaxPrice ? Prisma.sql`AND p."priceToman" <= ${validMaxPrice}` : Prisma.empty}
+        ${verifiedOnly ? Prisma.sql`AND sp.verified = true` : Prisma.empty}
     )
     SELECT 
       b.bucket,
@@ -587,23 +511,30 @@ async function generateSearchFacets({
     WHERE b.bucket IS NOT NULL
     GROUP BY b.bucket
     ORDER BY b.bucket
-    `,
-    ...params
-  );
+  `;
 
-  // 3) Verified sellers count
-  const verifiedSellersPromise = prisma.$queryRawUnsafe<
-    Array<{ count: bigint }>
-  >(
-    `
+  const priceRangesPromise =
+    prisma.$queryRaw<
+      Array<{ bucket: number; count: number; min: number; max: number }>
+    >(priceRangesSql);
+
+  // 3) Verified sellers count using secure Prisma.sql
+  const verifiedSellersSql = Prisma.sql`
     SELECT COUNT(*) AS count
     FROM "Product" p
     LEFT JOIN "SellerProfile" sp ON p."sellerId" = sp.id
-    ${whereClause}
-    AND sp.verified = true
-    `,
-    ...params
-  );
+    WHERE p.active = true 
+      AND p."eligibilityStatus" = 'APPROVED' 
+      AND p."isTest" = false
+      AND sp.verified = true
+      ${validCategoryId ? Prisma.sql`AND p."categoryId" = ${validCategoryId}` : Prisma.empty}
+      ${validSellerId ? Prisma.sql`AND p."sellerId" = ${validSellerId}` : Prisma.empty}
+      ${validMinPrice ? Prisma.sql`AND p."priceToman" >= ${validMinPrice}` : Prisma.empty}
+      ${validMaxPrice ? Prisma.sql`AND p."priceToman" <= ${validMaxPrice}` : Prisma.empty}
+  `;
+
+  const verifiedSellersPromise =
+    prisma.$queryRaw<Array<{ count: bigint }>>(verifiedSellersSql);
 
   const [categories, priceBuckets, verifiedSellersRaw] = await Promise.all([
     categoriesPromise,

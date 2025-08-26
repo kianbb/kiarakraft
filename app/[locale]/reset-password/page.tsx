@@ -21,7 +21,25 @@ import { toast } from 'sonner';
 
 const resetPasswordSchema = z
   .object({
-    password: z.string().min(8, 'Password must be at least 8 characters long'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters long')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one number')
+      .refine(
+        password => {
+          // Check for common patterns
+          const commonPatterns = [
+            /(..)\1{2,}/, // 3+ repeated characters
+            /123456|654321|qwerty|password|admin/i, // Common sequences
+          ];
+          return !commonPatterns.some(pattern => pattern.test(password));
+        },
+        {
+          message: 'Password contains common patterns that are not secure',
+        }
+      ),
     confirmPassword: z.string().min(1, 'Password confirmation is required'),
   })
   .refine(data => data.password === data.confirmPassword, {
@@ -263,32 +281,44 @@ function ResetPasswordContent() {
                 </p>
               )}
 
-              {/* Password strength indicator */}
+              {/* Password requirements indicator */}
               {password && (
-                <div className="mt-2">
-                  <div className="flex space-x-1">
-                    {[1, 2, 3, 4].map(level => (
-                      <div
-                        key={level}
-                        className={`h-1 w-1/4 rounded ${
-                          password.length >= level * 2
-                            ? level <= 2
-                              ? 'bg-red-500'
-                              : level === 3
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                            : 'bg-gray-200'
-                        }`}
-                      />
-                    ))}
+                <div className="mt-2 text-xs text-gray-600 space-y-1">
+                  <p className="font-medium">{t('passwordRequirements')}:</p>
+                  <div className="space-y-0.5">
+                    <div
+                      className={`flex items-center ${password.length >= 8 ? 'text-green-600' : 'text-red-500'}`}
+                    >
+                      <span className="mr-1">
+                        {password.length >= 8 ? '✓' : '✗'}
+                      </span>
+                      {t('passwordMin8')}
+                    </div>
+                    <div
+                      className={`flex items-center ${/[a-z]/.test(password) ? 'text-green-600' : 'text-red-500'}`}
+                    >
+                      <span className="mr-1">
+                        {/[a-z]/.test(password) ? '✓' : '✗'}
+                      </span>
+                      {t('passwordLowercase')}
+                    </div>
+                    <div
+                      className={`flex items-center ${/[A-Z]/.test(password) ? 'text-green-600' : 'text-red-500'}`}
+                    >
+                      <span className="mr-1">
+                        {/[A-Z]/.test(password) ? '✓' : '✗'}
+                      </span>
+                      {t('passwordUppercase')}
+                    </div>
+                    <div
+                      className={`flex items-center ${/[0-9]/.test(password) ? 'text-green-600' : 'text-red-500'}`}
+                    >
+                      <span className="mr-1">
+                        {/[0-9]/.test(password) ? '✓' : '✗'}
+                      </span>
+                      {t('passwordNumber')}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {password.length < 8 && t('passwordTooShort')}
-                    {password.length >= 8 &&
-                      password.length < 12 &&
-                      t('passwordWeak')}
-                    {password.length >= 12 && t('passwordStrong')}
-                  </p>
                 </div>
               )}
             </div>

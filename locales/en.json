@@ -41,6 +41,7 @@
       "products": "Featured Products"
     },
     "viewAllProducts": "View All Products",
+    "noFeaturedProducts": "No featured products available at the moment.",
     "sampleProducts": {
       "ceramicBowl": {
         "title": "Handmade Ceramic Bowl",
@@ -295,6 +296,7 @@
     "displayName": "Display Name",
     "region": "Region",
     "regionPlaceholder": "e.g., Tehran, Isfahan, Shiraz",
+    "bio": "Bio",
     "bioPlaceholder": "Tell us about your craft and experience...",
     "createAccount": "Create Account",
     "creating": "Creating...",
@@ -307,10 +309,15 @@
     "signingIn": "Signing in...",
     "invalidEmail": "Invalid email address",
     "passwordRequired": "Password is required",
-    "passwordMin": "Password must be at least 6 characters",
-    "passwordMin12": "Password must be at least 12 characters long",
-    "passwordComplexity": "Include at least one uppercase (A-Z), one lowercase (a-z), one number (0-9), and one special character (@$!%*?&)",
-    "passwordExample": "Example: KiaraKraft#2025",
+    "passwordMin": "Password must be at least 8 characters",
+    "passwordMin6": "Password must be at least 6 characters long",
+    "passwordMin8": "At least 8 characters long",
+    "passwordLowercase": "At least one lowercase letter",
+    "passwordUppercase": "At least one uppercase letter",
+    "passwordNumber": "At least one number",
+    "passwordCommon": "Password contains common patterns that are not secure",
+    "passwordNoCommon": "No common patterns (e.g., 123456, qwerty)",
+    "passwordRequirements": "Password requirements",
     "nameRequired": "Name is required",
     "registrationSuccess": "Registration successful! Redirecting to login...",
     "forgotPasswordDescription": "Enter your email address and we'll send you a link to reset your password.",
@@ -885,6 +892,25 @@
       "responseTime": "Response Time",
       "responseTimeValue": "Within 30 days",
       "addressValue": "Tehran, Islamic Republic of Iran"
+    }
+  },
+  "wishlist": {
+    "title": "My Wishlist",
+    "subtitle": "Your saved products ({count} items)",
+    "pageTitle": "Wishlist - Kiara Kraft",
+    "pageDescription": "View and manage your saved favorite products",
+    "home": "Home",
+    "account": "Account",
+    "wishlist": "Wishlist",
+    "itemCount": "{count, plural, =0 {No items} =1 {1 item} other {# items}} in your wishlist",
+    "continueShopping": "Continue Shopping",
+    "saved": "Saved",
+    "showingFirst20": "Showing first 20 items",
+    "empty": {
+      "title": "Your wishlist is empty",
+      "description": "Save products you love to easily find them later. Click the heart icon on any product to add it here.",
+      "exploreProducts": "Explore Products",
+      "backToHome": "Back to Home"
     }
   }
 }

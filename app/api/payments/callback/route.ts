@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 import OrderReceiptEmail from '@/lib/email-templates/OrderReceiptEmail';
+import { sendNotification } from '@/lib/notifications';
 
 function validateCallbackParams(searchParams: URLSearchParams) {
   const orderId = searchParams.get('orderId');
@@ -136,6 +137,9 @@ export const GET = withRateLimit(
               await tx.order.update({
                 where: { id: payment!.orderId },
                 data: { status: 'PAID' },
+                include: {
+                  user: { select: { id: true, email: true } },
+                },
               });
 
               // Decrement stock atomically for all order items
@@ -163,6 +167,35 @@ export const GET = withRateLimit(
           }
           throw error;
         }
+
+        // Send order paid notification (best-effort)
+        setImmediate(async () => {
+          try {
+            const orderForNotification = await prisma.order.findUnique({
+              where: { id: payment!.orderId },
+              include: {
+                user: { select: { id: true, email: true } },
+              },
+            });
+
+            if (orderForNotification) {
+              await sendNotification({
+                userId: orderForNotification.user.id,
+                type: 'order_paid',
+                data: {
+                  orderId: orderForNotification.id,
+                  locale: 'fa',
+                },
+              });
+            }
+          } catch (notificationError) {
+            console.error(
+              'Error sending order paid notification:',
+              notificationError
+            );
+            Sentry.captureException(notificationError);
+          }
+        });
 
         // Async email (best-effort)
         setImmediate(async () => {
