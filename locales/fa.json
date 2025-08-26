@@ -296,6 +296,7 @@
     "displayName": "نام نمایشی",
     "region": "منطقه",
     "regionPlaceholder": "مثلاً تهران، اصفهان، شیراز",
+    "bio": "بیوگرافی",
     "bioPlaceholder": "درباره صنعت و تجربه‌تان بگویید...",
     "createAccount": "ایجاد حساب",
     "creating": "در حال ایجاد...",
