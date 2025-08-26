@@ -310,3 +310,16 @@ model NotificationLog {
   @@index([userId, type])
   @@index([createdAt])
 }
+
+model RateLimit {
+  id         String   @id @default(cuid())
+  identifier String   // IP:endpoint or email:type
+  count      Int      @default(1)
+  resetTime  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier])
+  @@index([identifier, resetTime])
+  @@index([resetTime]) // For cleanup queries
+}

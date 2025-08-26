@@ -314,6 +314,32 @@ if (
 }
 
 // Push notification handlers
+// Utility functions for secure notification handling
+function sanitizeText(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .slice(0, 300); // Limit length
+}
+
+function sanitizeTag(tag) {
+  if (!tag || typeof tag !== 'string') return 'kiarakraft-notification';
+  const sanitized = tag.replace(/[^a-zA-Z0-9\-_]/g, '');
+  return sanitized || 'kiarakraft-notification';
+}
+
+function validateUrl(url) {
+  if (!url || typeof url !== 'string') return '/fa';
+  if (url.startsWith('/')) {
+    return url.replace(/\.\./g, '').replace(/\/+/g, '/');
+  }
+  return '/fa'; // Only allow relative URLs
+}
+
 self.addEventListener('push', event => {
   console.log('[SW] Push notification received');
 
@@ -323,21 +349,43 @@ self.addEventListener('push', event => {
   }
 
   try {
-    const data = event.data.json();
+    const rawData = event.data.json();
+
+    // Sanitize and validate all notification data
+    const sanitizedData = {
+      title: sanitizeText(rawData.title || 'Kiara Kraft'),
+      body: sanitizeText(rawData.body || 'You have a new notification'),
+      tag: sanitizeTag(rawData.tag),
+      data: {
+        url: validateUrl(rawData.data?.url),
+        type: sanitizeText(rawData.data?.type || '').slice(0, 50),
+      },
+    };
+
     const options = {
-      body: data.body,
+      body: sanitizedData.body,
       icon: '/android-chrome-192x192.png',
       badge: '/android-chrome-192x192.png',
-      tag: data.tag || 'kiarakraft-notification',
-      data: data.data || {},
-      actions: data.actions || [],
+      tag: sanitizedData.tag,
+      data: sanitizedData.data,
+      actions: [], // Disable custom actions for security
       vibrate: [100, 50, 100],
       requireInteraction: false,
     };
 
-    event.waitUntil(self.registration.showNotification(data.title, options));
+    event.waitUntil(
+      self.registration.showNotification(sanitizedData.title, options)
+    );
   } catch (error) {
     console.error('[SW] Error handling push event:', error);
+    // Fallback safe notification
+    event.waitUntil(
+      self.registration.showNotification('Kiara Kraft', {
+        body: 'You have a new notification',
+        icon: '/android-chrome-192x192.png',
+        tag: 'kiarakraft-fallback',
+      })
+    );
   }
 });
 
@@ -351,8 +399,8 @@ self.addEventListener('notificationclick', event => {
     console.log('[SW] Notification action clicked:', event.action);
   }
 
-  // Open app or navigate to specific page
-  const urlToOpen = event.notification.data?.url || '/fa';
+  // Open app or navigate to specific page (already validated)
+  const urlToOpen = validateUrl(event.notification.data?.url) || '/fa';
 
   event.waitUntil(
     clients

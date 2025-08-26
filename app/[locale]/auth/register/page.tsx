@@ -33,8 +33,37 @@ export default function RegisterPage() {
       password: z
         .string()
         .min(
-          6,
-          t('passwordMin6') || 'Password must be at least 6 characters long'
+          8,
+          t('passwordMin8') || 'Password must be at least 8 characters long'
+        )
+        .regex(
+          /[a-z]/,
+          t('passwordLowercase') ||
+            'Password must contain at least one lowercase letter'
+        )
+        .regex(
+          /[A-Z]/,
+          t('passwordUppercase') ||
+            'Password must contain at least one uppercase letter'
+        )
+        .regex(
+          /[0-9]/,
+          t('passwordNumber') || 'Password must contain at least one number'
+        )
+        .refine(
+          password => {
+            // Check for common patterns
+            const commonPatterns = [
+              /(..)\1{2,}/, // 3+ repeated characters
+              /123456|654321|qwerty|password|admin/i, // Common sequences
+            ];
+            return !commonPatterns.some(pattern => pattern.test(password));
+          },
+          {
+            message:
+              t('passwordCommon') ||
+              'Password contains common patterns that are not secure',
+          }
         ),
       confirmPassword: z.string(),
       role: z.enum(['BUYER', 'SELLER']),
@@ -194,9 +223,16 @@ export default function RegisterPage() {
                 {...register('password')}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('passwordMin6')}
-              </p>
+              <div className="mt-1 text-xs text-muted-foreground space-y-1">
+                <p>{t('passwordRequirements')}:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>{t('passwordMin8')}</li>
+                  <li>{t('passwordLowercase')}</li>
+                  <li>{t('passwordUppercase')}</li>
+                  <li>{t('passwordNumber')}</li>
+                  <li>{t('passwordNoCommon')}</li>
+                </ul>
+              </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-destructive">
                   {errors.password.message}

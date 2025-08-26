@@ -21,7 +21,7 @@ export const PATCH = withRateLimit(
 
       const { id } = params;
       const body = await request.json().catch(() => ({}));
-      const { status, reason } = body;
+      const { status } = body;
 
       if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
         return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
@@ -93,7 +93,6 @@ export const PATCH = withRateLimit(
               data: {
                 productTitle: updated.product.title,
                 reviewTitle: updated.title || 'Your review',
-                customerName: updated.user.email.split('@')[0],
                 locale: 'fa',
               },
             });

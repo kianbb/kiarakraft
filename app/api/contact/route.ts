@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server';
 import { withRateLimit, createRateLimiter } from '@/lib/rateLimit';
 import { isValidEmail, sendEmail } from '@/lib/email';
+import {
+  sanitizeAndValidate,
+  SanitizationLevel,
+  escapeHtml,
+} from '@/lib/input-sanitization';
 
 // Specific rate limiter for contact endpoint: 5 requests per 10 minutes per IP
 const contactRateLimit = createRateLimiter({
@@ -34,17 +39,70 @@ export const POST = withRateLimit(
         );
       }
 
-      const name = (payload.name || '').trim();
-      const email = (payload.email || '').trim();
-      const message = (payload.message || '').trim();
+      // Sanitize and validate all inputs
+      const nameValidation = sanitizeAndValidate(payload.name || '', {
+        maxLength: 100,
+        minLength: 1,
+        sanitizationLevel: SanitizationLevel.STRICT,
+        allowEmpty: false,
+        detectThreats: true,
+      });
 
-      if (!name || !email || !message) {
+      const emailInput = (payload.email || '').trim();
+
+      const messageValidation = sanitizeAndValidate(payload.message || '', {
+        maxLength: 2000,
+        minLength: 10,
+        sanitizationLevel: SanitizationLevel.STRICT,
+        allowEmpty: false,
+        detectThreats: true,
+      });
+
+      // Check for validation errors
+      const validationErrors: string[] = [];
+
+      if (!nameValidation.isValid) {
+        validationErrors.push(
+          'Invalid name: ' + nameValidation.errors.join(', ')
+        );
+      }
+
+      if (!emailInput) {
+        validationErrors.push('Email is required');
+      }
+
+      if (!messageValidation.isValid) {
+        validationErrors.push(
+          'Invalid message: ' + messageValidation.errors.join(', ')
+        );
+      }
+
+      if (validationErrors.length > 0) {
         return new Response(
-          JSON.stringify({ error: 'All fields are required' }),
+          JSON.stringify({ error: validationErrors.join('; ') }),
           {
             status: 400,
             headers: { 'Content-Type': 'application/json' },
           }
+        );
+      }
+
+      const name = nameValidation.sanitized;
+      const email = emailInput;
+      const message = messageValidation.sanitized;
+
+      // Log security threats if detected
+      if (nameValidation.threats && nameValidation.threats.length > 0) {
+        console.warn(
+          'Security threats detected in contact name:',
+          nameValidation.threats
+        );
+      }
+
+      if (messageValidation.threats && messageValidation.threats.length > 0) {
+        console.warn(
+          'Security threats detected in contact message:',
+          messageValidation.threats
         );
       }
 
@@ -99,11 +157,4 @@ export const POST = withRateLimit(
   }
 );
 
-function escapeHtml(str: string) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+// escapeHtml function now imported from input-sanitization module

@@ -3,10 +3,11 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
+import { validatePasswordComplexity, validateEmail } from '@/lib/auth-security';
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6, 'Password must be at least 6 characters long'),
+  password: z.string().min(8, 'Password must be at least 8 characters long'),
   name: z.string().min(1),
   role: z.enum(['BUYER', 'SELLER']).default('BUYER'),
   // Seller-specific fields
@@ -31,6 +32,26 @@ export const POST = withRateLimit(
         bio,
         region,
       } = registerSchema.parse(body);
+
+      // Validate email format
+      if (!validateEmail(email)) {
+        return NextResponse.json(
+          { error: 'Invalid email format' },
+          { status: 400 }
+        );
+      }
+
+      // Validate password complexity
+      const passwordValidation = validatePasswordComplexity(password);
+      if (!passwordValidation.valid) {
+        return NextResponse.json(
+          {
+            error: 'Password does not meet security requirements',
+            details: passwordValidation.errors,
+          },
+          { status: 400 }
+        );
+      }
 
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({

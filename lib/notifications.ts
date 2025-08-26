@@ -1,7 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
 import webpush from 'web-push';
-import { ReactElement } from 'react';
+import { Prisma } from '@prisma/client';
+import {
+  sanitizeText,
+  sanitizeCustomerName,
+  sanitizeNotificationData,
+  filterSensitiveData,
+  checkNotificationRateLimit,
+  type SafeNotificationData,
+} from '@/lib/security';
 
 // Environment configuration for web push (optional)
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
@@ -25,15 +33,7 @@ export type NotificationChannel = 'email' | 'push';
 export interface NotificationData {
   userId: string;
   type: NotificationType;
-  data: {
-    orderId?: string;
-    orderTotal?: number;
-    trackingNumber?: string;
-    productTitle?: string;
-    reviewTitle?: string;
-    customerName?: string;
-    locale?: string;
-  };
+  data: SafeNotificationData;
 }
 
 export interface NotificationResult {
@@ -50,6 +50,12 @@ async function sendEmailNotification(
   notification: NotificationData
 ): Promise<NotificationResult> {
   try {
+    // Check rate limit before processing
+    const rateLimit = checkNotificationRateLimit(notification.userId);
+    if (!rateLimit.allowed) {
+      throw new Error('Rate limit exceeded for user notifications');
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: notification.userId },
       select: { email: true, name: true },
@@ -59,7 +65,16 @@ async function sendEmailNotification(
       throw new Error('User not found');
     }
 
-    const { subject, html } = await generateEmailContent(notification, user);
+    // Sanitize notification data
+    const sanitizedNotification = {
+      ...notification,
+      data: sanitizeNotificationData(notification.data),
+    };
+
+    const { subject, html } = await generateEmailContent(
+      sanitizedNotification,
+      user
+    );
 
     const result = await sendEmail({
       to: user.email,
@@ -182,7 +197,8 @@ async function generateEmailContent(
   const { type, data } = notification;
   const locale = data.locale || 'fa';
   const isRTL = locale === 'fa';
-  const customerName = user.name || data.customerName || 'کاربر گرامی';
+  // Use secure customer name generation (no PII exposure)
+  const customerName = sanitizeCustomerName(user);
 
   // Base styles for email
   const baseStyles = `
@@ -252,7 +268,7 @@ async function generateEmailContent(
                 <h1>${isRTL ? 'پرداخت با موفقیت انجام شد!' : 'Payment Successful!'}</h1>
               </div>
               <div class="content">
-                <p>${isRTL ? `سلام ${customerName}،` : `Hello ${customerName},`}</p>
+                <p>${isRTL ? `سلام ${sanitizeText(customerName)}،` : `Hello ${sanitizeText(customerName)},`}</p>
                 <p>${
                   isRTL
                     ? 'پرداخت سفارش شما با موفقیت انجام شد و سفارش شما در حال پردازش است.'
@@ -263,7 +279,7 @@ async function generateEmailContent(
                     ? `
                   <div class="order-details">
                     <h3>${isRTL ? 'جزئیات سفارش:' : 'Order Details:'}</h3>
-                    <p><strong>${isRTL ? 'شماره سفارش:' : 'Order #:'}</strong> ${data.orderId}</p>
+                    <p><strong>${isRTL ? 'شماره سفارش:' : 'Order #:'}</strong> ${sanitizeText(data.orderId)}</p>
                     ${data.orderTotal ? `<p><strong>${isRTL ? 'مبلغ:' : 'Total:'}</strong> ${data.orderTotal.toLocaleString()} ${isRTL ? 'تومان' : 'TMN'}</p>` : ''}
                   </div>
                 `
@@ -296,7 +312,7 @@ async function generateEmailContent(
                 <h1>${isRTL ? 'سفارش شما ارسال شد!' : 'Your Order Has Shipped!'}</h1>
               </div>
               <div class="content">
-                <p>${isRTL ? `سلام ${customerName}،` : `Hello ${customerName},`}</p>
+                <p>${isRTL ? `سلام ${sanitizeText(customerName)}،` : `Hello ${sanitizeText(customerName)},`}</p>
                 <p>${
                   isRTL
                     ? 'سفارش شما بسته‌بندی شده و به مقصد ارسال گردیده است.'
@@ -307,8 +323,8 @@ async function generateEmailContent(
                     ? `
                   <div class="order-details">
                     <h3>${isRTL ? 'جزئیات ارسال:' : 'Shipping Details:'}</h3>
-                    ${data.orderId ? `<p><strong>${isRTL ? 'شماره سفارش:' : 'Order #:'}</strong> ${data.orderId}</p>` : ''}
-                    ${data.trackingNumber ? `<p><strong>${isRTL ? 'کد رهگیری:' : 'Tracking #:'}</strong> ${data.trackingNumber}</p>` : ''}
+                    ${data.orderId ? `<p><strong>${isRTL ? 'شماره سفارش:' : 'Order #:'}</strong> ${sanitizeText(data.orderId)}</p>` : ''}
+                    ${data.trackingNumber ? `<p><strong>${isRTL ? 'کد رهگیری:' : 'Tracking #:'}</strong> ${sanitizeText(data.trackingNumber)}</p>` : ''}
                   </div>
                 `
                     : ''
@@ -340,7 +356,7 @@ async function generateEmailContent(
                 <h1>${isRTL ? 'سفارش شما تحویل داده شد!' : 'Order Delivered!'}</h1>
               </div>
               <div class="content">
-                <p>${isRTL ? `سلام ${customerName}،` : `Hello ${customerName},`}</p>
+                <p>${isRTL ? `سلام ${sanitizeText(customerName)}،` : `Hello ${sanitizeText(customerName)},`}</p>
                 <p>${
                   isRTL
                     ? 'سفارش شما با موفقیت تحویل داده شده است. امیدواریم از خرید خود راضی باشید.'
@@ -351,7 +367,7 @@ async function generateEmailContent(
                     ? `
                   <div class="order-details">
                     <h3>${isRTL ? 'جزئیات سفارش:' : 'Order Details:'}</h3>
-                    <p><strong>${isRTL ? 'شماره سفارش:' : 'Order #:'}</strong> ${data.orderId}</p>
+                    <p><strong>${isRTL ? 'شماره سفارش:' : 'Order #:'}</strong> ${sanitizeText(data.orderId)}</p>
                   </div>
                 `
                     : ''
@@ -383,7 +399,7 @@ async function generateEmailContent(
                 <h1>${isRTL ? 'نظر شما تأیید شد!' : 'Review Approved!'}</h1>
               </div>
               <div class="content">
-                <p>${isRTL ? `سلام ${customerName}،` : `Hello ${customerName},`}</p>
+                <p>${isRTL ? `سلام ${sanitizeText(customerName)}،` : `Hello ${sanitizeText(customerName)},`}</p>
                 <p>${
                   isRTL
                     ? 'نظر شما در مورد محصول بررسی و تأیید شده است. از شما بابت اشتراک تجربه‌تان متشکریم.'
@@ -394,8 +410,8 @@ async function generateEmailContent(
                     ? `
                   <div class="order-details">
                     <h3>${isRTL ? 'جزئیات نظر:' : 'Review Details:'}</h3>
-                    ${data.reviewTitle ? `<p><strong>${isRTL ? 'عنوان نظر:' : 'Review Title:'}</strong> ${data.reviewTitle}</p>` : ''}
-                    ${data.productTitle ? `<p><strong>${isRTL ? 'محصول:' : 'Product:'}</strong> ${data.productTitle}</p>` : ''}
+                    ${data.reviewTitle ? `<p><strong>${isRTL ? 'عنوان نظر:' : 'Review Title:'}</strong> ${sanitizeText(data.reviewTitle)}</p>` : ''}
+                    ${data.productTitle ? `<p><strong>${isRTL ? 'محصول:' : 'Product:'}</strong> ${sanitizeText(data.productTitle)}</p>` : ''}
                   </div>
                 `
                     : ''
@@ -438,8 +454,8 @@ function generatePushContent(notification: NotificationData): {
       return {
         title: isRTL ? '✅ پرداخت تأیید شد' : '✅ Payment Confirmed',
         body: isRTL
-          ? `سفارش ${data.orderId || ''} پردازش شد`
-          : `Order ${data.orderId || ''} is being processed`,
+          ? `سفارش ${sanitizeText(data.orderId || '')} پردازش شد`
+          : `Order ${sanitizeText(data.orderId || '')} is being processed`,
         icon,
       };
 
@@ -447,8 +463,8 @@ function generatePushContent(notification: NotificationData): {
       return {
         title: isRTL ? '🚚 سفارش ارسال شد' : '🚚 Order Shipped',
         body: isRTL
-          ? `سفارش شما به ${data.trackingNumber ? `کد رهگیری: ${data.trackingNumber}` : 'آدرس شما'} ارسال شد`
-          : `Your order has been shipped${data.trackingNumber ? ` (Tracking: ${data.trackingNumber})` : ''}`,
+          ? `سفارش شما به ${data.trackingNumber ? `کد رهگیری: ${sanitizeText(data.trackingNumber)}` : 'آدرس شما'} ارسال شد`
+          : `Your order has been shipped${data.trackingNumber ? ` (Tracking: ${sanitizeText(data.trackingNumber)})` : ''}`,
         icon,
       };
 
@@ -465,8 +481,8 @@ function generatePushContent(notification: NotificationData): {
       return {
         title: isRTL ? '✅ نظر تأیید شد' : '✅ Review Approved',
         body: isRTL
-          ? `نظر شما در مورد "${data.productTitle || 'محصول'}" تأیید شد`
-          : `Your review of "${data.productTitle || 'product'}" has been approved`,
+          ? `نظر شما در مورد "${sanitizeText(data.productTitle || 'محصول')}" تأیید شد`
+          : `Your review of "${sanitizeText(data.productTitle || 'product')}" has been approved`,
         icon,
       };
 
@@ -519,14 +535,16 @@ export async function sendNotification(
 
     results.push(result);
 
-    // Log notification attempt
+    // Log notification attempt with filtered sensitive data
     await prisma.notificationLog.create({
       data: {
         userId: notification.userId,
         type: notification.type,
         channel,
         status: result.success ? 'sent' : 'failed',
-        data: notification.data,
+        data: filterSensitiveData(
+          notification.data as Record<string, unknown>
+        ) as Prisma.InputJsonValue,
         error: result.error || null,
       },
     });
