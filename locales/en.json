@@ -296,6 +296,7 @@
     "displayName": "Display Name",
     "region": "Region",
     "regionPlaceholder": "e.g., Tehran, Isfahan, Shiraz",
+    "bio": "Bio",
     "bioPlaceholder": "Tell us about your craft and experience...",
     "createAccount": "Create Account",
     "creating": "Creating...",
