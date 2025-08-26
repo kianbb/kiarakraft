@@ -33,13 +33,8 @@ export default function RegisterPage() {
       password: z
         .string()
         .min(
-          12,
-          t('passwordMin12') || 'Password must be at least 12 characters long'
-        )
-        .regex(
-          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-          t('passwordComplexity') ||
-            'Password must include upper, lower, number and special character'
+          6,
+          t('passwordMin6') || 'Password must be at least 6 characters long'
         ),
       confirmPassword: z.string(),
       role: z.enum(['BUYER', 'SELLER']),
@@ -200,8 +195,7 @@ export default function RegisterPage() {
                 className="mt-1"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {t('passwordMin12')}: {t('passwordComplexity')} —{' '}
-                {t('passwordExample')}
+                {t('passwordMin6')}
               </p>
               {errors.password && (
                 <p className="mt-1 text-sm text-destructive">
