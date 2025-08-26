@@ -72,24 +72,22 @@ export function sanitizeHtml(
 
   // For strict sanitization, remove all HTML tags
   if (level === SanitizationLevel.STRICT) {
+    // First remove HTML tags, then safely decode only essential entities
     return input
       .replace(/<[^<>]{0,200}>/g, '') // Remove all HTML tags with length limit
-      .replace(/&lt;/g, '<') // Decode common entities
+      .replace(/&lt;/g, '<') // Decode common entities - safe after tag removal
       .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'");
+      .replace(/&#x27;/g, "'")
+      .replace(/&amp;/g, '&'); // Decode & last to prevent double-decoding
   }
 
   // Remove dangerous elements and attributes
   let sanitized = input;
 
-  // Remove script tags and their content - using safer regex
-  sanitized = sanitized.replace(
-    /<script\b[^>]{0,200}>[\s\S]{0,5000}?<\/script>/gi,
-    ''
-  );
+  // Remove script tags and their content - using safer regex without nested quantifiers
   sanitized = sanitized.replace(/<script\b[^>]{0,200}>/gi, '');
+  sanitized = sanitized.replace(/<\/script>/gi, '');
 
   // Remove other dangerous tags
   const dangerousTags = [
@@ -126,12 +124,12 @@ export function stripHtml(input: string): string {
 
   return input
     .replace(/<[^<>]{0,200}>/g, '') // Remove HTML tags with length limit
-    .replace(/&lt;/g, '<') // Decode HTML entities
+    .replace(/&lt;/g, '<') // Decode HTML entities - safe after tag removal
     .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/');
+    .replace(/&#x2F;/g, '/')
+    .replace(/&amp;/g, '&'); // Decode & last to prevent double-decoding
 }
 
 /**

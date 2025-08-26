@@ -30,9 +30,9 @@ export function sanitizeText(text: string): string {
     return '';
   }
 
-  // Remove dangerous JavaScript event handlers and protocols
+  // Remove dangerous JavaScript event handlers and protocols - using bounded patterns
   const sanitized = text
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers like onerror=, onclick=
+    .replace(/on[a-zA-Z]{1,20}\s*=/gi, '') // Remove event handlers like onerror=, onclick=
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
     .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
