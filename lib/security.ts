@@ -30,18 +30,24 @@ export function sanitizeText(text: string): string {
     return '';
   }
 
-  // Remove dangerous JavaScript event handlers and protocols - iterative approach
-  let sanitized = text;
-  let previousLength;
+  // Complete rejection approach for dangerous content - more secure than removal
+  // Check for any dangerous patterns and reject the entire input if found
+  const eventHandlerPattern = /\s*on[a-zA-Z]/i;
+  const javascriptProtocolPattern = /javascript\s*:/i;
+  const dataProtocolPattern = /data\s*:/i;
+  const vbscriptProtocolPattern = /vbscript\s*:/i;
 
-  // Multiple passes to handle nested or obfuscated patterns
-  do {
-    previousLength = sanitized.length;
-    sanitized = sanitized.replace(/\s*on[a-zA-Z]{1,20}\s*=/gi, ''); // Remove event handlers
-    sanitized = sanitized.replace(/javascript\s*:/gi, ''); // Remove javascript: protocol
-    sanitized = sanitized.replace(/data\s*:/gi, ''); // Remove data: protocol
-    sanitized = sanitized.replace(/vbscript\s*:/gi, ''); // Remove vbscript: protocol
-  } while (sanitized.length !== previousLength && sanitized.length > 0);
+  if (
+    eventHandlerPattern.test(text) ||
+    javascriptProtocolPattern.test(text) ||
+    dataProtocolPattern.test(text) ||
+    vbscriptProtocolPattern.test(text)
+  ) {
+    // Reject entire input if any dangerous content is detected
+    return '';
+  }
+
+  const sanitized = text;
 
   // Escape HTML entities
   return sanitized
