@@ -340,7 +340,7 @@ async function main() {
       // Check if existing reviews have proper status
       const reviewsWithStatus = await prisma.review.count({
         where: {
-          status: { not: null },
+          status: { not: '' },
           NOT: {
             userId: {
               in: [testBuyer1.id, testBuyer2.id],
