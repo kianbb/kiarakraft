@@ -4,7 +4,10 @@ import { ReactElement } from 'react';
 
 // Email configuration
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@kiarakraft.com';
+// Force use of custom domain when Resend is available, ignore system EMAIL_FROM override
+const EMAIL_FROM = RESEND_API_KEY
+  ? 'noreply@kiarakraft.com'
+  : process.env.EMAIL_FROM || 'noreply@kiarakraft.com';
 
 // SMTP fallback configuration
 const SMTP_CONFIG = {
@@ -94,7 +97,21 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
           provider: 'resend',
         };
       } catch (resendError) {
-        console.error('Resend failed, trying SMTP fallback:', resendError);
+        console.error('🚨 RESEND FAILED - Details:');
+        console.error(
+          'Error message:',
+          resendError instanceof Error ? resendError.message : 'Unknown error'
+        );
+        console.error('Full error object:', resendError);
+        console.error('EMAIL_FROM being used:', EMAIL_FROM);
+        console.error('Resend options that failed:', {
+          from: EMAIL_FROM,
+          to: Array.isArray(to) ? to : [to],
+          subject,
+          hasHtml: !!finalHtml,
+          hasText: !!text,
+        });
+        console.error('Falling back to SMTP...');
 
         // Fall through to SMTP if Resend fails
         if (!smtpTransporter) {

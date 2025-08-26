@@ -248,6 +248,7 @@ async function main() {
         sellerId: demoSeller.sellerProfile!.id,
         categoryId: product.categoryId,
         active: true,
+        isTest: true, // Mark demo products as test products to exclude from public listings
         images: {
           create: product.images.map((url, index) => ({
             url,

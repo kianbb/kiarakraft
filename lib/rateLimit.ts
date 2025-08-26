@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server';
-
-// In-memory rate limiting (use Redis in production)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+import { prisma } from './prisma';
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -11,27 +9,29 @@ interface RateLimitConfig {
 
 // Cleanup old entries periodically
 setInterval(
-  () => {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-
-    rateLimitMap.forEach((data, key) => {
-      if (now > data.resetTime) {
-        keysToDelete.push(key);
-      }
-    });
-
-    keysToDelete.forEach(key => rateLimitMap.delete(key));
+  async () => {
+    const now = new Date();
+    try {
+      await prisma.rateLimit.deleteMany({
+        where: {
+          resetTime: {
+            lt: now,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to cleanup old rate limit entries:', error);
+    }
   },
   5 * 60 * 1000
 ); // Cleanup every 5 minutes
 
 export function createRateLimiter(config: RateLimitConfig) {
-  return function rateLimit(request: NextRequest): {
+  return async function rateLimit(request: NextRequest): Promise<{
     allowed: boolean;
     remainingRequests: number;
     resetTime: number;
-  } {
+  }> {
     const ip =
       request.headers.get('x-forwarded-for') ||
       request.headers.get('x-real-ip') ||
@@ -40,42 +40,81 @@ export function createRateLimiter(config: RateLimitConfig) {
 
     // Create a unique key for this IP and endpoint
     const endpoint = new URL(request.url).pathname;
-    const key = `${ip}:${endpoint}`;
+    const identifier = `${ip}:${endpoint}`;
 
-    const now = Date.now();
-    const windowEnd = now + config.windowMs;
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + config.windowMs);
 
-    const existingEntry = rateLimitMap.get(key);
+    try {
+      // Use database transaction for atomic operations
+      const result = await prisma.$transaction(async tx => {
+        // First, clean up expired entries for this identifier
+        await tx.rateLimit.deleteMany({
+          where: {
+            identifier,
+            resetTime: {
+              lt: now,
+            },
+          },
+        });
 
-    if (!existingEntry || now > existingEntry.resetTime) {
-      // First request or window expired
-      rateLimitMap.set(key, {
-        count: 1,
-        resetTime: windowEnd,
+        // Get or create rate limit entry
+        const existingEntry = await tx.rateLimit.findUnique({
+          where: { identifier },
+        });
+
+        if (!existingEntry) {
+          // First request - create new entry
+          await tx.rateLimit.create({
+            data: {
+              identifier,
+              count: 1,
+              resetTime: windowEnd,
+            },
+          });
+
+          return {
+            allowed: true,
+            remainingRequests: config.maxRequests - 1,
+            resetTime: windowEnd.getTime(),
+          };
+        }
+
+        if (existingEntry.count >= config.maxRequests) {
+          return {
+            allowed: false,
+            remainingRequests: 0,
+            resetTime: existingEntry.resetTime.getTime(),
+          };
+        }
+
+        // Increment count
+        const updatedEntry = await tx.rateLimit.update({
+          where: { identifier },
+          data: {
+            count: {
+              increment: 1,
+            },
+          },
+        });
+
+        return {
+          allowed: true,
+          remainingRequests: config.maxRequests - updatedEntry.count,
+          resetTime: existingEntry.resetTime.getTime(),
+        };
       });
 
+      return result;
+    } catch (error) {
+      console.error('Rate limiting database error:', error);
+      // Fallback to allow request if database fails
       return {
         allowed: true,
         remainingRequests: config.maxRequests - 1,
-        resetTime: windowEnd,
+        resetTime: windowEnd.getTime(),
       };
     }
-
-    if (existingEntry.count >= config.maxRequests) {
-      return {
-        allowed: false,
-        remainingRequests: 0,
-        resetTime: existingEntry.resetTime,
-      };
-    }
-
-    existingEntry.count++;
-
-    return {
-      allowed: true,
-      remainingRequests: config.maxRequests - existingEntry.count,
-      resetTime: existingEntry.resetTime,
-    };
   };
 }
 
@@ -113,7 +152,8 @@ export function withRateLimit<T extends unknown[]>(
   handler: (request: NextRequest, ...rest: T) => Promise<Response>
 ) {
   return async (request: NextRequest, ...rest: T): Promise<Response> => {
-    const { allowed, remainingRequests, resetTime } = rateLimiter(request);
+    const { allowed, remainingRequests, resetTime } =
+      await rateLimiter(request);
 
     if (!allowed) {
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);

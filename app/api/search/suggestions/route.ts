@@ -28,7 +28,7 @@ async function getSearchSuggestions(request: NextRequest) {
           active = true 
           AND "eligibilityStatus" = 'APPROVED'
           AND stock > 0
-          AND LOWER(title) LIKE LOWER(${searchTerm + '%'})
+          AND LOWER(title) LIKE LOWER(${searchTerm}) || '%'
         ORDER BY LENGTH(title), title
         LIMIT 3
       )
@@ -44,7 +44,7 @@ async function getSearchSuggestions(request: NextRequest) {
           AND "eligibilityStatus" = 'APPROVED'
           AND stock > 0
           AND SIMILARITY(title, ${searchTerm}) > 0.3
-          AND NOT LOWER(title) LIKE LOWER(${searchTerm + '%'}) -- Exclude already found
+          AND NOT LOWER(title) LIKE LOWER(${searchTerm}) || '%' -- Exclude already found
         ORDER BY SIMILARITY(title, ${searchTerm}) DESC, LENGTH(title)
         LIMIT 2
       )
@@ -59,7 +59,7 @@ async function getSearchSuggestions(request: NextRequest) {
           LOWER(name) LIKE LOWER('%' || ${searchTerm} || '%')
           OR SIMILARITY(name, ${searchTerm}) > 0.4
         ORDER BY 
-          CASE WHEN LOWER(name) LIKE LOWER(${searchTerm + '%'}) THEN 1 ELSE 2 END,
+          CASE WHEN LOWER(name) LIKE LOWER(${searchTerm}) || '%' THEN 1 ELSE 2 END,
           LENGTH(name)
         LIMIT 2
       )

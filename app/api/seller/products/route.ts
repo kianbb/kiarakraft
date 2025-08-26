@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import {
+  sanitizeAndValidate,
+  SanitizationLevel,
+} from '@/lib/input-sanitization';
 import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
 
@@ -76,22 +80,82 @@ export const POST = withRateLimit(
       }
 
       const data = await request.json();
-      // Basic input guardrails
-      if (
-        (data.name?.length || 0) > 200 ||
-        (data.description?.length || 0) > 5000
-      ) {
-        return NextResponse.json({ error: 'Input too long' }, { status: 400 });
-      }
-      // Reject descriptions that look like spammy URLs or scripts
-      const suspicious =
-        /<script|https?:\/\//i.test(data.description || '') ||
-        /(?:viagra|casino|bet)/i.test(data.description || '');
-      if (suspicious) {
+
+      // Comprehensive input validation and sanitization
+      const titleValidation = sanitizeAndValidate(data.name || '', {
+        maxLength: 200,
+        minLength: 3,
+        sanitizationLevel: SanitizationLevel.STRICT,
+        allowEmpty: false,
+        detectThreats: true,
+      });
+
+      if (!titleValidation.isValid) {
+        console.warn(
+          'Product title validation failed:',
+          titleValidation.errors
+        );
         return NextResponse.json(
-          { error: 'Content not allowed' },
+          {
+            error:
+              'Invalid product title: ' + titleValidation.errors.join(', '),
+          },
           { status: 400 }
         );
+      }
+
+      const descriptionValidation = sanitizeAndValidate(
+        data.description || '',
+        {
+          maxLength: 5000,
+          minLength: 10,
+          sanitizationLevel: SanitizationLevel.MODERATE,
+          allowEmpty: false,
+          detectThreats: true,
+        }
+      );
+
+      if (!descriptionValidation.isValid) {
+        console.warn(
+          'Product description validation failed:',
+          descriptionValidation.errors
+        );
+        return NextResponse.json(
+          {
+            error:
+              'Invalid product description: ' +
+              descriptionValidation.errors.join(', '),
+          },
+          { status: 400 }
+        );
+      }
+
+      // Log security threats for monitoring
+      if (titleValidation.threats && titleValidation.threats.length > 0) {
+        console.warn(
+          'Security threats detected in product title:',
+          titleValidation.threats
+        );
+        Sentry.addBreadcrumb({
+          message: 'Security threats in product title',
+          data: { threats: titleValidation.threats },
+          level: 'warning',
+        });
+      }
+
+      if (
+        descriptionValidation.threats &&
+        descriptionValidation.threats.length > 0
+      ) {
+        console.warn(
+          'Security threats detected in product description:',
+          descriptionValidation.threats
+        );
+        Sentry.addBreadcrumb({
+          message: 'Security threats in product description',
+          data: { threats: descriptionValidation.threats },
+          level: 'warning',
+        });
       }
 
       // Resolve categoryId by slug (optional)
@@ -107,8 +171,8 @@ export const POST = withRateLimit(
 
       const product = await prisma.product.create({
         data: {
-          title: data.name,
-          description: data.description,
+          title: titleValidation.sanitized,
+          description: descriptionValidation.sanitized,
           priceToman: data.price,
           stock: data.stock,
           slug: data.slug || generateSlug(data.name),

@@ -10,6 +10,7 @@ import {
   type AdminAction,
 } from '@/lib/orderStatus';
 import * as Sentry from '@sentry/nextjs';
+import { sendNotification } from '@/lib/notifications';
 
 // Admin can set status to SHIPPED, DELIVERED, or CANCELED, with guards
 export const PATCH = withRateLimit(
@@ -55,7 +56,37 @@ export const PATCH = withRateLimit(
       const updated = await prisma.order.update({
         where: { id },
         data: { status: nextStatus },
+        include: {
+          user: { select: { id: true, email: true } },
+          shipping: true,
+        },
       });
+
+      // Send notification for shipped/delivered orders (best-effort)
+      if (nextStatus === 'SHIPPED' || nextStatus === 'DELIVERED') {
+        setImmediate(async () => {
+          try {
+            const notificationType =
+              nextStatus === 'SHIPPED' ? 'order_shipped' : 'order_delivered';
+            await sendNotification({
+              userId: updated.user.id,
+              type: notificationType,
+              data: {
+                orderId: updated.id,
+                trackingNumber: updated.shipping?.trackingNo || undefined,
+                locale: 'fa',
+              },
+            });
+          } catch (notificationError) {
+            console.error(
+              `Error sending ${nextStatus.toLowerCase()} notification:`,
+              notificationError
+            );
+            Sentry.captureException(notificationError);
+          }
+        });
+      }
+
       return NextResponse.json(updated);
     } catch (error) {
       console.error('Error updating order status (admin):', error);

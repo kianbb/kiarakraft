@@ -22,6 +22,9 @@ model User {
   addresses           Address[]
   passwordResetTokens PasswordResetToken[]
   reviews             Review[]
+  wishlistItems       WishlistItem[]
+  pushSubscriptions   PushSubscription[]
+  notificationLogs    NotificationLog[]
   sellerProfile       SellerProfile?
 }
 
@@ -77,6 +80,8 @@ model Product {
   stock                 Int                  @default(0)
   active                Boolean              @default(true)
   isTest                Boolean              @default(false) // Marks internal/demo products that must be hidden from public listings
+  ratingAvg             Float                @default(0)
+  ratingCount           Int                  @default(0)
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   eligibilityConfidence Int?
@@ -85,6 +90,7 @@ model Product {
   cartItems             CartItem[]
   images                ListingImage[]
   orderItems            OrderItem[]
+  wishlistItems         WishlistItem[]
   category              Category?            @relation(fields: [categoryId], references: [id])
   seller                SellerProfile        @relation(fields: [sellerId], references: [id])
   translations          ProductTranslation[]
@@ -214,16 +220,20 @@ model OrderShipping {
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-  product   Product  @relation(fields: [productId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String
+  rating     Int      @db.SmallInt
+  title      String?
+  body       String?  @db.Text
+  status     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
-  @@unique([userId, productId])
+  @@index([productId, status])
+  @@unique([productId, userId]) // one review per buyer per product
 }
 
 model PasswordResetToken {
@@ -261,4 +271,55 @@ enum PaymentGateway {
   OFFLINE
   ZARINPAL
   IDPAY
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model PushSubscription {
+  id       String   @id @default(cuid())
+  userId   String
+  endpoint String   @unique
+  p256dh   String
+  auth     String
+  createdAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String   // order_paid, order_shipped, order_delivered, review_approved
+  channel   String   // email, push
+  status    String   // sent, failed, pending
+  data      Json?    // notification context data
+  error     String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, type])
+  @@index([createdAt])
+}
+
+model RateLimit {
+  id         String   @id @default(cuid())
+  identifier String   // IP:endpoint or email:type
+  count      Int      @default(1)
+  resetTime  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier])
+  @@index([identifier, resetTime])
+  @@index([resetTime]) // For cleanup queries
 }
