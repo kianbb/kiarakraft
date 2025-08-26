@@ -85,9 +85,15 @@ export function sanitizeHtml(
   // Remove dangerous elements and attributes
   let sanitized = input;
 
-  // Remove script tags and their content - using safer regex without nested quantifiers
-  sanitized = sanitized.replace(/<script\b[^>]{0,200}>/gi, '');
-  sanitized = sanitized.replace(/<\/script>/gi, '');
+  // Remove script tags completely - iterative approach to handle edge cases
+  // Remove all script-related content in multiple passes to prevent bypass
+  let previousLength;
+  do {
+    previousLength = sanitized.length;
+    sanitized = sanitized.replace(/<\s*script\b[^>]{0,200}>/gi, '');
+    sanitized = sanitized.replace(/<\s*\/\s*script\s*>/gi, '');
+    sanitized = sanitized.replace(/script\s*:/gi, ''); // Remove script: protocol
+  } while (sanitized.length !== previousLength && sanitized.length > 0);
 
   // Remove other dangerous tags
   const dangerousTags = [

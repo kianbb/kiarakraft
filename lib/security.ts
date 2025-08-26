@@ -30,12 +30,18 @@ export function sanitizeText(text: string): string {
     return '';
   }
 
-  // Remove dangerous JavaScript event handlers and protocols - using bounded patterns
-  const sanitized = text
-    .replace(/on[a-zA-Z]{1,20}\s*=/gi, '') // Remove event handlers like onerror=, onclick=
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/data:/gi, '') // Remove data: protocol
-    .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
+  // Remove dangerous JavaScript event handlers and protocols - iterative approach
+  let sanitized = text;
+  let previousLength;
+
+  // Multiple passes to handle nested or obfuscated patterns
+  do {
+    previousLength = sanitized.length;
+    sanitized = sanitized.replace(/\s*on[a-zA-Z]{1,20}\s*=/gi, ''); // Remove event handlers
+    sanitized = sanitized.replace(/javascript\s*:/gi, ''); // Remove javascript: protocol
+    sanitized = sanitized.replace(/data\s*:/gi, ''); // Remove data: protocol
+    sanitized = sanitized.replace(/vbscript\s*:/gi, ''); // Remove vbscript: protocol
+  } while (sanitized.length !== previousLength && sanitized.length > 0);
 
   // Escape HTML entities
   return sanitized
