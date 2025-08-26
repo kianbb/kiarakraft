@@ -77,6 +77,8 @@ model Product {
   stock                 Int                  @default(0)
   active                Boolean              @default(true)
   isTest                Boolean              @default(false) // Marks internal/demo products that must be hidden from public listings
+  ratingAvg             Float                @default(0)
+  ratingCount           Int                  @default(0)
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   eligibilityConfidence Int?
@@ -214,16 +216,20 @@ model OrderShipping {
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-  product   Product  @relation(fields: [productId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String
+  rating     Int      @db.SmallInt
+  title      String?
+  body       String?  @db.Text
+  status     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
-  @@unique([userId, productId])
+  @@index([productId, status])
+  @@unique([productId, userId]) // one review per buyer per product
 }
 
 model PasswordResetToken {
