@@ -6,6 +6,7 @@ import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 import { parseOrderId } from '@/lib/validation';
+import { sendNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,36 @@ export const POST = withRateLimit(
         },
         { isolationLevel: 'Serializable' }
       );
+
+      // Send notification (best-effort)
+      setImmediate(async () => {
+        try {
+          const orderForNotification = await prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+              user: { select: { id: true, email: true } },
+            },
+          });
+
+          if (orderForNotification) {
+            await sendNotification({
+              userId: orderForNotification.user.id,
+              type: 'order_paid',
+              data: {
+                orderId: orderForNotification.id,
+                customerName: orderForNotification.user.email.split('@')[0],
+                locale: 'fa',
+              },
+            });
+          }
+        } catch (notificationError) {
+          console.error(
+            'Error sending order paid notification (admin):',
+            notificationError
+          );
+          Sentry.captureException(notificationError);
+        }
+      });
 
       return NextResponse.json({ ok: true });
     } catch (error) {
