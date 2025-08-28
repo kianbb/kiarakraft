@@ -54,22 +54,12 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        // Debug: Log the exact error to console
-        console.log('NextAuth error:', result.error);
-        console.log(
-          'Translation for invalidCredentials:',
-          t('invalidCredentials')
-        );
-        console.log('Translation for loginFailed:', t('loginFailed'));
-
-        // NextAuth v4 returns generic "CredentialsSignin" error
-        // Show specific message for most common case
-        if (result.error === 'CredentialsSignin') {
-          setError(t('invalidCredentials'));
-        } else {
-          // For any other error, show generic login failed
-          setError(t('loginFailed'));
-        }
+        // Always show specific error for wrong credentials
+        // NextAuth v4 returns "CredentialsSignin" for auth failures
+        setError(t('invalidCredentials'));
+      } else if (result?.ok === false) {
+        // Handle other types of failures
+        setError(t('invalidCredentials'));
       } else {
         // Redirect to the previous page or home
         const callbackUrl = new URLSearchParams(window.location.search).get(
