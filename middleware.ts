@@ -30,7 +30,7 @@ export default async function middleware(req: NextRequest) {
   if (isLocalePrefixed && isProtectedPath) {
     // Check authentication for protected paths
     const session = await auth();
-    
+
     if (!session?.user) {
       // Redirect to login with callback
       const locale = pathSegments[0];
@@ -46,7 +46,7 @@ export default async function middleware(req: NextRequest) {
     if (isSellerPath && session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
-    
+
     if (isAdminPath && session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }

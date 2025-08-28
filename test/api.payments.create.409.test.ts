@@ -7,7 +7,7 @@ type User = { id: string; email: string };
 
 function makeJsonRequest(
   url: string,
-  body: any,
+  body: unknown,
   headers?: Record<string, string>
 ) {
   return new NextRequest(url, {
@@ -21,19 +21,19 @@ function makeJsonRequest(
       ...(headers || {}),
     }),
     body: JSON.stringify(body),
-  }) as any;
+  }) as unknown;
 }
 
 async function run() {
   // Arrange: fake session, prisma, adapter
   const fakeUser: User = { id: 'u1', email: 'buyer@example.com' };
 
-  const fakeSession = { user: { email: fakeUser.email } } as any;
+  const fakeSession = { user: { email: fakeUser.email } } as unknown;
   const getSession = async () => fakeSession;
 
   const prisma = {
     user: {
-      findUnique: async ({ where: { email } }: any) =>
+      findUnique: async ({ where: { email } }: unknown) =>
         email === fakeUser.email ? fakeUser : null,
     },
     order: {
@@ -43,10 +43,13 @@ async function run() {
         status: 'PENDING',
         totalToman: 1000,
       }),
-      findUnique: async ({ where: { id } }: any) => ({ id, status: 'PENDING' }),
+      findUnique: async ({ where: { id } }: unknown) => ({
+        id,
+        status: 'PENDING',
+      }),
     },
     orderItem: {
-      findMany: async () => [
+      findMunknown: async () => [
         {
           productId: 'p1',
           quantity: 2,
@@ -54,7 +57,7 @@ async function run() {
         }, // insufficient
       ],
     },
-    $transaction: async (fn: any) => {
+    $transaction: async (fn: unknown) => {
       const tx = {
         order: { update: async () => ({}) },
         cart: { upsert: async () => ({ id: 'c1' }) },
@@ -66,7 +69,7 @@ async function run() {
       findUnique: async () => null,
       create: async () => ({}),
     },
-  } as any;
+  } as unknown;
 
   const adapter = {
     gateway: 'OFFLINE',
@@ -74,7 +77,7 @@ async function run() {
       authority: 'a1',
       redirectUrl: 'http://pay.local/ok',
     }),
-  } as any;
+  } as unknown;
 
   __setTestOverrides({ getSession, prisma, adapter });
 
@@ -83,8 +86,9 @@ async function run() {
     orderId: 'o1',
   });
   const res = await POST(req);
-  const status = (res as any).status || res.status;
-  const json = (await (res as any).json?.()) ?? JSON.parse(await res.text());
+  const status = (res as unknown).status || res.status;
+  const json =
+    (await (res as unknown).json?.()) ?? JSON.parse(await res.text());
 
   // Assert 409 flags & structure
   assert.equal(status, 409, 'should return 409 on insufficient stock');
