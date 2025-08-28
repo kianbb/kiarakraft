@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 
-export async function GET(request: NextRequest) {
-  // Only allow in development or with special auth
-  const isDev = process.env.NODE_ENV === 'development';
-  const authHeader = request.headers.get('authorization');
-  const isAuthorized = authHeader === 'Bearer debug-email-2025' || isDev;
-
-  if (!isAuthorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET() {
+  // Only allow in development or for admin users
+  if (process.env.NODE_ENV === 'production') {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || session.user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Email diagnostic access denied' },
+        { status: 403 }
+      );
+    }
   }
 
   try {
@@ -47,13 +51,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  // Only allow in development or with special auth
-  const isDev = process.env.NODE_ENV === 'development';
-  const authHeader = request.headers.get('authorization');
-  const isAuthorized = authHeader === 'Bearer debug-email-2025' || isDev;
-
-  if (!isAuthorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Only allow in development or for admin users
+  if (process.env.NODE_ENV === 'production') {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || session.user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Email diagnostic access denied' },
+        { status: 403 }
+      );
+    }
   }
 
   try {
