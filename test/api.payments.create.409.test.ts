@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
 import { POST, __setTestOverrides } from '../app/api/payments/create/route';
+import { Session } from 'next-auth';
 
 // Minimal fake types
 type User = { id: string; email: string };
+type WhereClause = { where: { email?: string; id?: string } };
 
 function makeJsonRequest(
   url: string,
-  body: unknown,
+  body: Record<string, unknown>,
   headers?: Record<string, string>
 ) {
   return new NextRequest(url, {
@@ -21,19 +23,29 @@ function makeJsonRequest(
       ...(headers || {}),
     }),
     body: JSON.stringify(body),
-  }) as unknown;
+  });
 }
 
 async function run() {
   // Arrange: fake session, prisma, adapter
   const fakeUser: User = { id: 'u1', email: 'buyer@example.com' };
 
-  const fakeSession = { user: { email: fakeUser.email } } as unknown;
-  const getSession = async () => fakeSession;
+  const fakeSession: Session = { 
+    user: { 
+      email: fakeUser.email,
+      id: fakeUser.id,
+      name: null,
+      image: null,
+      role: 'BUYER',
+      sellerProfile: null
+    },
+    expires: '2025-12-31T23:59:59.999Z'
+  };
+  const getSession = async (): Promise<Session> => fakeSession;
 
   const prisma = {
     user: {
-      findUnique: async ({ where: { email } }: unknown) =>
+      findUnique: async ({ where: { email } }: WhereClause) =>
         email === fakeUser.email ? fakeUser : null,
     },
     order: {
@@ -43,13 +55,13 @@ async function run() {
         status: 'PENDING',
         totalToman: 1000,
       }),
-      findUnique: async ({ where: { id } }: unknown) => ({
+      findUnique: async ({ where: { id } }: WhereClause) => ({
         id,
         status: 'PENDING',
       }),
     },
     orderItem: {
-      findMunknown: async () => [
+      findMany: async () => [
         {
           productId: 'p1',
           quantity: 2,
@@ -57,19 +69,19 @@ async function run() {
         }, // insufficient
       ],
     },
-    $transaction: async (fn: unknown) => {
+    $transaction: async (fn: any) => {
       const tx = {
         order: { update: async () => ({}) },
         cart: { upsert: async () => ({ id: 'c1' }) },
         cartItem: { upsert: async () => ({}) },
       };
-      return fn(tx);
+      return await fn(tx);
     },
     payment: {
       findUnique: async () => null,
       create: async () => ({}),
     },
-  } as unknown;
+  } as any;
 
   const adapter = {
     gateway: 'OFFLINE',
@@ -77,18 +89,18 @@ async function run() {
       authority: 'a1',
       redirectUrl: 'http://pay.local/ok',
     }),
-  } as unknown;
+  } as any;
 
-  __setTestOverrides({ getSession, prisma, adapter });
+  __setTestOverrides({ getSession: getSession as any, prisma, adapter });
 
   // Act: call route
   const req = makeJsonRequest('http://localhost:3000/api/payments/create', {
     orderId: 'o1',
   });
   const res = await POST(req);
-  const status = (res as unknown).status || res.status;
+  const status = (res as any).status || res.status;
   const json =
-    (await (res as unknown).json?.()) ?? JSON.parse(await res.text());
+    (await (res as any).json?.()) ?? JSON.parse(await res.text());
 
   // Assert 409 flags & structure
   assert.equal(status, 409, 'should return 409 on insufficient stock');
@@ -97,13 +109,12 @@ async function run() {
   assert.equal(json.cartRestored, true);
   assert.ok(
     Array.isArray(json.details) && json.details.length > 0,
-    'details should list issues'
+    'should have details array with items'
   );
 
-  console.log('✓ API payments/create 409 test passed');
+  console.log('✅ Test passed: API returns 409 for insufficient stock');
 }
 
-run().catch(e => {
-  console.error(e);
-  process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run().catch(console.error);
+}
