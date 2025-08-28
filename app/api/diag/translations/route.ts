@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   // Only allow in development or for admin users
   if (process.env.NODE_ENV === 'production') {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email || session.user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Translation diagnostics access denied' },

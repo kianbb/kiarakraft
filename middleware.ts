@@ -1,6 +1,6 @@
 import createMiddleware from 'next-intl/middleware';
-import { withAuth } from 'next-auth/middleware';
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 
 const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
@@ -9,50 +9,8 @@ const intlMiddleware = createMiddleware({
   localeDetection: false,
 });
 
-const authMiddleware = withAuth(
-  function onSuccess(req) {
-    return intlMiddleware(req);
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname.toLowerCase();
-
-        // Secure path matching to prevent traversal attacks
-        const normalizedPath = pathname
-          .replace(/\/+/g, '/')
-          .replace(/\.\./g, '');
-        const pathSegments = normalizedPath.split('/').filter(Boolean);
-
-        const isSellerPath =
-          pathSegments.length >= 2 &&
-          (pathSegments[0] === 'fa' || pathSegments[0] === 'en') &&
-          pathSegments[1] === 'seller';
-        const isAdminPath =
-          pathSegments.length >= 2 &&
-          (pathSegments[0] === 'fa' || pathSegments[0] === 'en') &&
-          pathSegments[1] === 'admin';
-
-        // Check if the route requires seller role
-        if (isSellerPath) {
-          return token?.role === 'SELLER';
-        }
-        // Check if the route requires admin role
-        if (isAdminPath) {
-          return token?.role === 'ADMIN';
-        }
-        return !!token;
-      },
-    },
-    pages: {
-      // Use locale-aware signIn path; next-intl middleware will prefix
-      signIn: '/auth/login',
-    },
-  }
-);
-
-export default function middleware(req: NextRequest) {
-  // Apply auth middleware only to protected routes - secure matching to prevent traversal
+export default async function middleware(req: NextRequest) {
+  // Apply auth check only to protected routes
   const pathname = req.nextUrl.pathname.toLowerCase();
   const normalizedPath = pathname.replace(/\/+/g, '/').replace(/\.\./g, '');
   const pathSegments = normalizedPath.split('/').filter(Boolean);
@@ -62,25 +20,44 @@ export default function middleware(req: NextRequest) {
     (pathSegments[0] === 'fa' || pathSegments[0] === 'en') &&
     (pathSegments[1] === 'seller' || pathSegments[1] === 'admin');
 
-  // If the URL already contains an explicit locale prefix, avoid rewriting to preserve
-  // correct status codes (e.g., ensure notFound() yields HTTP 404 instead of a soft 200).
+  // If the URL contains an explicit locale prefix
   const isLocalePrefixed =
     pathname === '/fa' ||
     pathname === '/en' ||
     pathname.startsWith('/fa/') ||
     pathname.startsWith('/en/');
 
-  if (isLocalePrefixed) {
-    if (isProtectedPath) {
-      return (authMiddleware as (req: NextRequest) => Promise<NextResponse>)(
-        req
-      );
+  if (isLocalePrefixed && isProtectedPath) {
+    // Check authentication for protected paths
+    const session = await auth();
+
+    if (!session?.user) {
+      // Redirect to login with callback
+      const locale = pathSegments[0];
+      const loginUrl = new URL(`/${locale}/auth/login`, req.url);
+      loginUrl.searchParams.set('callbackUrl', req.url);
+      return NextResponse.redirect(loginUrl);
     }
-    return NextResponse.next();
+
+    // Check role-based access
+    const isSellerPath = pathSegments[1] === 'seller';
+    const isAdminPath = pathSegments[1] === 'admin';
+
+    if (isSellerPath && session.user.role !== 'SELLER') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    if (isAdminPath && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
   }
 
-  // For non-locale-prefixed paths (e.g., "/"), apply locale middleware to redirect/rewrite
-  return intlMiddleware(req);
+  // Apply intl middleware for locale handling
+  if (!isLocalePrefixed) {
+    return intlMiddleware(req);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {

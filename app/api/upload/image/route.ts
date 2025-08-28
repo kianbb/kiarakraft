@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { cloudinary, UPLOAD_FOLDER, type UploadResult } from '@/lib/cloudinary';
 import { validateCSRF } from '@/lib/csrf';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
@@ -19,7 +18,7 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user || !['SELLER', 'ADMIN'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

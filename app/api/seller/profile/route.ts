@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
 import { z } from 'zod';
@@ -8,7 +7,7 @@ import * as Sentry from '@sentry/nextjs';
 
 export const GET = withRateLimit(sellerRateLimit, async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session?.user?.email || session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,7 +49,7 @@ export const PUT = withRateLimit(
   sellerRateLimit,
   async function PUT(request: NextRequest) {
     try {
-      const session = await getServerSession(authOptions);
+      const session = await auth();
 
       if (!session?.user?.email || session.user.role !== 'SELLER') {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

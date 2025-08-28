@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth/next';
+import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
 
 const createAddressSchema = z.object({
@@ -19,7 +18,7 @@ const createAddressSchema = z.object({
 // GET /api/addresses - Get user addresses
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -42,7 +41,7 @@ export async function GET() {
 // POST /api/addresses - Create new address
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

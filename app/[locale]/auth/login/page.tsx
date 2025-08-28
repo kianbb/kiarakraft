@@ -47,38 +47,20 @@ export default function LoginPage() {
       setIsLoading(true);
       setError('');
 
-      console.log('[LOGIN DEBUG] Attempting login with:', {
-        email: data.email,
-        passwordLength: data.password.length,
-      });
-
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
         redirect: false,
       });
 
-      console.log('[LOGIN DEBUG] signIn result:', {
-        ok: result?.ok,
-        error: result?.error,
-        status: result?.status,
-        url: result?.url,
-      });
-
       if (result?.error) {
-        console.log(
-          '[LOGIN DEBUG] Authentication failed with error:',
-          result.error
-        );
         // Always show specific error for wrong credentials
-        // NextAuth v4 returns "CredentialsSignin" for auth failures
+        // NextAuth v5 returns "CredentialsSignin" for auth failures
         setError(t('invalidCredentials'));
       } else if (result?.ok === false) {
-        console.log('[LOGIN DEBUG] Authentication failed (ok=false)');
         // Handle other types of failures
         setError(t('invalidCredentials'));
       } else {
-        console.log('[LOGIN DEBUG] Authentication successful!');
         // Redirect to the previous page or home
         const callbackUrl = new URLSearchParams(window.location.search).get(
           'callbackUrl'

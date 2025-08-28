@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, cartRateLimit } from '@/lib/rateLimit';
@@ -8,7 +7,7 @@ import * as Sentry from '@sentry/nextjs';
 
 export const GET = withRateLimit(cartRateLimit, async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -62,7 +61,7 @@ export const POST = withRateLimit(
   cartRateLimit,
   withCSRF(async function (request: NextRequest) {
     try {
-      const session = await getServerSession(authOptions);
+      const session = await auth();
 
       if (!session?.user?.email) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
