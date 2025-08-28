@@ -29,7 +29,7 @@ async function run() {
   const fakeUser: User = { id: 'u1', email: 'buyer@example.com' };
 
   const fakeSession = { user: { email: fakeUser.email } } as any;
-  const getServerSession = async () => fakeSession;
+  const getSession = async () => fakeSession;
 
   const prisma = {
     user: {
@@ -76,7 +76,7 @@ async function run() {
     }),
   } as any;
 
-  __setTestOverrides({ getServerSession, prisma, adapter });
+  __setTestOverrides({ getSession, prisma, adapter });
 
   // Act: call route
   const req = makeJsonRequest('http://localhost:3000/api/payments/create', {

@@ -1,8 +1,7 @@
 'use server';
 
-import { getServerSession } from 'next-auth';
+import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -34,7 +33,7 @@ export async function toggleWishlistAction(
     }
 
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return {
         success: false,
@@ -109,7 +108,7 @@ export async function toggleWishlistAction(
  * Get user's wishlist items
  */
 export async function getUserWishlist() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     redirect('/auth/login');
   }
@@ -152,7 +151,7 @@ export async function getUserWishlist() {
  * Check if a product is in the user's wishlist
  */
 export async function isProductInWishlist(productId: string): Promise<boolean> {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return false;
   }
@@ -181,7 +180,7 @@ export async function removeFromWishlistAction(
   productIds: string[]
 ): Promise<WishlistActionResult> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return {
         success: false,

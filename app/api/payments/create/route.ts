@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession as realGetServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { prisma as realPrisma } from '@/lib/prisma';
 import { adapter as realAdapter } from '@/lib/payments';
 import { withCSRF } from '@/lib/csrf';
@@ -12,7 +11,7 @@ import * as Sentry from '@sentry/nextjs';
 
 // Test overrides (noop in production). Allows injecting fakes in tests.
 type TestOverrides = {
-  getServerSession?: typeof realGetServerSession;
+  getSession?: typeof auth;
   prisma?: typeof realPrisma;
   adapter?: typeof realAdapter;
 };
@@ -25,12 +24,11 @@ export const POST = withRateLimit(
   paymentRateLimit,
   withCSRF(async function (request: NextRequest) {
     try {
-      const getSession =
-        __testOverrides?.getServerSession ?? realGetServerSession;
+      const getSession = __testOverrides?.getSession ?? auth;
       const prisma = __testOverrides?.prisma ?? realPrisma;
       const adapter = __testOverrides?.adapter ?? realAdapter;
 
-      const session = await getSession(authOptions);
+      const session = await getSession();
 
       if (!session?.user?.email) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import Link from 'next/link';
 import MarkPaidButton from './ui/MarkPaidButton';
 
@@ -19,7 +18,7 @@ async function getData() {
 }
 
 export default async function AdminOrdersPage() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user || session.user.role !== 'ADMIN') {
     return <div className="p-6">Forbidden</div>;
   }

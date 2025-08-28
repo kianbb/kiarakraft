@@ -1,4 +1,4 @@
-import { NextAuthOptions } from 'next-auth';
+import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
@@ -9,7 +9,7 @@ import {
   validateEmail,
 } from '@/lib/auth-security';
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -18,39 +18,27 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials, req) {
-        console.log(`[AUTH DEBUG] authorize() called`);
-        console.log(`[AUTH DEBUG] Has credentials: ${!!credentials}`);
-        console.log(`[AUTH DEBUG] Has email: ${!!credentials?.email}`);
-        console.log(`[AUTH DEBUG] Has password: ${!!credentials?.password}`);
-
         if (!credentials?.email || !credentials?.password) {
-          console.log(`[AUTH DEBUG] FAIL: Missing credentials`);
           return null;
         }
 
+        const email = credentials.email as string;
+        const password = credentials.password as string;
+
         // Validate email format
-        if (!validateEmail(credentials.email)) {
-          console.log(`[AUTH DEBUG] FAIL: Invalid email format`);
+        if (!validateEmail(email)) {
           return null;
         }
 
         // Get client IP for rate limiting
         const clientIP = req ? getClientIP(req as Request) : 'unknown';
-        console.log(`[AUTH DEBUG] Client IP: ${clientIP}`);
 
         // Check rate limiting and account lockout
-        console.log(`[AUTH DEBUG] Checking rate limits...`);
-        const rateLimitCheck = await checkLoginRateLimit(
-          credentials.email,
-          clientIP
-        );
+        const rateLimitCheck = await checkLoginRateLimit(email, clientIP);
 
         if (!rateLimitCheck.allowed) {
-          console.log(
-            `[AUTH DEBUG] FAIL: Rate limit exceeded - ${rateLimitCheck.reason}`
-          );
           // Record the failed attempt
-          await recordLoginAttempt(credentials.email, clientIP, false);
+          await recordLoginAttempt(email, clientIP, false);
 
           // Return specific error information (NextAuth will handle this)
           const error = new Error('Rate limit exceeded');
@@ -63,56 +51,34 @@ export const authOptions: NextAuthOptions = {
           }
           throw error;
         }
-        console.log(`[AUTH DEBUG] Rate limits OK`);
 
         // Find user
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email,
+            email: email,
           },
           include: {
             sellerProfile: true,
           },
         });
 
-        // DEBUG: Log authentication attempt details
-        console.log(`[AUTH DEBUG] Login attempt for: ${credentials.email}`);
-        console.log(`[AUTH DEBUG] User found: ${user ? 'YES' : 'NO'}`);
-        if (user) {
-          console.log(`[AUTH DEBUG] User ID: ${user.id}`);
-          console.log(
-            `[AUTH DEBUG] Password hash first 20 chars: ${user.password.substring(0, 20)}...`
-          );
-        }
-
         if (!user) {
-          console.log(`[AUTH DEBUG] FAIL: User not found`);
           // Record failed attempt
-          await recordLoginAttempt(credentials.email, clientIP, false);
+          await recordLoginAttempt(email, clientIP, false);
           return null;
         }
 
         // Check password
-        console.log(`[AUTH DEBUG] Comparing password...`);
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        console.log(`[AUTH DEBUG] Password valid: ${isPasswordValid}`);
+        const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
-          console.log(`[AUTH DEBUG] FAIL: Password mismatch`);
           // Record failed attempt
-          await recordLoginAttempt(credentials.email, clientIP, false);
+          await recordLoginAttempt(email, clientIP, false);
           return null;
         }
 
         // Record successful attempt
-        await recordLoginAttempt(credentials.email, clientIP, true);
-
-        console.log(
-          `[AUTH DEBUG] SUCCESS: Authentication successful for ${user.email}`
-        );
+        await recordLoginAttempt(email, clientIP, true);
 
         return {
           id: user.id,
@@ -157,5 +123,4 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
-};
+});
