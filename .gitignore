@@ -49,4 +49,7 @@ next-env.d.ts
 dev.log
 full_output.log
 temp.txt
+
+# Security - demo credentials from production seed
+.demo-credentials.txt
 #

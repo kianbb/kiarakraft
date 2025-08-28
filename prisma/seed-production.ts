@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -686,12 +688,25 @@ async function main() {
   console.log(`   - Price range: 295,000 - 5,500,000 تومان`);
   console.log(`   - All products include authentic Persian descriptions`);
 
-  console.log('\n🔐 Demo Account Credentials (SAVE THESE):');
-  console.log(`   📧 Buyer: buyer@example.com`);
-  console.log(`   🔑 Password: ${buyerPassword}`);
-  console.log(`   📧 Seller: seller@example.com`);
-  console.log(`   🔑 Password: ${sellerPassword}`);
-  console.log('\n⚠️  Save these credentials in a secure location!');
+  // Save credentials to a secure file instead of logging
+  const credentialsFile = path.join(process.cwd(), '.demo-credentials.txt');
+  const credentials = `Demo Account Credentials (Generated: ${new Date().toISOString()})
+=====================================
+
+Buyer Account:
+Email: buyer@example.com
+Password: ${buyerPassword}
+
+Seller Account:
+Email: seller@example.com  
+Password: ${sellerPassword}
+
+⚠️  IMPORTANT: Delete this file after noting the credentials!
+`;
+
+  fs.writeFileSync(credentialsFile, credentials, 'utf8');
+  console.log('\n🔐 Demo account credentials saved to .demo-credentials.txt');
+  console.log('⚠️  Remember to delete this file after noting the passwords!');
 
   // Return summary
   return {
