@@ -54,7 +54,28 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError(t('loginFailed'));
+        // Parse error message and show appropriate translation
+        if (result.error.includes('Invalid credentials')) {
+          setError(t('invalidCredentials'));
+        } else if (result.error.includes('Invalid email format')) {
+          setError(t('invalidEmailFormat'));
+        } else if (result.error.includes('Email and password are required')) {
+          setError(t('emailPasswordRequired'));
+        } else if (result.error.includes('Account locked')) {
+          const retryMatch = result.error.match(/Try again in (\d+) seconds/);
+          const seconds = retryMatch ? retryMatch[1] : '60';
+          setError(t('accountLocked', { seconds }));
+        } else if (result.error.includes('Too many login attempts')) {
+          const retryMatch = result.error.match(/Try again in (\d+) seconds/);
+          const seconds = retryMatch ? retryMatch[1] : '60';
+          setError(t('tooManyAttempts', { seconds }));
+        } else if (result.error.includes('IP blocked')) {
+          setError(t('ipBlocked'));
+        } else if (result.error.includes('Rate limit exceeded')) {
+          setError(t('rateLimitExceeded'));
+        } else {
+          setError(t('loginFailed'));
+        }
       } else {
         // Redirect to the previous page or home
         const callbackUrl = new URLSearchParams(window.location.search).get(

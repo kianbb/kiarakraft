@@ -19,12 +19,12 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error('Email and password are required');
         }
 
         // Validate email format
         if (!validateEmail(credentials.email)) {
-          return null;
+          throw new Error('Invalid email format');
         }
 
         // Get client IP for rate limiting
@@ -65,7 +65,7 @@ export const authOptions: NextAuthOptions = {
         if (!user) {
           // Record failed attempt
           await recordLoginAttempt(credentials.email, clientIP, false);
-          return null;
+          throw new Error('Invalid credentials');
         }
 
         // Check password
@@ -77,7 +77,7 @@ export const authOptions: NextAuthOptions = {
         if (!isPasswordValid) {
           // Record failed attempt
           await recordLoginAttempt(credentials.email, clientIP, false);
-          return null;
+          throw new Error('Invalid credentials');
         }
 
         // Record successful attempt
