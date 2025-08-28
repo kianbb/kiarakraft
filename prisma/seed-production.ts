@@ -53,9 +53,19 @@ async function main() {
 
   console.log(`✅ Upserted ${categories.length} categories`);
 
+  // Generate secure random passwords for production
+  const generateSecurePassword = () => {
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    return Array.from({ length: 16 }, () =>
+      chars.charAt(Math.floor(Math.random() * chars.length))
+    ).join('');
+  };
+
   // Create demo buyer with upsert
   console.log('👤 Upserting demo buyer...');
-  const hashedBuyerPassword = await bcrypt.hash('password123', 10);
+  const buyerPassword = generateSecurePassword();
+  const hashedBuyerPassword = await bcrypt.hash(buyerPassword, 10);
   await prisma.user.upsert({
     where: { email: 'buyer@example.com' },
     update: {},
@@ -69,7 +79,8 @@ async function main() {
 
   // Create demo seller with upsert
   console.log('🛍️ Upserting demo seller...');
-  const hashedSellerPassword = await bcrypt.hash('seller123', 10);
+  const sellerPassword = generateSecurePassword();
+  const hashedSellerPassword = await bcrypt.hash(sellerPassword, 10);
   const demoSeller = await prisma.user.upsert({
     where: { email: 'seller@example.com' },
     update: {},
@@ -674,6 +685,13 @@ async function main() {
   );
   console.log(`   - Price range: 295,000 - 5,500,000 تومان`);
   console.log(`   - All products include authentic Persian descriptions`);
+
+  console.log('\n🔐 Demo Account Credentials (SAVE THESE):');
+  console.log(`   📧 Buyer: buyer@example.com`);
+  console.log(`   🔑 Password: ${buyerPassword}`);
+  console.log(`   📧 Seller: seller@example.com`);
+  console.log(`   🔑 Password: ${sellerPassword}`);
+  console.log('\n⚠️  Save these credentials in a secure location!');
 
   // Return summary
   return {
