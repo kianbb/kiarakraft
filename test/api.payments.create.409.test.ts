@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { POST, __setTestOverrides } from '../app/api/payments/create/route';
 import { Session } from 'next-auth';
 
-// Minimal fake types
+// Test types
 type User = { id: string; email: string };
 type WhereClause = { where: { email?: string; id?: string } };
+type TransactionFn = (tx: {
+  order: { update: () => Promise<Record<string, unknown>> };
+  cart: { upsert: () => Promise<{ id: string }> };
+  cartItem: { upsert: () => Promise<Record<string, unknown>> };
+}) => Promise<unknown>;
 
 function makeJsonRequest(
   url: string,
@@ -30,16 +35,16 @@ async function run() {
   // Arrange: fake session, prisma, adapter
   const fakeUser: User = { id: 'u1', email: 'buyer@example.com' };
 
-  const fakeSession: Session = { 
-    user: { 
+  const fakeSession: Session = {
+    user: {
       email: fakeUser.email,
       id: fakeUser.id,
       name: null,
       image: null,
       role: 'BUYER',
-      sellerProfile: null
+      sellerProfile: null,
     },
-    expires: '2025-12-31T23:59:59.999Z'
+    expires: '2025-12-31T23:59:59.999Z',
   };
   const getSession = async (): Promise<Session> => fakeSession;
 
@@ -69,7 +74,7 @@ async function run() {
         }, // insufficient
       ],
     },
-    $transaction: async (fn: any) => {
+    $transaction: async (fn: TransactionFn) => {
       const tx = {
         order: { update: async () => ({}) },
         cart: { upsert: async () => ({ id: 'c1' }) },
@@ -81,7 +86,7 @@ async function run() {
       findUnique: async () => null,
       create: async () => ({}),
     },
-  } as any;
+  };
 
   const adapter = {
     gateway: 'OFFLINE',
@@ -89,18 +94,23 @@ async function run() {
       authority: 'a1',
       redirectUrl: 'http://pay.local/ok',
     }),
-  } as any;
+  };
 
-  __setTestOverrides({ getSession: getSession as any, prisma, adapter });
+  // Type assertion for test mocks
+  __setTestOverrides({
+    getSession: getSession as never,
+    prisma: prisma as never,
+    adapter: adapter as never,
+  });
 
   // Act: call route
   const req = makeJsonRequest('http://localhost:3000/api/payments/create', {
     orderId: 'o1',
   });
   const res = await POST(req);
-  const status = (res as any).status || res.status;
-  const json =
-    (await (res as any).json?.()) ?? JSON.parse(await res.text());
+  const response = res as NextResponse;
+  const status = response.status;
+  const json = await response.json();
 
   // Assert 409 flags & structure
   assert.equal(status, 409, 'should return 409 on insufficient stock');
