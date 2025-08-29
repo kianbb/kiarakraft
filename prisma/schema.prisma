@@ -352,3 +352,13 @@ model RateLimit {
   @@index([identifier, resetTime])
   @@index([resetTime]) // For cleanup queries
 }
+
+model FxRate {
+  id        String   @id @default(cuid())
+  base      String   // IRR
+  counter   String   // USD, EUR
+  rate      Float
+  fetchedAt DateTime @default(now())
+
+  @@unique([base, counter])
+}

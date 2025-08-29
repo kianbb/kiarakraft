@@ -34,6 +34,7 @@ interface ProductCardProps {
   className?: string;
   showWishlistButton?: boolean;
   locale?: string;
+  priority?: boolean; // For LCP optimization - set true for above-fold images
 }
 
 export const ProductCard = React.memo(function ProductCard({
@@ -42,6 +43,7 @@ export const ProductCard = React.memo(function ProductCard({
   className,
   showWishlistButton = true,
   locale: propLocale,
+  priority = false,
 }: ProductCardProps) {
   // Keep hook order stable: call hooks unconditionally and use safe fallback until hydrated
   const [isHydrated, setIsHydrated] = React.useState(false);
@@ -130,7 +132,7 @@ export const ProductCard = React.memo(function ProductCard({
   return (
     <Link
       href={productUrl}
-      prefetch={false}
+      prefetch={true} // Enable prefetch for better navigation performance
       className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
     >
       <article
@@ -149,10 +151,10 @@ export const ProductCard = React.memo(function ProductCard({
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-200"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            priority={false}
-            quality={75}
+            priority={priority}
+            quality={priority ? 85 : 75} // Higher quality for priority images
             placeholder="blur"
-            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
             onError={() => setImageError(true)}
           />
 

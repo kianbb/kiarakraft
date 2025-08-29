@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RatingStars } from '@/components/products/RatingStars';
 import { AddToCartButton } from '@/components/products/AddToCartButton';
-import { formatPrice } from '@/lib/utils';
+import { PriceWithFx } from '@/components/ui/price-with-fx';
+import { ProductJsonLd } from '@/components/seo/JsonLd';
 import { ArrowLeft, Share2, Store, MapPin } from 'lucide-react';
 import { WishlistButton } from '@/components/wishlist/WishlistButton';
 import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
@@ -183,9 +184,6 @@ export default async function Page({ params }: { params: Params }) {
     notFound();
   }
 
-  // Convert Toman to IRR for schema (1 Toman = 10 IRR)
-  const tomanToIrr = (t: number) => t * 10;
-
   const [t, tCategories, tHome] = await Promise.all([
     getTranslations({ locale: params.locale, namespace: 'product' }),
     getTranslations({ locale: params.locale, namespace: 'categories' }),
@@ -289,31 +287,27 @@ export default async function Page({ params }: { params: Params }) {
     }
   }
 
-  // Build localized JSON-LD after computing localized fields
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: localized.title,
-    description: localized.description,
-    image: product.images.map(i => i.url),
-    brand: 'Kiara Kraft',
-    offers: {
-      '@type': 'Offer',
-      priceCurrency: 'IRR',
-      price: String(tomanToIrr(product.priceToman)),
-      availability:
-        product.stock > 0
-          ? 'http://schema.org/InStock'
-          : 'http://schema.org/OutOfStock',
-    },
-  };
-
   return (
     <>
       <ProductViewTracker slug={params.slug} locale={params.locale} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      <ProductJsonLd
+        product={{
+          title: localized.title,
+          description: localized.description,
+          priceToman: product.priceToman,
+          images: product.images.map(img => ({
+            url: img.url,
+            alt: img.alt || undefined,
+          })),
+          seller: {
+            displayName: product.seller.displayName,
+            handle: product.seller.handle!,
+          },
+          ratingAvg: product.ratingAvg,
+          ratingCount: product.ratingCount,
+          slug: product.slug,
+        }}
+        locale={params.locale}
       />
       <main>
         {/* render gallery + details */}
@@ -351,7 +345,10 @@ export default async function Page({ params }: { params: Params }) {
 
                   <div className="flex items-center gap-4 mb-4">
                     <div className="text-3xl font-bold text-primary">
-                      {formatPrice(product.priceToman, params.locale)}
+                      <PriceWithFx
+                        amount={product.priceToman}
+                        showConversions={true}
+                      />
                     </div>
                     {product.stock > 0 ? (
                       <Badge variant="secondary">{t('inStock')}</Badge>
