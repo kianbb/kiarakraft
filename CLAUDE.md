@@ -126,6 +126,12 @@ npm run db:reset              # Reset DB (destructive!)
 npx prisma studio            # Database GUI
 npx prisma migrate dev       # Create migration
 
+# ⚠️ CRITICAL DATABASE WARNING ⚠️
+# NEVER run `npx prisma migrate reset` or `npm run db:reset` on this project!
+# This database contains 90+ real products, 57 users, order history, and seller data.
+# Any reset will require Point-in-Time Recovery from Neon backup (complex process).
+# For migrations, ALWAYS use `npx prisma migrate dev` instead of reset.
+
 # Testing & Verification
 npm run test                  # Run test suite
 npm run test:i18n            # i18n smoke tests

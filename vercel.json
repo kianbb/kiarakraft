@@ -1,5 +1,11 @@
 {
   "installCommand": "npm install --legacy-peer-deps",
+  "crons": [
+    {
+      "path": "/api/fx/update",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "redirects": [
     {
       "source": "/",
