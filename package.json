@@ -45,6 +45,7 @@
     "moderation:approve:slug": "tsx scripts/approve-products.ts --slug=SLUG --status=APPROVED"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.7.2",
     "@hookform/resolvers": "^5.2.1",
     "@prisma/client": "^6.14.0",
     "@radix-ui/react-select": "^2.2.5",
@@ -52,6 +53,7 @@
     "@react-email/render": "^1.2.1",
     "@sentry/nextjs": "^10.5.0",
     "@tailwindcss/postcss": "^4.1.12",
+    "@types/node-fetch": "^2.6.13",
     "@types/nodemailer": "^7.0.0",
     "@types/web-push": "^3.6.4",
     "@vercel/analytics": "^1.5.0",
@@ -66,8 +68,8 @@
     "lucide-react": "^0.541.0",
     "next": "15.5.0",
     "next-auth": "5.0.0-beta.25",
-    "@auth/prisma-adapter": "^2.7.2",
     "next-intl": "^4.3.5",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
