@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
+import { revalidateSeller, revalidateProductsForSeller } from '@/lib/cache';
 import { z } from 'zod';
 import * as Sentry from '@sentry/nextjs';
 
@@ -155,6 +156,14 @@ export const PUT = withRateLimit(
           website: data.website,
         },
       });
+
+      // Revalidate caches related to this seller (storefront + their products)
+      try {
+        await revalidateSeller(updatedProfile.id);
+        await revalidateProductsForSeller(updatedProfile.id);
+      } catch (e) {
+        console.warn('Cache revalidation (seller) failed:', e);
+      }
 
       // Return combined data
       const profileData = {

@@ -7,7 +7,11 @@ import { Metadata } from 'next';
 import { searchProducts } from '@/lib/search';
 import { CATEGORY_IMAGE_FALLBACKS } from '@/lib/assets';
 import { prisma } from '@/lib/prisma';
-import { OrganizationJsonLd, WebSiteJsonLd } from '@/components/seo/JsonLd';
+import {
+  OrganizationJsonLd,
+  WebSiteJsonLd,
+  BreadcrumbJsonLd,
+} from '@/components/seo/JsonLd';
 
 // Pre-render both locales for the dynamic [locale] segment to ensure correct SSG per-locale
 export const dynamicParams = false;
@@ -190,6 +194,15 @@ export default async function Home({
       {/* SEO Structured Data */}
       <OrganizationJsonLd locale={locale} />
       <WebSiteJsonLd locale={locale} />
+      <BreadcrumbJsonLd
+        items={[
+          {
+            name: locale === 'fa' ? 'خانه' : 'Home',
+            url: `https://www.kiarakraft.com/${locale}`,
+            position: 1,
+          },
+        ]}
+      />
 
       <main role="main">
         {/* Hero Section */}
