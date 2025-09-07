@@ -32,4 +32,3 @@ jobs:
       - name: Run Playwright tests
         if: env.PREVIEW_URL != ''
         run: npm run test:e2e
-
