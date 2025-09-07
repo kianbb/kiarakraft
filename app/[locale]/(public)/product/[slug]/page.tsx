@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { RatingStars } from '@/components/products/RatingStars';
 import { AddToCartButton } from '@/components/products/AddToCartButton';
 import { PriceWithFx } from '@/components/ui/price-with-fx';
-import { ProductJsonLd } from '@/components/seo/JsonLd';
+import { ProductJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ArrowLeft, Share2, Store, MapPin } from 'lucide-react';
 import { WishlistButton } from '@/components/wishlist/WishlistButton';
 import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
@@ -308,6 +308,40 @@ export default async function Page({ params }: { params: Params }) {
           slug: product.slug,
         }}
         locale={params.locale}
+      />
+      <BreadcrumbJsonLd
+        items={(() => {
+          const base = 'https://www.kiarakraft.com';
+          const items = [
+            {
+              name: params.locale === 'fa' ? 'خانه' : 'Home',
+              url: `${base}/${params.locale}`,
+              position: 1,
+            },
+          ];
+          if (product.category?.slug) {
+            items.push({
+              name:
+                params.locale === 'fa'
+                  ? localized.categoryName || 'دسته بندی'
+                  : localized.categoryName || 'Category',
+              url: `${base}/${params.locale}/explore?category=${product.category.slug}`,
+              position: 2,
+            });
+            items.push({
+              name: localized.title,
+              url: `${base}/${params.locale}/product/${product.slug}`,
+              position: 3,
+            });
+          } else {
+            items.push({
+              name: localized.title,
+              url: `${base}/${params.locale}/product/${product.slug}`,
+              position: 2,
+            });
+          }
+          return items;
+        })()}
       />
       <main>
         {/* render gallery + details */}

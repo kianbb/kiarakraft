@@ -26,6 +26,8 @@
     "check:ssr": "tsx scripts/check-ssr.ts",
     "verify:i18n": "node scripts/verify-i18n-complete.js",
     "verify:i18n:quick": "node scripts/quick-i18n-check.js",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "translate:backfill": "tsx scripts/backfill-translations.ts",
     "eligibility:backfill": "tsx scripts/backfill-eligibility.ts",
     "search:smoke": "tsx scripts/search-smoke.ts",

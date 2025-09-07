@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
+import { revalidateProduct } from '@/lib/cache';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/nextjs';
 
@@ -112,6 +113,13 @@ export async function PUT(
         ...(allowActive !== undefined ? { active: allowActive } : {}),
       },
     });
+
+    // Revalidate product-related caches
+    try {
+      await revalidateProduct(params.id);
+    } catch (e) {
+      console.warn('Cache revalidation (product update) failed:', e);
+    }
 
     // Re-translate EN if source appears Persian
     const hasPersian =
@@ -245,6 +253,13 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id: params.id },
     });
+
+    // Revalidate product-related caches post-delete
+    try {
+      await revalidateProduct(params.id);
+    } catch (e) {
+      console.warn('Cache revalidation (product delete) failed:', e);
+    }
 
     return NextResponse.json({ message: 'Product deleted successfully' });
   } catch (error) {

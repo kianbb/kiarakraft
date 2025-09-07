@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
-import { searchProducts, SearchFilters } from '@/lib/search';
+import { searchProducts } from '@/lib/search-cached';
+import type { SearchFilters } from '@/lib/search';
 import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
