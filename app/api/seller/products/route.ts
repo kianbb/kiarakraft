@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
-import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import { withRateLimit, sellerProductRateLimit } from '@/lib/rateLimit';
 import {
   sanitizeAndValidate,
   SanitizationLevel,
@@ -12,7 +12,7 @@ import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
 
 export const GET = withRateLimit(
-  orderRateLimit,
+  sellerProductRateLimit,
   async function (request: NextRequest) {
     try {
       const session = await auth();
@@ -60,7 +60,7 @@ export const GET = withRateLimit(
 );
 
 export const POST = withRateLimit(
-  orderRateLimit,
+  sellerProductRateLimit,
   async function (request: NextRequest) {
     let data: Record<string, unknown> = {};
     try {

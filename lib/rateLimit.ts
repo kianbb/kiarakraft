@@ -144,6 +144,11 @@ export const uploadRateLimit = createRateLimiter({
   maxRequests: 10, // 10 uploads per minute
 });
 
+export const sellerProductRateLimit = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 20, // 20 product operations per minute (create/edit/delete)
+});
+
 /**
  * Middleware helper to add rate limiting to API routes
  */
