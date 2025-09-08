@@ -303,8 +303,13 @@ export const POST = withRateLimit(
       if (error instanceof Error) {
         // Check for specific Prisma errors
         if (error.message.includes('Unique constraint')) {
-          errorMessage = 'A product with this title already exists';
-          errorDetails = 'Please choose a different title';
+          if (error.message.includes('slug')) {
+            errorMessage = 'Failed to generate unique product URL';
+            errorDetails = 'Please try again or use a different title';
+          } else {
+            errorMessage = 'A product with this title already exists';
+            errorDetails = 'Please choose a different title';
+          }
         } else if (error.message.includes('Foreign key constraint')) {
           errorMessage = 'Invalid category or seller information';
           errorDetails =
@@ -353,15 +358,23 @@ export const POST = withRateLimit(
 );
 
 function generateSlug(input: string) {
-  return (
-    input
-      .toString()
-      .trim()
-      .toLowerCase()
-      // Replace Persian spaces and punctuation too
-      .replace(/[\s\u200c]+/g, '-')
-      .replace(/[^a-z0-9\-]/g, '')
-      .replace(/\-+/g, '-')
-      .replace(/^\-+|\-+$/g, '')
-  );
+  // Generate base slug
+  let slug = input
+    .toString()
+    .trim()
+    .toLowerCase()
+    // Replace Persian spaces and punctuation too
+    .replace(/[\s\u200c]+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '')
+    .replace(/\-+/g, '-')
+    .replace(/^\-+|\-+$/g, '');
+
+  // If slug is empty (e.g., all Persian text), use a random string
+  if (!slug) {
+    slug = 'product';
+  }
+
+  // Add a random suffix to ensure uniqueness
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  return `${slug}-${randomSuffix}`;
 }
