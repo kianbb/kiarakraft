@@ -555,7 +555,10 @@
     "preview": "Preview",
     "saveSettings": "Save Settings",
     "cancel": "Cancel",
-    "eligibility_review": "Eligibility Review"
+    "eligibility_review": "Eligibility Review",
+    "eligibility_approved": "Approved",
+    "eligibility_pending": "Pending Review",
+    "eligibility_rejected": "Rejected"
   },
   "shop": {
     "verified": "Verified",
