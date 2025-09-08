@@ -21,16 +21,17 @@ export async function GET(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      include: { sellerProfile: true },
     });
 
-    if (!user) {
+    if (!user || !user.sellerProfile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        sellerId: user.id,
+        sellerId: user.sellerProfile.id,
       },
     });
 
@@ -66,7 +67,7 @@ export async function PUT(
       include: { sellerProfile: true },
     });
 
-    if (!user) {
+    if (!user || !user.sellerProfile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -90,7 +91,7 @@ export async function PUT(
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        sellerId: user.id,
+        sellerId: user.sellerProfile.id,
       },
     });
 
@@ -101,7 +102,7 @@ export async function PUT(
     // Prevent unverified sellers from self-activating products
     const nextActive =
       typeof data.active === 'boolean' ? data.active : undefined;
-    const allowActive = user.sellerProfile?.verified ? nextActive : undefined;
+    const allowActive = user.sellerProfile.verified ? nextActive : undefined;
 
     const updatedProduct = await prisma.product.update({
       where: { id: params.id },
@@ -233,16 +234,17 @@ export async function DELETE(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      include: { sellerProfile: true },
     });
 
-    if (!user) {
+    if (!user || !user.sellerProfile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
-        sellerId: user.id,
+        sellerId: user.sellerProfile.id,
       },
     });
 

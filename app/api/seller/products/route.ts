@@ -43,6 +43,11 @@ export const GET = withRateLimit(
 
       const products = await prisma.product.findMany({
         where: { sellerId: user.sellerProfile.id },
+        include: {
+          images: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         take: limit,
       });
