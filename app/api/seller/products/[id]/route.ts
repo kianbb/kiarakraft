@@ -241,6 +241,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    console.log('Delete request for product:', {
+      productId: params.id,
+      sellerId: user.sellerProfile.id,
+      userEmail: session.user.email,
+    });
+
     const product = await prisma.product.findFirst({
       where: {
         id: params.id,
@@ -249,6 +255,25 @@ export async function DELETE(
     });
 
     if (!product) {
+      // Check if product exists but belongs to different seller
+      const productExists = await prisma.product.findUnique({
+        where: { id: params.id },
+        select: { id: true, sellerId: true },
+      });
+
+      if (productExists) {
+        console.error('Product exists but belongs to different seller:', {
+          productSellerId: productExists.sellerId,
+          currentSellerId: user.sellerProfile.id,
+        });
+        return NextResponse.json(
+          {
+            error: 'You do not have permission to delete this product',
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
