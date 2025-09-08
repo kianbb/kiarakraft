@@ -553,7 +553,8 @@
     "shopPreview": "Shop Preview",
     "viewYourShop": "View your shop",
     "preview": "Preview",
-    "saveSettings": "Save Settings"
+    "saveSettings": "Save Settings",
+    "cancel": "Cancel"
   },
   "shop": {
     "verified": "Verified",
