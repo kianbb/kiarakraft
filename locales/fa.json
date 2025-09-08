@@ -555,7 +555,10 @@
     "preview": "پیش‌نمایش",
     "saveSettings": "ذخیره تنظیمات",
     "cancel": "انصراف",
-    "eligibility_review": "بررسی صلاحیت"
+    "eligibility_review": "بررسی صلاحیت",
+    "eligibility_approved": "تأیید شده",
+    "eligibility_pending": "در انتظار بررسی",
+    "eligibility_rejected": "رد شده"
   },
   "shop": {
     "verified": "تایید شده",
