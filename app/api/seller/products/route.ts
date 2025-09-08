@@ -62,7 +62,7 @@ export const GET = withRateLimit(
 export const POST = withRateLimit(
   orderRateLimit,
   async function (request: NextRequest) {
-    let data: Record<string, unknown>;
+    let data: Record<string, unknown> = {};
     try {
       const session = await auth();
 
