@@ -31,7 +31,7 @@ const productSchema = z.object({
   images: z
     .array(
       z.object({
-        url: z.string().url(),
+        url: z.string().url({ message: 'Invalid URL format' }),
         alt: z.string().optional(),
         sortOrder: z.number(),
       })
@@ -109,11 +109,38 @@ export default function NewProductPage() {
       if (response.ok) {
         router.push('/seller/products');
       } else {
-        alert(t('errorCreatingProduct'));
+        const errorData = await response.json();
+        console.error('Product creation error:', errorData);
+
+        // Build detailed error message
+        let errorMessage = t('errorCreatingProduct');
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+        if (errorData.details) {
+          errorMessage += '\n\n' + errorData.details;
+        }
+
+        // Add field-specific errors if any
+        if (errorData.fields) {
+          const fieldErrors = Object.entries(errorData.fields)
+            .filter(([, error]) => error)
+            .map(([field, error]) => `${field}: ${error}`)
+            .join('\n');
+          if (fieldErrors) {
+            errorMessage += '\n\n' + 'Field errors:\n' + fieldErrors;
+          }
+        }
+
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Error creating product:', error);
-      alert(t('errorCreatingProduct'));
+      alert(
+        t('errorCreatingProduct') +
+          '\n\n' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
     } finally {
       setCreating(false);
     }
