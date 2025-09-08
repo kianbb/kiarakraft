@@ -554,7 +554,8 @@
     "viewYourShop": "View your shop",
     "preview": "Preview",
     "saveSettings": "Save Settings",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "eligibility_review": "Eligibility Review"
   },
   "shop": {
     "verified": "Verified",
