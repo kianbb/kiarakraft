@@ -78,9 +78,14 @@ export default function SellerProductsPage() {
         setProducts(
           products.filter((p: ProductWithRelations) => p.id !== productId)
         );
+      } else {
+        const error = await response.json();
+        console.error('Delete failed:', error);
+        alert(error.error || 'Failed to delete product');
       }
     } catch (error) {
       console.error('Error deleting product:', error);
+      alert('Network error: Failed to delete product');
     } finally {
       setDeleting(null);
     }
