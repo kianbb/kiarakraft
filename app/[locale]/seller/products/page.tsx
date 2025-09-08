@@ -146,9 +146,9 @@ export default function SellerProductsPage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
+        {/* Search and Actions */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               type="text"
@@ -158,6 +158,79 @@ export default function SellerProductsPage() {
               className="pl-10"
             />
           </div>
+
+          {/* Cleanup Actions - Only show for unverified sellers */}
+          {products.length > 0 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (
+                    confirm(
+                      'This will fix any products with incorrect seller IDs. Continue?'
+                    )
+                  ) {
+                    try {
+                      const response = await fetch(
+                        '/api/seller/products/cleanup',
+                        {
+                          method: 'POST',
+                        }
+                      );
+                      const data = await response.json();
+                      if (response.ok) {
+                        alert(
+                          `Cleanup completed! Fixed ${data.stats.fixedProducts} products.`
+                        );
+                        fetchProducts();
+                      } else {
+                        alert(data.error || 'Cleanup failed');
+                      }
+                    } catch (error) {
+                      console.error('Cleanup error:', error);
+                      alert('Failed to cleanup products');
+                    }
+                  }
+                }}
+              >
+                Fix Products
+              </Button>
+
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (
+                    confirm(
+                      'WARNING: This will delete ALL your products. This action cannot be undone. Are you sure?'
+                    )
+                  ) {
+                    if (confirm('Please confirm again: Delete ALL products?')) {
+                      try {
+                        const response = await fetch(
+                          '/api/seller/products/cleanup',
+                          {
+                            method: 'DELETE',
+                          }
+                        );
+                        const data = await response.json();
+                        if (response.ok) {
+                          alert(`Deleted ${data.deletedCount} products.`);
+                          fetchProducts();
+                        } else {
+                          alert(data.error || 'Delete failed');
+                        }
+                      } catch (error) {
+                        console.error('Delete all error:', error);
+                        alert('Failed to delete products');
+                      }
+                    }
+                  }
+                }}
+              >
+                Delete All Products
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Products Grid */}
