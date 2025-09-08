@@ -545,6 +545,7 @@
     "status_shipped": "ارسال شده",
     "status_delivered": "تحویل داده شده",
     "status_cancelled": "لغو شده",
+    "category": "دسته‌بندی",
     "profileImage": "تصویر پروفایل",
     "bannerImage": "تصویر بنر",
     "recommendedSize": "اندازه پیشنهادی",

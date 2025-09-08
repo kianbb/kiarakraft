@@ -545,6 +545,7 @@
     "status_shipped": "Shipped",
     "status_delivered": "Delivered",
     "status_cancelled": "Cancelled",
+    "category": "Category",
     "profileImage": "Profile Image",
     "bannerImage": "Banner Image",
     "recommendedSize": "Recommended size",
