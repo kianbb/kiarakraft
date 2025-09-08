@@ -42,7 +42,7 @@ export const GET = withRateLimit(
         : undefined;
 
       const products = await prisma.product.findMany({
-        where: { sellerId: user.id },
+        where: { sellerId: user.sellerProfile.id },
         orderBy: { createdAt: 'desc' },
         take: limit,
       });
@@ -62,6 +62,7 @@ export const GET = withRateLimit(
 export const POST = withRateLimit(
   orderRateLimit,
   async function (request: NextRequest) {
+    let data: Record<string, unknown> = {};
     try {
       const session = await auth();
 
@@ -78,10 +79,10 @@ export const POST = withRateLimit(
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
-      const data = await request.json();
+      data = await request.json();
 
       // Comprehensive input validation and sanitization
-      const titleValidation = sanitizeAndValidate(data.name || '', {
+      const titleValidation = sanitizeAndValidate((data.name as string) || '', {
         maxLength: 200,
         minLength: 3,
         sanitizationLevel: SanitizationLevel.STRICT,
@@ -104,7 +105,7 @@ export const POST = withRateLimit(
       }
 
       const descriptionValidation = sanitizeAndValidate(
-        data.description || '',
+        (data.description as string) || '',
         {
           maxLength: 5000,
           minLength: 10,
@@ -161,7 +162,7 @@ export const POST = withRateLimit(
       let categoryId: string | undefined;
       if (data.category) {
         const cat = await prisma.category.findUnique({
-          where: { slug: data.category },
+          where: { slug: data.category as string },
         });
         categoryId = cat?.id;
       }
@@ -172,11 +173,11 @@ export const POST = withRateLimit(
         data: {
           title: titleValidation.sanitized,
           description: descriptionValidation.sanitized,
-          priceToman: data.price,
-          stock: data.stock,
-          slug: data.slug || generateSlug(data.name),
+          priceToman: data.price as number,
+          stock: data.stock as number,
+          slug: (data.slug as string) || generateSlug(data.name as string),
           categoryId,
-          sellerId: user.id,
+          sellerId: user.sellerProfile.id,
           // Trust & Safety: Unverified sellers' products are created inactive
           active: isVerified,
         },
@@ -191,7 +192,7 @@ export const POST = withRateLimit(
           ) => ({
             productId: product.id,
             url: img.url,
-            alt: img.alt || data.name,
+            alt: img.alt || (data.name as string),
             sortOrder: img.sortOrder ?? index,
           })
         );
@@ -269,7 +270,7 @@ export const POST = withRateLimit(
       assessProductForHandcrafted({
         title: product.title,
         description: product.description,
-        categorySlug: data.category || undefined,
+        categorySlug: (data.category as string) || undefined,
       })
         .then(async res => {
           try {
@@ -294,8 +295,57 @@ export const POST = withRateLimit(
     } catch (error) {
       Sentry.captureException(error);
       console.error('Error creating product:', error);
+
+      // Provide detailed error message based on error type
+      let errorMessage = 'Failed to create product';
+      let errorDetails = '';
+
+      if (error instanceof Error) {
+        // Check for specific Prisma errors
+        if (error.message.includes('Unique constraint')) {
+          errorMessage = 'A product with this title already exists';
+          errorDetails = 'Please choose a different title';
+        } else if (error.message.includes('Foreign key constraint')) {
+          errorMessage = 'Invalid category or seller information';
+          errorDetails =
+            'Please make sure you have completed seller registration';
+        } else if (error.message.includes('sellerId')) {
+          errorMessage = 'Seller profile not found';
+          errorDetails = 'Please complete your seller profile setup first';
+        } else if (
+          error.message.includes('Invalid `prisma.product.create()` invocation')
+        ) {
+          errorMessage = 'Invalid product data';
+          errorDetails =
+            'Please check all required fields are filled correctly';
+        } else {
+          // Include actual error message for debugging
+          errorDetails = error.message;
+        }
+      }
+
       return NextResponse.json(
-        { error: 'Failed to create product' },
+        {
+          error: errorMessage,
+          details: errorDetails,
+          // Include field-specific errors if validation failed
+          fields: {
+            title:
+              data.name && (data.name as string).length < 3
+                ? 'Title must be at least 3 characters'
+                : null,
+            description:
+              data.description && (data.description as string).length < 10
+                ? 'Description must be at least 10 characters'
+                : null,
+            price:
+              !data.price || (data.price as number) <= 0
+                ? 'Price must be greater than 0'
+                : null,
+            stock:
+              (data.stock as number) < 0 ? 'Stock cannot be negative' : null,
+          },
+        },
         { status: 500 }
       );
     }

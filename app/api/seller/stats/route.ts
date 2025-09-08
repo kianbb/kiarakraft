@@ -12,28 +12,29 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      include: { sellerProfile: true },
     });
 
-    if (!user) {
+    if (!user || !user.sellerProfile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     // Get seller statistics
     const [totalProducts, totalOrders, revenue] = await Promise.all([
       prisma.product.count({
-        where: { sellerId: user.id },
+        where: { sellerId: user.sellerProfile.id },
       }),
       prisma.orderItem.count({
         where: {
           product: {
-            sellerId: user.id,
+            sellerId: user.sellerProfile.id,
           },
         },
       }),
       prisma.orderItem.aggregate({
         where: {
           product: {
-            sellerId: user.id,
+            sellerId: user.sellerProfile.id,
           },
           order: {
             status: { not: 'CANCELED' },
