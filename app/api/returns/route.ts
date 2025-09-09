@@ -12,18 +12,19 @@ const createReturnSchema = z.object({
     .min(10)
     .max(1000)
     .transform(val => {
-      // Comprehensive sanitization to prevent XSS
-      return val
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
-        .replace(/<[^>]+on\w+\s*=[^>]*>/gi, '') // Remove tags with event handlers
-        .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handler attributes
-        .replace(/on\w+\s*=/gi, '') // Remove any remaining event handlers
-        .replace(/[<>]/g, '') // Remove angle brackets
-        .replace(/javascript:/gi, '') // Remove javascript: protocol
-        .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-        .replace(/data:text\/html/gi, '') // Remove data URIs
-        .replace(/data:application\/javascript/gi, '')
-        .replace(/data:text\/javascript/gi, '');
+      // HTML entity encode to prevent any XSS - this is safer than trying to strip patterns
+      const htmlEntities: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '/': '&#x2F;',
+        '`': '&#x60;',
+        '=': '&#x3D;',
+      };
+
+      return val.replace(/[&<>"'`=\/]/g, char => htmlEntities[char]);
     }),
 });
 
