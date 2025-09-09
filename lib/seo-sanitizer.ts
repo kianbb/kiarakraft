@@ -30,27 +30,9 @@ export function sanitizeJsonLdValue(value: unknown): unknown {
   }
 
   if (typeof value === 'string') {
-    // First remove all HTML tags completely to prevent any HTML injection
-    let sanitized = value
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<\/script>/gi, '') // Remove any orphaned closing tags
-      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-      .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
-      .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-      .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '') // Remove SVG which can contain scripts
-      .replace(/<[^>]+on\w+\s*=[^>]*>/gi, '') // Remove any tags with event handlers
-      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handler attributes
-      .replace(/on\w+\s*=/gi, '') // Remove any remaining event handlers
-      .replace(/javascript:/gi, '')
-      .replace(/vbscript:/gi, '')
-      .replace(/data:text\/html/gi, 'data:text/plain') // Neutralize dangerous data URIs
-      .replace(/data:application\/javascript/gi, 'data:text/plain')
-      .replace(/data:text\/javascript/gi, 'data:text/plain')
-      .replace(/style\s*=\s*["'][^"']*expression\s*\([^)]*\)[^"']*["']/gi, '') // Remove CSS expressions
-      .replace(/style\s*=\s*["'][^"']*javascript:[^"']*["']/gi, ''); // Remove javascript in styles
-
-    // Escape HTML entities
-    sanitized = escapeHtml(sanitized);
+    // Use HTML entity encoding - this is the most secure approach
+    // First escape HTML entities to prevent any injection
+    let sanitized = escapeHtml(value);
 
     // Remove any null bytes and other control characters
     sanitized = sanitized
@@ -88,7 +70,7 @@ export function createSafeJsonLd(data: unknown): string {
   const sanitized = sanitizeJsonLdValue(data);
 
   // Use JSON.stringify with replacer to ensure proper escaping
-  return JSON.stringify(sanitized, (key, value) => {
+  return JSON.stringify(sanitized, (_key, value) => {
     // Additional safety check during stringification
     if (typeof value === 'string') {
       // Ensure no script tags can be injected
