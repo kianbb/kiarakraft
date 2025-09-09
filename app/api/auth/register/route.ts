@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
 import { validatePasswordComplexity, validateEmail } from '@/lib/auth-security';
+import { verifyHumanUser } from '@/lib/captcha';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -15,6 +16,9 @@ const registerSchema = z.object({
   displayName: z.string().optional(),
   bio: z.string().optional(),
   region: z.string().optional(),
+  // Bot protection fields
+  turnstileToken: z.string().optional(),
+  honeypot: z.string().optional(),
 });
 
 export const POST = withRateLimit(
@@ -31,7 +35,29 @@ export const POST = withRateLimit(
         displayName,
         bio,
         region,
+        turnstileToken,
+        honeypot,
       } = registerSchema.parse(body);
+
+      // Verify human user (CAPTCHA/honeypot)
+      const clientIP =
+        request.headers.get('x-forwarded-for') ||
+        request.headers.get('x-real-ip') ||
+        undefined;
+
+      const humanCheck = await verifyHumanUser({
+        turnstileToken,
+        honeypot,
+        headers: request.headers,
+        ip: clientIP,
+      });
+
+      if (!humanCheck.isHuman) {
+        return NextResponse.json(
+          { error: humanCheck.error || 'Bot detection failed' },
+          { status: 403 }
+        );
+      }
 
       // Validate email format
       if (!validateEmail(email)) {

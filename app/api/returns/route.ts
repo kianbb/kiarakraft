@@ -5,9 +5,27 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
 const createReturnSchema = z.object({
-  orderId: z.string().min(1),
-  orderItemId: z.string().min(1),
-  reason: z.string().min(10).max(1000),
+  orderId: z.string().min(1).max(50),
+  orderItemId: z.string().min(1).max(50),
+  reason: z
+    .string()
+    .min(10)
+    .max(1000)
+    .transform(val => {
+      // HTML entity encode to prevent any XSS - this is safer than trying to strip patterns
+      const htmlEntities: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '/': '&#x2F;',
+        '`': '&#x60;',
+        '=': '&#x3D;',
+      };
+
+      return val.replace(/[&<>"'`=\/]/g, char => htmlEntities[char]);
+    }),
 });
 
 export async function GET(request: NextRequest) {
@@ -20,8 +38,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const orderId = searchParams.get('orderId');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(
+      Math.max(1, parseInt(searchParams.get('limit') || '10')),
+      50
+    );
     const skip = (page - 1) * limit;
 
     const where: Prisma.ReturnRequestWhereInput = {};
@@ -131,10 +152,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Check if order is eligible for return (must be PAID)
+    // Check if order is eligible for return
     if (order.payment?.status !== 'PAID') {
       return NextResponse.json(
         { error: 'Order must be paid to request return' },
+        { status: 400 }
+      );
+    }
+
+    // Check if order was delivered
+    if (order.status !== 'DELIVERED') {
+      return NextResponse.json(
+        { error: 'Order must be delivered to request return' },
+        { status: 400 }
+      );
+    }
+
+    // Check return time window (30 days)
+    const deliveryDate = order.updatedAt; // Assuming updatedAt is when status changed to DELIVERED
+    const daysSinceDelivery = Math.floor(
+      (Date.now() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const RETURN_WINDOW_DAYS = 30;
+
+    if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
+      return NextResponse.json(
+        { error: `Return window of ${RETURN_WINDOW_DAYS} days has expired` },
         { status: 400 }
       );
     }

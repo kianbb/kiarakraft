@@ -106,7 +106,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
         console.error('EMAIL_FROM being used:', EMAIL_FROM);
         console.error('Resend options that failed:', {
           from: EMAIL_FROM,
-          to: Array.isArray(to) ? to : [to],
+          to: '[REDACTED]',
           subject,
           hasHtml: !!finalHtml,
           hasText: !!text,

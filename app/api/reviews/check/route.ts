@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     // Get product IDs from the order

@@ -62,8 +62,16 @@ const nextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', '127.0.0.1:3000'],
+      bodySizeLimit: '2mb', // Limit server action body size
     },
     optimizePackageImports: ['lucide-react', '@/components/ui'],
+  },
+  // API route size limits
+  api: {
+    bodyParser: {
+      sizeLimit: '5mb', // Default API body size limit
+    },
+    responseLimit: '8mb', // Response size limit
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -95,7 +103,24 @@ const nextConfig = {
         },
         {
           key: 'Strict-Transport-Security',
-          value: 'max-age=31536000; includeSubDomains',
+          value: 'max-age=31536000; includeSubDomains; preload',
+        },
+        // Additional security headers for defense in depth
+        {
+          key: 'Permissions-Policy',
+          value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+        },
+        {
+          key: 'X-Permitted-Cross-Domain-Policies',
+          value: 'none',
+        },
+        {
+          key: 'X-XSS-Protection',
+          value: '1; mode=block',
+        },
+        {
+          key: 'X-Download-Options',
+          value: 'noopen',
         },
       ],
     },

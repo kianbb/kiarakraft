@@ -7,6 +7,7 @@ import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import { collectPreflightIssues } from '@/lib/orderPreflight';
 import { cancelOrderAndRestoreCart } from '@/lib/paymentsPreflight';
 import { parseOrderId } from '@/lib/validation';
+import { checkPaymentPatterns } from '@/lib/payment-monitor';
 import * as Sentry from '@sentry/nextjs';
 
 // Test overrides (noop in production). Allows injecting fakes in tests.
@@ -151,6 +152,38 @@ export const POST = withRateLimit(
         }
       }
       const callbackUrl = `${chosenBase}/api/payments/callback`;
+
+      // Check for suspicious payment patterns
+      const clientIP =
+        request.headers.get('x-forwarded-for') ||
+        request.headers.get('x-real-ip') ||
+        undefined;
+
+      const patternCheck = await checkPaymentPatterns({
+        userId: user.id,
+        orderId,
+        amount: order.totalToman,
+        timestamp: new Date(),
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || undefined,
+      });
+
+      // Log but don't block suspicious payments (monitor mode)
+      if (patternCheck.suspicious) {
+        console.warn(
+          `Suspicious payment pattern detected for user ${user.id}:`,
+          patternCheck.activities
+        );
+        Sentry.captureMessage('Suspicious payment pattern detected', {
+          level: 'warning',
+          extra: {
+            userId: user.id,
+            orderId,
+            riskScore: patternCheck.riskScore,
+            activities: patternCheck.activities,
+          },
+        });
+      }
 
       // Create payment in adapter
       const result = await adapter.create({
