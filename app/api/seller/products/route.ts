@@ -37,9 +37,10 @@ export const GET = withRateLimit(
       // }
 
       const { searchParams } = new URL(request.url);
-      const limit = searchParams.get('limit')
-        ? parseInt(searchParams.get('limit')!)
-        : undefined;
+      const limitParam = searchParams.get('limit');
+      const limit = limitParam
+        ? Math.min(Math.max(1, parseInt(limitParam)), 100)
+        : 50;
 
       const products = await prisma.product.findMany({
         where: { sellerId: user.sellerProfile.id },

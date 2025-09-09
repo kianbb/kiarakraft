@@ -112,7 +112,7 @@ export const POST = withRateLimit(
             // Don't expose email sending failure to user for security
           } else {
             console.log(
-              `Password reset email sent to ${user.email} via ${emailResult.provider}`
+              `Password reset email sent successfully via ${emailResult.provider}`
             );
           }
         } catch (error) {

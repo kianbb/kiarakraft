@@ -75,6 +75,19 @@ export async function toggleWishlistAction(
       });
       isInWishlist = false;
     } else {
+      // Check wishlist limit to prevent resource exhaustion
+      const wishlistCount = await prisma.wishlistItem.count({
+        where: { userId },
+      });
+      
+      const MAX_WISHLIST_ITEMS = 100;
+      if (wishlistCount >= MAX_WISHLIST_ITEMS) {
+        return {
+          success: false,
+          error: `Maximum of ${MAX_WISHLIST_ITEMS} wishlist items allowed`,
+        };
+      }
+      
       // Add to wishlist
       await prisma.wishlistItem.create({
         data: {

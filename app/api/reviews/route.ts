@@ -3,12 +3,21 @@ import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+// XSS sanitization helper
+const sanitizeText = (text: string): string => {
+  return text
+    .replace(/[<>]/g, '') // Remove angle brackets
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .replace(/script/gi, ''); // Remove script tags
+};
+
 const createReviewSchema = z.object({
-  productId: z.string(),
-  orderId: z.string(),
+  productId: z.string().max(50),
+  orderId: z.string().max(50),
   rating: z.number().min(1).max(5),
-  title: z.string().max(100).optional(),
-  body: z.string().max(1000).optional(),
+  title: z.string().max(100).transform(sanitizeText).optional(),
+  body: z.string().max(1000).transform(sanitizeText).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -49,8 +58,22 @@ export async function POST(request: NextRequest) {
 
     if (!order || order.items.length === 0) {
       return NextResponse.json(
-        { error: 'Order not found or not eligible for review' },
+        { error: 'Not found' }, // Generic message to prevent enumeration
         { status: 404 }
+      );
+    }
+
+    // Check review time window (90 days after delivery)
+    const deliveryDate = order.updatedAt; // Assuming updatedAt is when status changed to DELIVERED
+    const daysSinceDelivery = Math.floor(
+      (Date.now() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const REVIEW_WINDOW_DAYS = 90;
+    
+    if (daysSinceDelivery > REVIEW_WINDOW_DAYS) {
+      return NextResponse.json(
+        { error: `Review window of ${REVIEW_WINDOW_DAYS} days has expired` },
+        { status: 400 }
       );
     }
 

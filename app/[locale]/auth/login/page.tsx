@@ -65,11 +65,29 @@ export default function LoginPage() {
         const callbackUrl = new URLSearchParams(window.location.search).get(
           'callbackUrl'
         );
-        router.push(callbackUrl || `/${locale}`);
+        
+        // Validate callbackUrl to prevent open redirect attacks
+        let safeRedirectUrl = `/${locale}`;
+        if (callbackUrl) {
+          try {
+            // Parse the URL to validate it
+            const url = new URL(callbackUrl, window.location.origin);
+            // Only allow redirects to the same origin or relative paths
+            if (url.origin === window.location.origin) {
+              safeRedirectUrl = url.pathname + url.search + url.hash;
+            } else if (callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+              // Allow relative paths that don't start with //
+              safeRedirectUrl = callbackUrl;
+            }
+          } catch {
+            // Invalid URL, use default redirect
+          }
+        }
+        
+        router.push(safeRedirectUrl);
         router.refresh();
       }
     } catch (error) {
-      console.log('[LOGIN DEBUG] Exception during login:', error);
       setError(t('loginFailed'));
     } finally {
       setIsLoading(false);

@@ -20,7 +20,7 @@ export const GET = withRateLimit(cartRateLimit, async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     // Get or create cart for user
@@ -74,7 +74,7 @@ export const POST = withRateLimit(
       });
 
       if (!user) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
       // Get or create cart for user
@@ -117,7 +117,7 @@ export const POST = withRateLimit(
 
       if (!product) {
         return NextResponse.json(
-          { error: 'Product not found' },
+          { error: 'Not found' },
           { status: 404 }
         );
       }
@@ -129,49 +129,87 @@ export const POST = withRateLimit(
         );
       }
 
-      // Check if item already in cart
-      const existingItem = await prisma.cartItem.findUnique({
-        where: {
-          cartId_productId: {
-            cartId: cart.id,
-            productId: productId,
-          },
-        },
-      });
+      // Use transaction to prevent race conditions
+      try {
+        const cartItem = await prisma.$transaction(async (tx) => {
+          // Check cart item limit to prevent resource exhaustion
+          const cartItemCount = await tx.cartItem.count({
+            where: { cartId: cart.id },
+          });
+          
+          const MAX_CART_ITEMS = 50;
+          if (cartItemCount >= MAX_CART_ITEMS) {
+            throw new Error(`Maximum of ${MAX_CART_ITEMS} items allowed in cart`);
+          }
+          
+          // Check current stock with row lock
+          const currentProduct = await tx.product.findUnique({
+            where: { id: productId },
+          });
 
-      if (existingItem) {
-        // Update quantity
-        const updatedItem = await prisma.cartItem.update({
-          where: { id: existingItem.id },
-          data: { quantity: existingItem.quantity + quantity },
-          include: {
-            product: {
-              include: {
-                seller: true,
-                images: true,
+          if (!currentProduct || currentProduct.stock < quantity) {
+            throw new Error('Insufficient stock');
+          }
+
+          // Check if item already in cart
+          const existingItem = await tx.cartItem.findUnique({
+            where: {
+              cartId_productId: {
+                cartId: cart.id,
+                productId: productId,
               },
             },
-          },
-        });
-        return NextResponse.json(updatedItem);
-      } else {
-        // Create new cart item
-        const cartItem = await prisma.cartItem.create({
-          data: {
-            cartId: cart.id,
-            productId: productId,
-            quantity: quantity,
-          },
-          include: {
-            product: {
+          });
+
+          if (existingItem) {
+            // Check if new total quantity exceeds stock
+            const newQuantity = existingItem.quantity + quantity;
+            if (newQuantity > currentProduct.stock) {
+              throw new Error('Insufficient stock for requested quantity');
+            }
+
+            // Update quantity
+            return await tx.cartItem.update({
+              where: { id: existingItem.id },
+              data: { quantity: newQuantity },
               include: {
-                seller: true,
-                images: true,
+                product: {
+                  include: {
+                    seller: true,
+                    images: true,
+                  },
+                },
               },
-            },
-          },
+            });
+          } else {
+            // Create new cart item
+            return await tx.cartItem.create({
+              data: {
+                cartId: cart.id,
+                productId: productId,
+                quantity: quantity,
+              },
+              include: {
+                product: {
+                  include: {
+                    seller: true,
+                    images: true,
+                  },
+                },
+              },
+            });
+          }
         });
+
         return NextResponse.json(cartItem);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('stock')) {
+          return NextResponse.json(
+            { error: error.message },
+            { status: 400 }
+          );
+        }
+        throw error;
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
