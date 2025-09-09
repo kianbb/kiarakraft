@@ -277,8 +277,33 @@ export async function DELETE(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    await prisma.product.delete({
-      where: { id: params.id },
+    // Delete related records first to handle foreign key constraints
+    await prisma.$transaction(async tx => {
+      // Delete related records
+      await tx.cartItem.deleteMany({
+        where: { productId: params.id },
+      });
+
+      await tx.wishlistItem.deleteMany({
+        where: { productId: params.id },
+      });
+
+      await tx.review.deleteMany({
+        where: { productId: params.id },
+      });
+
+      await tx.productTranslation.deleteMany({
+        where: { productId: params.id },
+      });
+
+      await tx.listingImage.deleteMany({
+        where: { productId: params.id },
+      });
+
+      // Finally delete the product
+      await tx.product.delete({
+        where: { id: params.id },
+      });
     });
 
     // Revalidate product-related caches post-delete
