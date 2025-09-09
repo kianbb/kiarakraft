@@ -71,7 +71,7 @@
     "next": "15.5.0",
     "next-auth": "5.0.0-beta.25",
     "next-intl": "^4.3.5",
-    "node-fetch": "^2.7.0",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
