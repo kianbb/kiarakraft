@@ -76,7 +76,7 @@ function filterSensitiveData(metadata: Record<string, unknown> | undefined): Rec
   ];
   
   // Recursively filter sensitive keys
-  function filterObject(obj: any): any {
+  function filterObject(obj: unknown): unknown {
     if (typeof obj !== 'object' || obj === null) return obj;
     
     if (Array.isArray(obj)) {
@@ -103,7 +103,7 @@ function filterSensitiveData(metadata: Record<string, unknown> | undefined): Rec
     return result;
   }
   
-  return filterObject(filtered);
+  return filterObject(filtered) as Record<string, unknown>;
 }
 
 /**

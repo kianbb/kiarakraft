@@ -38,11 +38,11 @@ export const QUERY_LIMITS = {
 /**
  * Apply safe query limits to Prisma queries
  */
-export function applyQueryLimits<T extends Record<string, any>>(
+export function applyQueryLimits<T extends Record<string, unknown>>(
   query: T,
   type: keyof typeof QUERY_LIMITS.maxRecords = 'default'
 ): T & { take?: number } {
-  const limited: any = { ...query };
+  const limited: T & { take?: number } = { ...query };
   
   // Apply take limit if not specified or too high
   if (!limited.take || limited.take > QUERY_LIMITS.maxRecords[type]) {
@@ -105,17 +105,19 @@ export function validatePagination(params: {
 /**
  * Count query depth to prevent deeply nested queries
  */
-export function countQueryDepth(query: any, currentDepth = 0): number {
+export function countQueryDepth(query: unknown, currentDepth = 0): number {
   if (!query || typeof query !== 'object') {
     return currentDepth;
   }
   
   let maxDepth = currentDepth;
+  const queryObj = query as Record<string, unknown>;
   
   // Check include field
-  if (query.include) {
-    for (const key in query.include) {
-      const subQuery = query.include[key];
+  if (queryObj.include && typeof queryObj.include === 'object' && queryObj.include !== null) {
+    const includeObj = queryObj.include as Record<string, unknown>;
+    for (const key in includeObj) {
+      const subQuery = includeObj[key];
       if (typeof subQuery === 'object' && subQuery !== null) {
         const depth = countQueryDepth(subQuery, currentDepth + 1);
         maxDepth = Math.max(maxDepth, depth);
@@ -124,10 +126,11 @@ export function countQueryDepth(query: any, currentDepth = 0): number {
   }
   
   // Check select field
-  if (query.select) {
-    for (const key in query.select) {
-      const subQuery = query.select[key];
-      if (typeof subQuery === 'object' && subQuery !== null && subQuery !== true) {
+  if (queryObj.select && typeof queryObj.select === 'object' && queryObj.select !== null) {
+    const selectObj = queryObj.select as Record<string, unknown>;
+    for (const key in selectObj) {
+      const subQuery = selectObj[key];
+      if (typeof subQuery === 'object' && subQuery !== null) {
         const depth = countQueryDepth(subQuery, currentDepth + 1);
         maxDepth = Math.max(maxDepth, depth);
       }
@@ -141,7 +144,7 @@ export function countQueryDepth(query: any, currentDepth = 0): number {
  * Validate query complexity
  */
 export function validateQueryComplexity(
-  query: any,
+  query: unknown,
   type: keyof typeof QUERY_LIMITS.maxDepth = 'default'
 ): {
   valid: boolean;
@@ -157,18 +160,20 @@ export function validateQueryComplexity(
   
   // Count total fields being selected/included
   let fieldCount = 0;
-  function countFields(obj: any) {
+  function countFields(obj: unknown) {
     if (!obj || typeof obj !== 'object') return;
-    for (const key in obj) {
+    const objRecord = obj as Record<string, unknown>;
+    for (const key in objRecord) {
       fieldCount++;
-      if (typeof obj[key] === 'object' && obj[key] !== null && obj[key] !== true) {
-        countFields(obj[key]);
+      if (typeof objRecord[key] === 'object' && objRecord[key] !== null) {
+        countFields(objRecord[key]);
       }
     }
   }
   
-  if (query.select) countFields(query.select);
-  if (query.include) countFields(query.include);
+  const queryObj = query as Record<string, unknown>;
+  if (queryObj.select) countFields(queryObj.select);
+  if (queryObj.include) countFields(queryObj.include);
   
   if (fieldCount > QUERY_LIMITS.maxFields.detailed) {
     errors.push(`Query selects ${fieldCount} fields, exceeds maximum ${QUERY_LIMITS.maxFields.detailed}`);
@@ -216,9 +221,9 @@ export function createSafePaginatedQuery<T extends Record<string, any>>(
  * Sanitize orderBy to prevent injection
  */
 export function sanitizeOrderBy(
-  orderBy: any,
+  orderBy: unknown,
   allowedFields: string[]
-): any {
+): unknown {
   if (!orderBy) return undefined;
   
   // Handle array of orderBy
@@ -232,11 +237,12 @@ export function sanitizeOrderBy(
   }
   
   // Handle single orderBy object
-  if (typeof orderBy === 'object') {
-    const filtered: any = {};
-    for (const field in orderBy) {
+  if (typeof orderBy === 'object' && orderBy !== null) {
+    const filtered: Record<string, unknown> = {};
+    const orderByObj = orderBy as Record<string, unknown>;
+    for (const field in orderByObj) {
       if (allowedFields.includes(field)) {
-        filtered[field] = orderBy[field] === 'desc' ? 'desc' : 'asc';
+        filtered[field] = orderByObj[field] === 'desc' ? 'desc' : 'asc';
       }
     }
     return Object.keys(filtered).length > 0 ? filtered : undefined;
@@ -248,7 +254,7 @@ export function sanitizeOrderBy(
 /**
  * Middleware to apply query limits
  */
-export function withQueryLimits<T extends (...args: any[]) => Promise<any>>(
+export function withQueryLimits<T extends (...args: unknown[]) => Promise<unknown>>(
   handler: T,
   options?: {
     type?: keyof typeof QUERY_LIMITS.maxRecords;

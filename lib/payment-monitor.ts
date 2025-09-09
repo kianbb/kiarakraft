@@ -19,7 +19,7 @@ interface SuspiciousActivity {
   type: 'velocity' | 'amount' | 'pattern' | 'location';
   severity: 'low' | 'medium' | 'high' | 'critical';
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -305,12 +305,12 @@ async function logSuspiciousActivity(
         targetId: pattern.orderId,
         targetType: 'order',
         metadata: {
-          activities: activities as any,
+          activities: JSON.parse(JSON.stringify(activities)),
           riskScore,
           amount: pattern.amount,
           timestamp: pattern.timestamp.toISOString(),
           ip: pattern.ip,
-        } as any,
+        },
         success: true,
         ipAddress: pattern.ip,
       },

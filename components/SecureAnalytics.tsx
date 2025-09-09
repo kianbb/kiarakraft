@@ -90,7 +90,7 @@ export function SecureScriptLoader({
 }: {
   src: string;
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker';
-  [key: string]: any;
+  [key: string]: string | undefined;
 }) {
   // In production, you should have pre-computed SRI hashes
   // This is just for demonstration
