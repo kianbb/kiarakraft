@@ -96,23 +96,64 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete all products for this seller (both correct and incorrect sellerId)
-    const deleteCorrect = prisma.product.deleteMany({
-      where: { sellerId: user.sellerProfile.id },
+    // First, get all product IDs that belong to this seller
+    const productsToDelete = await prisma.product.findMany({
+      where: {
+        OR: [
+          { sellerId: user.sellerProfile.id },
+          { sellerId: user.id }, // In case of old bug
+        ],
+      },
+      select: { id: true },
     });
 
-    const deleteIncorrect = prisma.product.deleteMany({
-      where: { sellerId: user.id },
-    });
+    const productIds = productsToDelete.map(p => p.id);
 
-    const [result1, result2] = await prisma.$transaction([
-      deleteCorrect,
-      deleteIncorrect,
-    ]);
+    if (productIds.length === 0) {
+      return NextResponse.json({
+        message: 'No products to delete',
+        deletedCount: 0,
+      });
+    }
+
+    // Delete all related records first, then delete products
+    // This handles foreign key constraints
+    const result = await prisma.$transaction(async tx => {
+      // Delete related records in order of dependency
+      await tx.cartItem.deleteMany({
+        where: { productId: { in: productIds } },
+      });
+
+      await tx.wishlistItem.deleteMany({
+        where: { productId: { in: productIds } },
+      });
+
+      await tx.review.deleteMany({
+        where: { productId: { in: productIds } },
+      });
+
+      await tx.productTranslation.deleteMany({
+        where: { productId: { in: productIds } },
+      });
+
+      await tx.listingImage.deleteMany({
+        where: { productId: { in: productIds } },
+      });
+
+      // Note: We don't delete OrderItems as they're historical records
+      // Orders should remain intact even if products are deleted
+
+      // Finally, delete the products
+      const deleteResult = await tx.product.deleteMany({
+        where: { id: { in: productIds } },
+      });
+
+      return deleteResult.count;
+    });
 
     return NextResponse.json({
       message: 'All products deleted',
-      deletedCount: result1.count + result2.count,
+      deletedCount: result,
     });
   } catch (error) {
     console.error('Bulk delete error:', error);
