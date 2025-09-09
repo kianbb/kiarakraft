@@ -40,10 +40,11 @@ export const POST = withRateLimit(
       } = registerSchema.parse(body);
 
       // Verify human user (CAPTCHA/honeypot)
-      const clientIP = request.headers.get('x-forwarded-for') || 
-                      request.headers.get('x-real-ip') || 
-                      undefined;
-      
+      const clientIP =
+        request.headers.get('x-forwarded-for') ||
+        request.headers.get('x-real-ip') ||
+        undefined;
+
       const humanCheck = await verifyHumanUser({
         turnstileToken,
         honeypot,

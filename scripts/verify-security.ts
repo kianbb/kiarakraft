@@ -70,7 +70,7 @@ async function runTests() {
     description: 'Test <iframe src="evil.com"></iframe>',
     onclick: 'javascript:alert(1)',
   };
-  
+
   const safeJson = JSON.stringify(dangerousData);
   const safety = validateJsonLdSafety(safeJson);
   test(
@@ -91,18 +91,29 @@ async function runTests() {
 
   // Test 6: Check seed endpoint security
   console.log('6. Checking seed endpoint security...');
-  const seedRoutePath = path.join(process.cwd(), 'app', 'api', 'admin', 'seed', 'route.ts');
+  const seedRoutePath = path.join(
+    process.cwd(),
+    'app',
+    'api',
+    'admin',
+    'seed',
+    'route.ts'
+  );
   const seedRouteContent = fs.readFileSync(seedRoutePath, 'utf-8');
   test(
     'Seed endpoint has multiple security layers',
     seedRouteContent.includes('ENABLE_SEED_ENDPOINT') &&
-    seedRouteContent.includes('timingSafeEqual'),
+      seedRouteContent.includes('timingSafeEqual'),
     'Seed endpoint security not properly implemented'
   );
 
   // Test 7: Check file validation
   console.log('7. Checking file validation...');
-  const fileValidationPath = path.join(process.cwd(), 'lib', 'file-validation.ts');
+  const fileValidationPath = path.join(
+    process.cwd(),
+    'lib',
+    'file-validation.ts'
+  );
   test(
     'File validation module exists',
     fs.existsSync(fileValidationPath),
@@ -131,16 +142,17 @@ async function runTests() {
   console.log('10. Checking environment variables...');
   test(
     'NEXTAUTH_SECRET is configured',
-    !!process.env.NEXTAUTH_SECRET && process.env.NEXTAUTH_SECRET !== 'replace-me',
+    !!process.env.NEXTAUTH_SECRET &&
+      process.env.NEXTAUTH_SECRET !== 'replace-me',
     'NEXTAUTH_SECRET not properly configured'
   );
 
   // Print results
   console.log('\n📊 Test Results:\n');
-  
+
   let passed = 0;
   let failed = 0;
-  
+
   tests.forEach((test, index) => {
     const icon = test.passed ? '✅' : '❌';
     console.log(`${icon} ${index + 1}. ${test.name}`);
@@ -152,12 +164,12 @@ async function runTests() {
   });
 
   const percentage = Math.round((passed / tests.length) * 100);
-  
+
   console.log('\n' + '='.repeat(50));
   console.log(`\n📈 Security Test Summary:`);
   console.log(`   Passed: ${passed}/${tests.length} (${percentage}%)`);
   console.log(`   Failed: ${failed}/${tests.length}`);
-  
+
   if (percentage === 100) {
     console.log('\n🎉 All security tests passed! Your application is secure.');
     process.exit(0);
@@ -165,7 +177,9 @@ async function runTests() {
     console.log('\n⚠️  Most security tests passed, but some issues remain.');
     process.exit(1);
   } else {
-    console.log('\n❌ Security tests failed. Please fix the issues before deploying.');
+    console.log(
+      '\n❌ Security tests failed. Please fix the issues before deploying.'
+    );
     process.exit(1);
   }
 }

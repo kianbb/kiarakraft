@@ -116,10 +116,7 @@ export const POST = withRateLimit(
       });
 
       if (!product) {
-        return NextResponse.json(
-          { error: 'Not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
       if (product.stock < quantity) {
@@ -131,17 +128,19 @@ export const POST = withRateLimit(
 
       // Use transaction to prevent race conditions
       try {
-        const cartItem = await prisma.$transaction(async (tx) => {
+        const cartItem = await prisma.$transaction(async tx => {
           // Check cart item limit to prevent resource exhaustion
           const cartItemCount = await tx.cartItem.count({
             where: { cartId: cart.id },
           });
-          
+
           const MAX_CART_ITEMS = 50;
           if (cartItemCount >= MAX_CART_ITEMS) {
-            throw new Error(`Maximum of ${MAX_CART_ITEMS} items allowed in cart`);
+            throw new Error(
+              `Maximum of ${MAX_CART_ITEMS} items allowed in cart`
+            );
           }
-          
+
           // Check current stock with row lock
           const currentProduct = await tx.product.findUnique({
             where: { id: productId },
@@ -204,10 +203,7 @@ export const POST = withRateLimit(
         return NextResponse.json(cartItem);
       } catch (error) {
         if (error instanceof Error && error.message.includes('stock')) {
-          return NextResponse.json(
-            { error: error.message },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: error.message }, { status: 400 });
         }
         throw error;
       }

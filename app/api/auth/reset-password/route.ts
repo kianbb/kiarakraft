@@ -72,7 +72,7 @@ export const POST = withRateLimit(
         // Update user password and invalidate all sessions
         await tx.user.update({
           where: { id: resetToken.userId },
-          data: { 
+          data: {
             password: hashedPassword,
             passwordChangedAt: new Date(), // Invalidate all existing sessions
           },

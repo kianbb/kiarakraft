@@ -11,7 +11,7 @@ interface JsonLdProps {
 export function JsonLd({ data }: JsonLdProps) {
   // Safely sanitize and stringify the data
   const safeJsonLd = createSafeJsonLd(data);
-  
+
   // Validate safety in development
   if (process.env.NODE_ENV === 'development') {
     const validation = validateJsonLdSafety(safeJsonLd);

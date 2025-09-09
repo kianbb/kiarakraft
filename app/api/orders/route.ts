@@ -62,7 +62,11 @@ export const POST = withRateLimit(
       }
 
       // Validate shipping price (prevent negative values)
-      if (typeof shippingPrice !== 'number' || shippingPrice < 0 || shippingPrice > 1000000) {
+      if (
+        typeof shippingPrice !== 'number' ||
+        shippingPrice < 0 ||
+        shippingPrice > 1000000
+      ) {
         return NextResponse.json(
           { error: 'Invalid shipping price' },
           { status: 400 }
@@ -89,21 +93,23 @@ export const POST = withRateLimit(
       const order = await prisma.$transaction(async tx => {
         // Lock and verify products with current prices
         const currentProducts = await Promise.all(
-          cartItems.map(async (item) => {
+          cartItems.map(async item => {
             // Use raw query to lock the product row
-            const products = await tx.$queryRaw<Array<{
-              id: string;
-              priceToman: number;
-              stock: number;
-              active: boolean;
-              title: string;
-            }>>`
+            const products = await tx.$queryRaw<
+              Array<{
+                id: string;
+                priceToman: number;
+                stock: number;
+                active: boolean;
+                title: string;
+              }>
+            >`
               SELECT id, "priceToman", stock, active, title
               FROM "Product"
               WHERE id = ${item.productId}
               FOR UPDATE
             `;
-            
+
             return products[0];
           })
         );
@@ -113,26 +119,28 @@ export const POST = withRateLimit(
         for (let i = 0; i < cartItems.length; i++) {
           const item = cartItems[i];
           const product = currentProducts[i];
-          
+
           if (!product) {
             validationIssues.push(`Product ${item.productId} not found`);
             continue;
           }
-          
+
           if (!product.active) {
             validationIssues.push(`Product ${product.title} is not available`);
           }
-          
+
           if (product.stock < item.quantity) {
             validationIssues.push(`Insufficient stock for ${product.title}`);
           }
         }
 
         if (validationIssues.length > 0) {
-          throw new Error(JSON.stringify({ 
-            type: 'validation',
-            issues: validationIssues 
-          }));
+          throw new Error(
+            JSON.stringify({
+              type: 'validation',
+              issues: validationIssues,
+            })
+          );
         }
 
         // Calculate totals using CURRENT prices from database
@@ -145,9 +153,11 @@ export const POST = withRateLimit(
 
         // Validate total amount (prevent overflow and unrealistic amounts)
         if (!Number.isFinite(total) || total <= 0 || total > 1000000000) {
-          throw new Error(JSON.stringify({ 
-            type: 'invalid_total'
-          }));
+          throw new Error(
+            JSON.stringify({
+              type: 'invalid_total',
+            })
+          );
         }
         // Create order
         const newOrder = await tx.order.create({
@@ -173,7 +183,7 @@ export const POST = withRateLimit(
         for (let i = 0; i < cartItems.length; i++) {
           const item = cartItems[i];
           const currentProduct = currentProducts[i];
-          
+
           await tx.orderItem.create({
             data: {
               orderId: newOrder.id,
@@ -211,7 +221,7 @@ export const POST = withRateLimit(
           }
         } catch {}
       }
-      
+
       console.error('Error creating order:', error);
       return NextResponse.json(
         { error: 'Failed to create order' },

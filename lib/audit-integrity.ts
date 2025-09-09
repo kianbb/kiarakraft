@@ -8,9 +8,11 @@ import crypto from 'crypto';
 // Get or generate HMAC secret for audit log integrity
 function getAuditHmacSecret(): string {
   const secret = process.env.AUDIT_HMAC_SECRET;
-  
+
   if (!secret) {
-    console.warn('AUDIT_HMAC_SECRET not configured. Audit log integrity protection disabled.');
+    console.warn(
+      'AUDIT_HMAC_SECRET not configured. Audit log integrity protection disabled.'
+    );
     // In development, use a default secret (not secure for production)
     if (process.env.NODE_ENV === 'development') {
       return 'dev-audit-hmac-secret-not-for-production';
@@ -18,11 +20,13 @@ function getAuditHmacSecret(): string {
     // In production, integrity protection is disabled without secret
     return '';
   }
-  
+
   if (secret.length < 32) {
-    console.warn('AUDIT_HMAC_SECRET should be at least 32 characters for security.');
+    console.warn(
+      'AUDIT_HMAC_SECRET should be at least 32 characters for security.'
+    );
   }
-  
+
   return secret;
 }
 
@@ -39,12 +43,12 @@ export function generateAuditSignature(data: {
   timestamp: Date;
 }): string {
   const secret = getAuditHmacSecret();
-  
+
   // If no secret configured, return empty signature
   if (!secret) {
     return '';
   }
-  
+
   // Create canonical string representation of data
   const canonical = JSON.stringify({
     action: data.action,
@@ -55,7 +59,7 @@ export function generateAuditSignature(data: {
     success: data.success,
     timestamp: data.timestamp.toISOString(),
   });
-  
+
   // Generate HMAC-SHA256 signature
   const hmac = crypto.createHmac('sha256', secret);
   hmac.update(canonical);
@@ -78,24 +82,24 @@ export function verifyAuditSignature(
   signature: string
 ): boolean {
   const secret = getAuditHmacSecret();
-  
+
   // If no secret configured, skip verification
   if (!secret) {
     return true; // Consider unsigned logs as "valid" when integrity is disabled
   }
-  
+
   // Empty signature when secret exists means tampering
   if (!signature) {
     return false;
   }
-  
+
   const expectedSignature = generateAuditSignature(data);
-  
+
   // Use timing-safe comparison
   if (signature.length !== expectedSignature.length) {
     return false;
   }
-  
+
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSignature)
@@ -127,13 +131,13 @@ export async function verifyAuditLogIntegrity(
   let invalid = 0;
   let unsigned = 0;
   const tamperedIds: string[] = [];
-  
+
   for (const entry of entries) {
     if (!entry.signature) {
       unsigned++;
       continue;
     }
-    
+
     const isValid = verifyAuditSignature(
       {
         action: entry.action,
@@ -146,7 +150,7 @@ export async function verifyAuditLogIntegrity(
       },
       entry.signature
     );
-    
+
     if (isValid) {
       valid++;
     } else {
@@ -154,7 +158,7 @@ export async function verifyAuditLogIntegrity(
       tamperedIds.push(entry.id);
     }
   }
-  
+
   return { valid, invalid, unsigned, tamperedIds };
 }
 

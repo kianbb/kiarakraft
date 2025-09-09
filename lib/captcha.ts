@@ -14,14 +14,19 @@ interface TurnstileVerifyResponse {
 /**
  * Verify Cloudflare Turnstile CAPTCHA token
  */
-export async function verifyTurnstileToken(token: string, ip?: string): Promise<{
+export async function verifyTurnstileToken(
+  token: string,
+  ip?: string
+): Promise<{
   success: boolean;
   error?: string;
 }> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  
+
   if (!secret) {
-    console.warn('Turnstile secret key not configured, skipping CAPTCHA verification');
+    console.warn(
+      'Turnstile secret key not configured, skipping CAPTCHA verification'
+    );
     return { success: true }; // Allow if not configured (development)
   }
 
@@ -33,13 +38,16 @@ export async function verifyTurnstileToken(token: string, ip?: string): Promise<
       formData.append('remoteip', ip);
     }
 
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
+    const response = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
 
     const data: TurnstileVerifyResponse = await response.json();
 
@@ -81,28 +89,38 @@ export function checkBotHeaders(headers: Headers): {
   reason?: string;
 } {
   const userAgent = headers.get('user-agent')?.toLowerCase() || '';
-  
+
   // Common bot user agents
   const botPatterns = [
-    'bot', 'crawler', 'spider', 'scraper', 'curl', 'wget',
-    'python', 'java/', 'php/', 'ruby/', 'perl/', 'go-http-client',
+    'bot',
+    'crawler',
+    'spider',
+    'scraper',
+    'curl',
+    'wget',
+    'python',
+    'java/',
+    'php/',
+    'ruby/',
+    'perl/',
+    'go-http-client',
   ];
-  
+
   for (const pattern of botPatterns) {
     if (userAgent.includes(pattern)) {
       return { isBot: true, reason: `Bot user agent detected: ${pattern}` };
     }
   }
-  
+
   // Check for missing headers that real browsers send
   if (!headers.get('accept-language')) {
     return { isBot: true, reason: 'Missing Accept-Language header' };
   }
-  
+
   if (!headers.get('accept-encoding')) {
     return { isBot: true, reason: 'Missing Accept-Encoding header' };
   }
-  
+
   return { isBot: false };
 }
 
@@ -122,23 +140,29 @@ export async function verifyHumanUser(request: {
   if (!verifyHoneypot(request.honeypot)) {
     return { isHuman: false, error: 'Bot detected via honeypot' };
   }
-  
+
   // Check headers for obvious bots
   const headerCheck = checkBotHeaders(request.headers);
   if (headerCheck.isBot) {
     return { isHuman: false, error: headerCheck.reason };
   }
-  
+
   // If Turnstile token provided, verify it
   if (request.turnstileToken) {
-    const turnstileResult = await verifyTurnstileToken(request.turnstileToken, request.ip);
+    const turnstileResult = await verifyTurnstileToken(
+      request.turnstileToken,
+      request.ip
+    );
     if (!turnstileResult.success) {
       return { isHuman: false, error: turnstileResult.error };
     }
-  } else if (process.env.NODE_ENV === 'production' && process.env.TURNSTILE_SECRET_KEY) {
+  } else if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.TURNSTILE_SECRET_KEY
+  ) {
     // In production with Turnstile configured, require token
     return { isHuman: false, error: 'CAPTCHA token required' };
   }
-  
+
   return { isHuman: true };
 }

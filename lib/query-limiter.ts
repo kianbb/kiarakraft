@@ -13,25 +13,25 @@ export const QUERY_LIMITS = {
     users: 20,
     auditLogs: 100,
   },
-  
+
   // Maximum query depth for nested relations
   maxDepth: {
     default: 2,
     products: 3, // Product -> Images -> Reviews
-    orders: 3,    // Order -> Items -> Product
+    orders: 3, // Order -> Items -> Product
   },
-  
+
   // Maximum number of include/select fields
   maxFields: {
     default: 10,
     detailed: 20,
   },
-  
+
   // Query timeout in milliseconds
   timeout: {
-    default: 5000,  // 5 seconds
-    complex: 10000,  // 10 seconds for complex queries
-    report: 30000,   // 30 seconds for reports
+    default: 5000, // 5 seconds
+    complex: 10000, // 10 seconds for complex queries
+    report: 30000, // 30 seconds for reports
   },
 };
 
@@ -43,12 +43,12 @@ export function applyQueryLimits<T extends Record<string, unknown>>(
   type: keyof typeof QUERY_LIMITS.maxRecords = 'default'
 ): T & { take?: number } {
   const limited: T & { take?: number } = { ...query };
-  
+
   // Apply take limit if not specified or too high
   if (!limited.take || limited.take > QUERY_LIMITS.maxRecords[type]) {
     limited.take = QUERY_LIMITS.maxRecords[type];
   }
-  
+
   return limited as T & { take?: number };
 }
 
@@ -67,34 +67,41 @@ export function validatePagination(params: {
   // Parse and validate page
   let page = 1;
   if (params.page) {
-    const parsed = typeof params.page === 'string' ? parseInt(params.page, 10) : params.page;
+    const parsed =
+      typeof params.page === 'string' ? parseInt(params.page, 10) : params.page;
     if (!isNaN(parsed) && parsed > 0) {
       page = parsed;
     }
   }
-  
+
   // Parse and validate limit
   let limit = 20; // Default limit
   if (params.limit) {
-    const parsed = typeof params.limit === 'string' ? parseInt(params.limit, 10) : params.limit;
+    const parsed =
+      typeof params.limit === 'string'
+        ? parseInt(params.limit, 10)
+        : params.limit;
     if (!isNaN(parsed) && parsed > 0) {
       limit = Math.min(parsed, QUERY_LIMITS.maxRecords.default);
     }
   }
-  
+
   // Calculate skip (offset)
   let skip = (page - 1) * limit;
   if (params.offset) {
-    const parsed = typeof params.offset === 'string' ? parseInt(params.offset, 10) : params.offset;
+    const parsed =
+      typeof params.offset === 'string'
+        ? parseInt(params.offset, 10)
+        : params.offset;
     if (!isNaN(parsed) && parsed >= 0) {
       skip = parsed;
     }
   }
-  
+
   // Prevent excessive pagination
   const maxSkip = 10000; // Don't allow skipping more than 10k records
   skip = Math.min(skip, maxSkip);
-  
+
   return {
     skip,
     take: limit,
@@ -109,12 +116,16 @@ export function countQueryDepth(query: unknown, currentDepth = 0): number {
   if (!query || typeof query !== 'object') {
     return currentDepth;
   }
-  
+
   let maxDepth = currentDepth;
   const queryObj = query as Record<string, unknown>;
-  
+
   // Check include field
-  if (queryObj.include && typeof queryObj.include === 'object' && queryObj.include !== null) {
+  if (
+    queryObj.include &&
+    typeof queryObj.include === 'object' &&
+    queryObj.include !== null
+  ) {
     const includeObj = queryObj.include as Record<string, unknown>;
     for (const key in includeObj) {
       const subQuery = includeObj[key];
@@ -124,9 +135,13 @@ export function countQueryDepth(query: unknown, currentDepth = 0): number {
       }
     }
   }
-  
+
   // Check select field
-  if (queryObj.select && typeof queryObj.select === 'object' && queryObj.select !== null) {
+  if (
+    queryObj.select &&
+    typeof queryObj.select === 'object' &&
+    queryObj.select !== null
+  ) {
     const selectObj = queryObj.select as Record<string, unknown>;
     for (const key in selectObj) {
       const subQuery = selectObj[key];
@@ -136,7 +151,7 @@ export function countQueryDepth(query: unknown, currentDepth = 0): number {
       }
     }
   }
-  
+
   return maxDepth;
 }
 
@@ -151,13 +166,15 @@ export function validateQueryComplexity(
   errors: string[];
 } {
   const errors: string[] = [];
-  
+
   // Check query depth
   const depth = countQueryDepth(query);
   if (depth > QUERY_LIMITS.maxDepth[type]) {
-    errors.push(`Query depth ${depth} exceeds maximum ${QUERY_LIMITS.maxDepth[type]}`);
+    errors.push(
+      `Query depth ${depth} exceeds maximum ${QUERY_LIMITS.maxDepth[type]}`
+    );
   }
-  
+
   // Count total fields being selected/included
   let fieldCount = 0;
   function countFields(obj: unknown) {
@@ -170,15 +187,17 @@ export function validateQueryComplexity(
       }
     }
   }
-  
+
   const queryObj = query as Record<string, unknown>;
   if (queryObj.select) countFields(queryObj.select);
   if (queryObj.include) countFields(queryObj.include);
-  
+
   if (fieldCount > QUERY_LIMITS.maxFields.detailed) {
-    errors.push(`Query selects ${fieldCount} fields, exceeds maximum ${QUERY_LIMITS.maxFields.detailed}`);
+    errors.push(
+      `Query selects ${fieldCount} fields, exceeds maximum ${QUERY_LIMITS.maxFields.detailed}`
+    );
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
@@ -194,7 +213,7 @@ export async function executeWithTimeout<T>(
 ): Promise<T> {
   return Promise.race([
     queryFn(),
-    new Promise<T>((_, reject) => 
+    new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error('Query timeout exceeded')), timeoutMs)
     ),
   ]);
@@ -203,13 +222,13 @@ export async function executeWithTimeout<T>(
 /**
  * Create a safe paginated query
  */
-export function createSafePaginatedQuery<T extends Record<string, any>>(
+export function createSafePaginatedQuery<T extends Record<string, unknown>>(
   baseQuery: T,
   pagination: { page?: number | string; limit?: number | string },
   type: keyof typeof QUERY_LIMITS.maxRecords = 'default'
 ): T & { skip: number; take: number } {
   const { skip, take } = validatePagination(pagination);
-  
+
   return {
     ...baseQuery,
     skip,
@@ -225,7 +244,7 @@ export function sanitizeOrderBy(
   allowedFields: string[]
 ): unknown {
   if (!orderBy) return undefined;
-  
+
   // Handle array of orderBy
   if (Array.isArray(orderBy)) {
     return orderBy
@@ -235,7 +254,7 @@ export function sanitizeOrderBy(
       })
       .slice(0, 3); // Max 3 sort fields
   }
-  
+
   // Handle single orderBy object
   if (typeof orderBy === 'object' && orderBy !== null) {
     const filtered: Record<string, unknown> = {};
@@ -247,14 +266,16 @@ export function sanitizeOrderBy(
     }
     return Object.keys(filtered).length > 0 ? filtered : undefined;
   }
-  
+
   return undefined;
 }
 
 /**
  * Middleware to apply query limits
  */
-export function withQueryLimits<T extends (...args: unknown[]) => Promise<unknown>>(
+export function withQueryLimits<
+  T extends (...args: unknown[]) => Promise<unknown>,
+>(
   handler: T,
   options?: {
     type?: keyof typeof QUERY_LIMITS.maxRecords;
@@ -263,15 +284,17 @@ export function withQueryLimits<T extends (...args: unknown[]) => Promise<unknow
 ): T {
   return (async (...args: Parameters<T>) => {
     const timeout = options?.timeout || QUERY_LIMITS.timeout.default;
-    
+
     try {
-      return await executeWithTimeout(
-        () => handler(...args),
-        timeout
-      );
+      return await executeWithTimeout(() => handler(...args), timeout);
     } catch (error) {
-      if (error instanceof Error && error.message === 'Query timeout exceeded') {
-        throw new Error('Query took too long to execute. Please refine your search.');
+      if (
+        error instanceof Error &&
+        error.message === 'Query timeout exceeded'
+      ) {
+        throw new Error(
+          'Query took too long to execute. Please refine your search.'
+        );
       }
       throw error;
     }

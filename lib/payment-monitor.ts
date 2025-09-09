@@ -42,7 +42,10 @@ export async function checkPaymentPatterns(pattern: PaymentPattern): Promise<{
     }
 
     // Check unusual amounts
-    const amountCheck = await checkUnusualAmount(pattern.userId, pattern.amount);
+    const amountCheck = await checkUnusualAmount(
+      pattern.userId,
+      pattern.amount
+    );
     if (amountCheck.suspicious) {
       activities.push(amountCheck.activity);
       riskScore += amountCheck.riskPoints;
@@ -125,7 +128,11 @@ async function checkVelocity(userId: string): Promise<{
 
   return {
     suspicious: false,
-    activity: { type: 'velocity', severity: 'low', description: 'Normal velocity' },
+    activity: {
+      type: 'velocity',
+      severity: 'low',
+      description: 'Normal velocity',
+    },
     riskPoints: 0,
   };
 }
@@ -133,7 +140,10 @@ async function checkVelocity(userId: string): Promise<{
 /**
  * Check for unusual payment amounts
  */
-async function checkUnusualAmount(userId: string, amount: number): Promise<{
+async function checkUnusualAmount(
+  userId: string,
+  amount: number
+): Promise<{
   suspicious: boolean;
   activity: SuspiciousActivity;
   riskPoints: number;
@@ -153,14 +163,20 @@ async function checkUnusualAmount(userId: string, amount: number): Promise<{
     // Not enough history to determine pattern
     return {
       suspicious: false,
-      activity: { type: 'amount', severity: 'low', description: 'Insufficient history' },
+      activity: {
+        type: 'amount',
+        severity: 'low',
+        description: 'Insufficient history',
+      },
       riskPoints: 0,
     };
   }
 
   // Calculate average amount
-  const avgAmount = paymentHistory.reduce((sum, p) => sum + p.amountToman, 0) / paymentHistory.length;
-  
+  const avgAmount =
+    paymentHistory.reduce((sum, p) => sum + p.amountToman, 0) /
+    paymentHistory.length;
+
   // Check if current amount is significantly higher
   if (amount > avgAmount * 5) {
     return {
@@ -204,7 +220,7 @@ async function checkFailurePatterns(userId: string): Promise<{
   riskPoints: number;
 }> {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  
+
   const failedPayments = await prisma.payment.count({
     where: {
       order: { userId },
@@ -241,7 +257,11 @@ async function checkFailurePatterns(userId: string): Promise<{
 
   return {
     suspicious: false,
-    activity: { type: 'pattern', severity: 'low', description: 'Normal failure rate' },
+    activity: {
+      type: 'pattern',
+      severity: 'low',
+      description: 'Normal failure rate',
+    },
     riskPoints: 0,
   };
 }
@@ -255,7 +275,7 @@ async function checkMultiplePaymentMethods(userId: string): Promise<{
   riskPoints: number;
 }> {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  
+
   // Get unique payment authorities (simplified check)
   const payments = await prisma.payment.findMany({
     where: {
@@ -266,7 +286,9 @@ async function checkMultiplePaymentMethods(userId: string): Promise<{
     select: { authority: true },
   });
 
-  const uniqueAuthorities = new Set(payments.map(p => p.authority?.substring(0, 10))).size;
+  const uniqueAuthorities = new Set(
+    payments.map(p => p.authority?.substring(0, 10))
+  ).size;
 
   if (uniqueAuthorities > 5) {
     return {
@@ -283,7 +305,11 @@ async function checkMultiplePaymentMethods(userId: string): Promise<{
 
   return {
     suspicious: false,
-    activity: { type: 'pattern', severity: 'low', description: 'Normal payment method usage' },
+    activity: {
+      type: 'pattern',
+      severity: 'low',
+      description: 'Normal payment method usage',
+    },
     riskPoints: 0,
   };
 }
@@ -318,14 +344,17 @@ async function logSuspiciousActivity(
 
     // Send alert for high-risk activities
     if (riskScore > 75) {
-      Sentry.captureMessage(`High-risk payment detected for user ${pattern.userId}`, {
-        level: 'warning',
-        extra: {
-          activities,
-          riskScore,
-          orderId: pattern.orderId,
-        },
-      });
+      Sentry.captureMessage(
+        `High-risk payment detected for user ${pattern.userId}`,
+        {
+          level: 'warning',
+          extra: {
+            activities,
+            riskScore,
+            orderId: pattern.orderId,
+          },
+        }
+      );
     }
   } catch (error) {
     console.error('Failed to log suspicious activity:', error);

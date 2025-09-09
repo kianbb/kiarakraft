@@ -6,10 +6,16 @@ import { z } from 'zod';
 // XSS sanitization helper
 const sanitizeText = (text: string): string => {
   return text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+    .replace(/<[^>]+on\w+\s*=[^>]*>/gi, '') // Remove tags with event handlers
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handler attributes
+    .replace(/on\w+\s*=/gi, '') // Remove any remaining event handlers
     .replace(/[<>]/g, '') // Remove angle brackets
     .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
-    .replace(/script/gi, ''); // Remove script tags
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/data:text\/html/gi, '') // Remove data URIs
+    .replace(/data:application\/javascript/gi, '')
+    .replace(/data:text\/javascript/gi, '');
 };
 
 const createReviewSchema = z.object({
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
       (Date.now() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24)
     );
     const REVIEW_WINDOW_DAYS = 90;
-    
+
     if (daysSinceDelivery > REVIEW_WINDOW_DAYS) {
       return NextResponse.json(
         { error: `Review window of ${REVIEW_WINDOW_DAYS} days has expired` },

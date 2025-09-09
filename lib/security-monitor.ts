@@ -10,16 +10,33 @@ import { createAuditLog, AuditAction } from '@/lib/audit-log';
 // Security thresholds
 const THRESHOLDS = {
   failedLogins: {
-    perUser: 5,      // Max failed logins per user per hour
-    perIP: 10,       // Max failed logins per IP per hour
-    global: 100,     // Max global failed logins per hour
+    perUser: 5, // Max failed logins per user per hour
+    perIP: 10, // Max failed logins per IP per hour
+    global: 100, // Max global failed logins per hour
   },
   rateLimit: {
-    violations: 20,  // Max rate limit violations per hour
+    violations: 20, // Max rate limit violations per hour
   },
   suspiciousPatterns: {
-    sqlInjection: ['union', 'select', 'drop', 'insert', 'update', 'delete', '--', '/*', '*/'],
-    xss: ['<script', 'javascript:', 'onerror', 'onload', 'alert(', 'document.cookie'],
+    sqlInjection: [
+      'union',
+      'select',
+      'drop',
+      'insert',
+      'update',
+      'delete',
+      '--',
+      '/*',
+      '*/',
+    ],
+    xss: [
+      '<script',
+      'javascript:',
+      'onerror',
+      'onload',
+      'alert(',
+      'document.cookie',
+    ],
     pathTraversal: ['../', '..\\', '%2e%2e', '0x2e0x2e'],
   },
 };
@@ -48,7 +65,7 @@ export enum SecurityEventType {
  */
 export function detectSQLInjection(input: string): boolean {
   const lowercaseInput = input.toLowerCase();
-  return THRESHOLDS.suspiciousPatterns.sqlInjection.some(pattern => 
+  return THRESHOLDS.suspiciousPatterns.sqlInjection.some(pattern =>
     lowercaseInput.includes(pattern)
   );
 }
@@ -58,7 +75,7 @@ export function detectSQLInjection(input: string): boolean {
  */
 export function detectXSS(input: string): boolean {
   const lowercaseInput = input.toLowerCase();
-  return THRESHOLDS.suspiciousPatterns.xss.some(pattern => 
+  return THRESHOLDS.suspiciousPatterns.xss.some(pattern =>
     lowercaseInput.includes(pattern)
   );
 }
@@ -67,7 +84,7 @@ export function detectXSS(input: string): boolean {
  * Detect path traversal attempts
  */
 export function detectPathTraversal(input: string): boolean {
-  return THRESHOLDS.suspiciousPatterns.pathTraversal.some(pattern => 
+  return THRESHOLDS.suspiciousPatterns.pathTraversal.some(pattern =>
     input.includes(pattern)
   );
 }
@@ -135,21 +152,21 @@ export async function checkBruteForce(
   type: 'user' | 'ip'
 ): Promise<boolean> {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  
+
   const failedAttempts = await prisma.auditLog.count({
     where: {
       action: AuditAction.LOGIN_FAILED,
       timestamp: { gte: oneHourAgo },
-      ...(type === 'user' 
+      ...(type === 'user'
         ? { userEmail: identifier }
-        : { ipAddress: identifier }
-      ),
+        : { ipAddress: identifier }),
     },
   });
 
-  const threshold = type === 'user' 
-    ? THRESHOLDS.failedLogins.perUser 
-    : THRESHOLDS.failedLogins.perIP;
+  const threshold =
+    type === 'user'
+      ? THRESHOLDS.failedLogins.perUser
+      : THRESHOLDS.failedLogins.perIP;
 
   if (failedAttempts >= threshold) {
     await logSecurityEvent(
@@ -180,18 +197,18 @@ export async function analyzeRequest(request: Request): Promise<{
   try {
     const url = new URL(request.url);
     const urlPath = url.pathname + url.search;
-    
+
     // Check URL for attacks
     if (detectSQLInjection(urlPath)) {
       threats.push(SecurityEventType.SQL_INJECTION_ATTEMPT);
       level = AlertLevel.CRITICAL;
     }
-    
+
     if (detectXSS(urlPath)) {
       threats.push(SecurityEventType.XSS_ATTEMPT);
       level = AlertLevel.CRITICAL;
     }
-    
+
     if (detectPathTraversal(urlPath)) {
       threats.push(SecurityEventType.PATH_TRAVERSAL_ATTEMPT);
       level = AlertLevel.CRITICAL;
@@ -203,7 +220,7 @@ export async function analyzeRequest(request: Request): Promise<{
       'x-original-url',
       'x-rewrite-url',
     ];
-    
+
     for (const header of suspiciousHeaders) {
       const value = request.headers.get(header);
       if (value && (detectPathTraversal(value) || detectXSS(value))) {
@@ -214,10 +231,11 @@ export async function analyzeRequest(request: Request): Promise<{
 
     // Log threats if found
     if (threats.length > 0) {
-      const ipAddress = request.headers.get('x-forwarded-for') || 
-                       request.headers.get('x-real-ip') || 
-                       'unknown';
-      
+      const ipAddress =
+        request.headers.get('x-forwarded-for') ||
+        request.headers.get('x-real-ip') ||
+        'unknown';
+
       await logSecurityEvent(
         threats[0], // Log the most severe threat
         {
@@ -229,7 +247,6 @@ export async function analyzeRequest(request: Request): Promise<{
         level
       );
     }
-
   } catch (error) {
     console.error('Error analyzing request:', error);
   }
@@ -253,32 +270,34 @@ export async function getSecurityMetrics(hours: number = 24): Promise<{
 }> {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-  const [failedLogins, rateLimitViolations, securityEvents] = await Promise.all([
-    prisma.auditLog.count({
-      where: {
-        action: AuditAction.LOGIN_FAILED,
-        timestamp: { gte: since },
-      },
-    }),
-    prisma.auditLog.count({
-      where: {
-        action: AuditAction.SECURITY_RATE_LIMIT_EXCEEDED,
-        timestamp: { gte: since },
-      },
-    }),
-    prisma.auditLog.count({
-      where: {
-        action: {
-          startsWith: 'SECURITY_',
+  const [failedLogins, rateLimitViolations, securityEvents] = await Promise.all(
+    [
+      prisma.auditLog.count({
+        where: {
+          action: AuditAction.LOGIN_FAILED,
+          timestamp: { gte: since },
         },
-        timestamp: { gte: since },
-      },
-    }),
-  ]);
+      }),
+      prisma.auditLog.count({
+        where: {
+          action: AuditAction.SECURITY_RATE_LIMIT_EXCEEDED,
+          timestamp: { gte: since },
+        },
+      }),
+      prisma.auditLog.count({
+        where: {
+          action: {
+            startsWith: 'SECURITY_',
+          },
+          timestamp: { gte: since },
+        },
+      }),
+    ]
+  );
 
   // Calculate risk level
   let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
-  
+
   if (securityEvents > 50 || failedLogins > 100) {
     riskLevel = 'CRITICAL';
   } else if (securityEvents > 20 || failedLogins > 50) {
@@ -312,15 +331,18 @@ export function withSecurityMonitoring<T extends unknown[]>(
   return async (request: Request, ...rest: T): Promise<Response> => {
     // Analyze request for threats
     const analysis = await analyzeRequest(request);
-    
+
     // Block critical threats
     if (!analysis.safe && analysis.level === AlertLevel.CRITICAL) {
-      return new Response(JSON.stringify({ error: 'Security threat detected' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Security threat detected' }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
-    
+
     // Process request
     return handler(request, ...rest);
   };

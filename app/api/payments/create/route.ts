@@ -154,10 +154,11 @@ export const POST = withRateLimit(
       const callbackUrl = `${chosenBase}/api/payments/callback`;
 
       // Check for suspicious payment patterns
-      const clientIP = request.headers.get('x-forwarded-for') || 
-                      request.headers.get('x-real-ip') || 
-                      undefined;
-      
+      const clientIP =
+        request.headers.get('x-forwarded-for') ||
+        request.headers.get('x-real-ip') ||
+        undefined;
+
       const patternCheck = await checkPaymentPatterns({
         userId: user.id,
         orderId,
@@ -169,7 +170,10 @@ export const POST = withRateLimit(
 
       // Log but don't block suspicious payments (monitor mode)
       if (patternCheck.suspicious) {
-        console.warn(`Suspicious payment pattern detected for user ${user.id}:`, patternCheck.activities);
+        console.warn(
+          `Suspicious payment pattern detected for user ${user.id}:`,
+          patternCheck.activities
+        );
         Sentry.captureMessage('Suspicious payment pattern detected', {
           level: 'warning',
           extra: {

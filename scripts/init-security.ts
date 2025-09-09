@@ -5,7 +5,10 @@
  * Run this to check security configuration and generate secure secrets
  */
 
-import { generateSecureSecret, validateSecurityConfig } from '../lib/security-config';
+import {
+  generateSecureSecret,
+  validateSecurityConfig,
+} from '../lib/security-config';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
@@ -16,7 +19,7 @@ const rl = readline.createInterface({
 });
 
 function question(prompt: string): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     rl.question(prompt, resolve);
   });
 }
@@ -43,7 +46,9 @@ async function main() {
 
   if (validation.suggestions.length > 0) {
     console.log('💡 Suggestions:');
-    validation.suggestions.forEach(suggestion => console.log(`   • ${suggestion}`));
+    validation.suggestions.forEach(suggestion =>
+      console.log(`   • ${suggestion}`)
+    );
     console.log('');
   }
 
@@ -110,31 +115,33 @@ async function main() {
   // Security checklist
   console.log('\n📋 Security Checklist:\n');
   const checklist = [
-    { 
+    {
       item: 'NEXTAUTH_SECRET is strong',
-      checked: !validation.errors.some(e => e.includes('NEXTAUTH_SECRET'))
+      checked: !validation.errors.some(e => e.includes('NEXTAUTH_SECRET')),
     },
     {
       item: 'Database uses SSL',
-      checked: process.env.DATABASE_URL?.includes('sslmode=require') || false
+      checked: process.env.DATABASE_URL?.includes('sslmode=require') || false,
     },
     {
       item: 'Production uses HTTPS',
-      checked: process.env.NEXTAUTH_URL?.startsWith('https://') || 
-               process.env.NODE_ENV !== 'production'
+      checked:
+        process.env.NEXTAUTH_URL?.startsWith('https://') ||
+        process.env.NODE_ENV !== 'production',
     },
     {
       item: 'Seed endpoint disabled in production',
-      checked: process.env.ENABLE_SEED_ENDPOINT !== 'true' || 
-               process.env.NODE_ENV !== 'production'
+      checked:
+        process.env.ENABLE_SEED_ENDPOINT !== 'true' ||
+        process.env.NODE_ENV !== 'production',
     },
     {
       item: 'Email provider configured',
-      checked: !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST)
+      checked: !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST),
     },
     {
       item: 'Cloudinary configured for images',
-      checked: !!process.env.CLOUDINARY_API_SECRET
+      checked: !!process.env.CLOUDINARY_API_SECRET,
     },
   ];
 
@@ -146,16 +153,22 @@ async function main() {
   const totalItems = checklist.length;
   const percentage = Math.round((passedItems / totalItems) * 100);
 
-  console.log(`\n🎯 Security Score: ${passedItems}/${totalItems} (${percentage}%)\n`);
+  console.log(
+    `\n🎯 Security Score: ${passedItems}/${totalItems} (${percentage}%)\n`
+  );
 
   if (percentage === 100) {
     console.log('🎉 Excellent! Your security configuration is complete.');
   } else if (percentage >= 80) {
     console.log('👍 Good! Your security configuration is mostly complete.');
   } else if (percentage >= 60) {
-    console.log('⚠️  Fair. Some important security configurations are missing.');
+    console.log(
+      '⚠️  Fair. Some important security configurations are missing.'
+    );
   } else {
-    console.log('❌ Poor. Please address the security issues before deploying.');
+    console.log(
+      '❌ Poor. Please address the security issues before deploying.'
+    );
   }
 
   rl.close();

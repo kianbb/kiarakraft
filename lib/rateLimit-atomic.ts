@@ -23,103 +23,111 @@ export function createAtomicRateLimiter(config: RateLimitConfig) {
     resetTime: number;
   }> {
     // Generate unique identifier for this request
-    const keyGenerator = config.keyGenerator || ((req) => {
-      const ip = req.headers.get('x-forwarded-for') ||
-                req.headers.get('x-real-ip') ||
-                req.headers.get('cf-connecting-ip') ||
-                'unknown';
-      const endpoint = new URL(req.url).pathname;
-      return `${ip}:${endpoint}`;
-    });
-    
+    const keyGenerator =
+      config.keyGenerator ||
+      (req => {
+        const ip =
+          req.headers.get('x-forwarded-for') ||
+          req.headers.get('x-real-ip') ||
+          req.headers.get('cf-connecting-ip') ||
+          'unknown';
+        const endpoint = new URL(req.url).pathname;
+        return `${ip}:${endpoint}`;
+      });
+
     const identifier = keyGenerator(request);
     const now = new Date();
     const windowEnd = new Date(now.getTime() + config.windowMs);
 
     try {
       // Use a transaction with row-level locking to prevent race conditions
-      const result = await prisma.$transaction(async (tx) => {
-        // Try to find and lock the rate limit entry
-        // Using raw SQL for SELECT ... FOR UPDATE to ensure row-level lock
-        const existing = await tx.$queryRaw<Array<{
-          id: string;
-          identifier: string;
-          count: number;
-          resetTime: Date;
-        }>>`
+      const result = await prisma.$transaction(
+        async tx => {
+          // Try to find and lock the rate limit entry
+          // Using raw SQL for SELECT ... FOR UPDATE to ensure row-level lock
+          const existing = await tx.$queryRaw<
+            Array<{
+              id: string;
+              identifier: string;
+              count: number;
+              resetTime: Date;
+            }>
+          >`
           SELECT * FROM "RateLimit"
           WHERE identifier = ${identifier}
           FOR UPDATE
         `;
 
-        const existingEntry = existing[0];
+          const existingEntry = existing[0];
 
-        // If no entry exists, create one
-        if (!existingEntry) {
-          const created = await tx.rateLimit.create({
-            data: {
-              identifier,
+          // If no entry exists, create one
+          if (!existingEntry) {
+            const created = await tx.rateLimit.create({
+              data: {
+                identifier,
+                count: 1,
+                resetTime: windowEnd,
+              },
+            });
+
+            return {
+              allowed: true,
+              remainingRequests: config.maxRequests - 1,
+              resetTime: windowEnd.getTime(),
               count: 1,
-              resetTime: windowEnd,
-            },
-          });
+            };
+          }
 
-          return {
-            allowed: true,
-            remainingRequests: config.maxRequests - 1,
-            resetTime: windowEnd.getTime(),
-            count: 1,
-          };
-        }
+          // If the window has expired, reset the counter
+          if (existingEntry.resetTime < now) {
+            const updated = await tx.rateLimit.update({
+              where: { id: existingEntry.id },
+              data: {
+                count: 1,
+                resetTime: windowEnd,
+              },
+            });
 
-        // If the window has expired, reset the counter
-        if (existingEntry.resetTime < now) {
+            return {
+              allowed: true,
+              remainingRequests: config.maxRequests - 1,
+              resetTime: windowEnd.getTime(),
+              count: 1,
+            };
+          }
+
+          // Check if limit is exceeded
+          if (existingEntry.count >= config.maxRequests) {
+            return {
+              allowed: false,
+              remainingRequests: 0,
+              resetTime: existingEntry.resetTime.getTime(),
+              count: existingEntry.count,
+            };
+          }
+
+          // Increment the counter atomically
           const updated = await tx.rateLimit.update({
             where: { id: existingEntry.id },
             data: {
-              count: 1,
-              resetTime: windowEnd,
+              count: {
+                increment: 1,
+              },
             },
           });
 
           return {
             allowed: true,
-            remainingRequests: config.maxRequests - 1,
-            resetTime: windowEnd.getTime(),
-            count: 1,
-          };
-        }
-
-        // Check if limit is exceeded
-        if (existingEntry.count >= config.maxRequests) {
-          return {
-            allowed: false,
-            remainingRequests: 0,
+            remainingRequests: config.maxRequests - updated.count,
             resetTime: existingEntry.resetTime.getTime(),
-            count: existingEntry.count,
+            count: updated.count,
           };
+        },
+        {
+          isolationLevel: 'Serializable', // Highest isolation level to prevent race conditions
+          timeout: 5000, // 5 second timeout
         }
-
-        // Increment the counter atomically
-        const updated = await tx.rateLimit.update({
-          where: { id: existingEntry.id },
-          data: {
-            count: {
-              increment: 1,
-            },
-          },
-        });
-
-        return {
-          allowed: true,
-          remainingRequests: config.maxRequests - updated.count,
-          resetTime: existingEntry.resetTime.getTime(),
-          count: updated.count,
-        };
-      }, {
-        isolationLevel: 'Serializable', // Highest isolation level to prevent race conditions
-        timeout: 5000, // 5 second timeout
-      });
+      );
 
       return {
         allowed: result.allowed,
@@ -128,7 +136,7 @@ export function createAtomicRateLimiter(config: RateLimitConfig) {
       };
     } catch (error) {
       console.error('Atomic rate limiting error:', error);
-      
+
       // On database error, fail open (allow request) to prevent service disruption
       // But log the incident for monitoring
       return {
@@ -152,7 +160,7 @@ export async function cleanupExpiredRateLimits(): Promise<number> {
         },
       },
     });
-    
+
     return result.count;
   } catch (error) {
     console.error('Failed to cleanup expired rate limits:', error);
@@ -189,7 +197,8 @@ export function withAtomicRateLimit<T extends unknown[]>(
   handler: (request: NextRequest, ...rest: T) => Promise<Response>
 ) {
   return async (request: NextRequest, ...rest: T): Promise<Response> => {
-    const { allowed, remainingRequests, resetTime } = await rateLimiter(request);
+    const { allowed, remainingRequests, resetTime } =
+      await rateLimiter(request);
 
     if (!allowed) {
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);
@@ -231,12 +240,18 @@ export function withAtomicRateLimit<T extends unknown[]>(
 }
 
 // Schedule periodic cleanup (if running in a long-lived process)
-if (typeof setInterval !== 'undefined' && process.env.NODE_ENV === 'production') {
+if (
+  typeof setInterval !== 'undefined' &&
+  process.env.NODE_ENV === 'production'
+) {
   // Cleanup every 5 minutes
-  setInterval(async () => {
-    const cleaned = await cleanupExpiredRateLimits();
-    if (cleaned > 0) {
-      console.log(`Cleaned up ${cleaned} expired rate limit entries`);
-    }
-  }, 5 * 60 * 1000);
+  setInterval(
+    async () => {
+      const cleaned = await cleanupExpiredRateLimits();
+      if (cleaned > 0) {
+        console.log(`Cleaned up ${cleaned} expired rate limit entries`);
+      }
+    },
+    5 * 60 * 1000
+  );
 }

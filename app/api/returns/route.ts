@@ -7,13 +7,24 @@ import { z } from 'zod';
 const createReturnSchema = z.object({
   orderId: z.string().min(1).max(50),
   orderItemId: z.string().min(1).max(50),
-  reason: z.string().min(10).max(1000).transform((val) => {
-    // Sanitize to prevent XSS
-    return val
-      .replace(/[<>]/g, '') // Remove angle brackets
-      .replace(/javascript:/gi, '') // Remove javascript: protocol
-      .replace(/on\w+\s*=/gi, ''); // Remove event handlers
-  }),
+  reason: z
+    .string()
+    .min(10)
+    .max(1000)
+    .transform(val => {
+      // Comprehensive sanitization to prevent XSS
+      return val
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+        .replace(/<[^>]+on\w+\s*=[^>]*>/gi, '') // Remove tags with event handlers
+        .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handler attributes
+        .replace(/on\w+\s*=/gi, '') // Remove any remaining event handlers
+        .replace(/[<>]/g, '') // Remove angle brackets
+        .replace(/javascript:/gi, '') // Remove javascript: protocol
+        .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+        .replace(/data:text\/html/gi, '') // Remove data URIs
+        .replace(/data:application\/javascript/gi, '')
+        .replace(/data:text\/javascript/gi, '');
+    }),
 });
 
 export async function GET(request: NextRequest) {
@@ -27,7 +38,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const orderId = searchParams.get('orderId');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '10')), 50);
+    const limit = Math.min(
+      Math.max(1, parseInt(searchParams.get('limit') || '10')),
+      50
+    );
     const skip = (page - 1) * limit;
 
     const where: Prisma.ReturnRequestWhereInput = {};
@@ -159,7 +173,7 @@ export async function POST(request: NextRequest) {
       (Date.now() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24)
     );
     const RETURN_WINDOW_DAYS = 30;
-    
+
     if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
       return NextResponse.json(
         { error: `Return window of ${RETURN_WINDOW_DAYS} days has expired` },

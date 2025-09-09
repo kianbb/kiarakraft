@@ -79,7 +79,7 @@ export async function toggleWishlistAction(
       const wishlistCount = await prisma.wishlistItem.count({
         where: { userId },
       });
-      
+
       const MAX_WISHLIST_ITEMS = 100;
       if (wishlistCount >= MAX_WISHLIST_ITEMS) {
         return {
@@ -87,7 +87,7 @@ export async function toggleWishlistAction(
           error: `Maximum of ${MAX_WISHLIST_ITEMS} wishlist items allowed`,
         };
       }
-      
+
       // Add to wishlist
       await prisma.wishlistItem.create({
         data: {

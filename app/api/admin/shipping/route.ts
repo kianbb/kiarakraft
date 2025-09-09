@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const method = searchParams.get('method');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20')), 100);
+    const limit = Math.min(
+      Math.max(1, parseInt(searchParams.get('limit') || '20')),
+      100
+    );
     const search = searchParams.get('search');
 
     // Build where clause

@@ -24,7 +24,7 @@ export default function SecureAnalytics() {
   }
 
   const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
-  
+
   if (!plausibleDomain) {
     return null;
   }
@@ -40,7 +40,7 @@ export default function SecureAnalytics() {
         // Note: Plausible doesn't provide static SRI hashes as their script is dynamically generated
         // Instead, we rely on CSP to ensure the script comes from plausible.io
       />
-      
+
       {/* If we had other external scripts with SRI support: */}
       {/* Example with SRI:
       <Script
@@ -83,10 +83,10 @@ export async function generateSRIHash(url: string): Promise<string> {
  * Component to load external scripts with dynamic SRI generation
  * WARNING: Only use this in development to generate SRI hashes
  */
-export function SecureScriptLoader({ 
-  src, 
+export function SecureScriptLoader({
+  src,
   strategy = 'afterInteractive',
-  ...props 
+  ...props
 }: {
   src: string;
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker';
@@ -94,7 +94,7 @@ export function SecureScriptLoader({
 }) {
   // In production, you should have pre-computed SRI hashes
   // This is just for demonstration
-  
+
   return (
     <Script
       src={src}

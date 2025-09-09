@@ -45,12 +45,16 @@ export function validateNextAuthSecret(secret?: string): {
   // Check for low entropy (all same character, sequential, etc.)
   const uniqueChars = new Set(secret).size;
   if (uniqueChars < 10) {
-    errors.push('NEXTAUTH_SECRET has low entropy (not enough unique characters)');
+    errors.push(
+      'NEXTAUTH_SECRET has low entropy (not enough unique characters)'
+    );
   }
 
   // Check for common patterns
   if (/^[a-z]+$/i.test(secret) || /^[0-9]+$/.test(secret)) {
-    errors.push('NEXTAUTH_SECRET should contain a mix of characters, not just letters or numbers');
+    errors.push(
+      'NEXTAUTH_SECRET should contain a mix of characters, not just letters or numbers'
+    );
   }
 
   return {
@@ -67,15 +71,15 @@ export function getSecureSessionConfig(): {
   updateAge: number;
 } {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   // Shorter sessions in production for better security
   return {
-    maxAge: isProduction 
-      ? 8 * 60 * 60  // 8 hours in production
+    maxAge: isProduction
+      ? 8 * 60 * 60 // 8 hours in production
       : 24 * 60 * 60, // 24 hours in development
     updateAge: isProduction
-      ? 30 * 60      // 30 minutes in production
-      : 60 * 60,     // 1 hour in development
+      ? 30 * 60 // 30 minutes in production
+      : 60 * 60, // 1 hour in development
   };
 }
 
@@ -120,16 +124,25 @@ export function validateSecurityConfig(): {
   }
 
   // Check for seed endpoint in production
-  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SEED_ENDPOINT === 'true') {
-    warnings.push('ENABLE_SEED_ENDPOINT is enabled in production - this should be disabled');
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.ENABLE_SEED_ENDPOINT === 'true'
+  ) {
+    warnings.push(
+      'ENABLE_SEED_ENDPOINT is enabled in production - this should be disabled'
+    );
     if (!process.env.SEED_TOKEN || process.env.SEED_TOKEN.length < 32) {
-      errors.push('SEED_TOKEN must be at least 32 characters when seed endpoint is enabled');
+      errors.push(
+        'SEED_TOKEN must be at least 32 characters when seed endpoint is enabled'
+      );
     }
   }
 
   // Check Cloudinary configuration
   if (!process.env.CLOUDINARY_API_SECRET) {
-    warnings.push('CLOUDINARY_API_SECRET is not configured - image uploads will fail');
+    warnings.push(
+      'CLOUDINARY_API_SECRET is not configured - image uploads will fail'
+    );
   }
 
   // Check email configuration
@@ -139,7 +152,10 @@ export function validateSecurityConfig(): {
 
   // Check payment configuration
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.PAYMENT_GATEWAY || process.env.PAYMENT_GATEWAY === 'OFFLINE') {
+    if (
+      !process.env.PAYMENT_GATEWAY ||
+      process.env.PAYMENT_GATEWAY === 'OFFLINE'
+    ) {
       warnings.push('Payment gateway is set to OFFLINE in production');
     }
     if (process.env.PAYMENT_STUB_SECRET) {
@@ -181,7 +197,9 @@ export function initializeSecurityConfig(): void {
     console.error('🛑 CRITICAL: Security configuration errors in production!');
     if (validation.suggestions.length > 0) {
       console.log('\n💡 Suggestions:');
-      validation.suggestions.forEach(suggestion => console.log(`   • ${suggestion}`));
+      validation.suggestions.forEach(suggestion =>
+        console.log(`   • ${suggestion}`)
+      );
     }
     // In production, you might want to prevent startup with invalid config
     // throw new Error('Security configuration validation failed');

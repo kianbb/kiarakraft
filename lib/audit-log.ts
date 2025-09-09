@@ -14,7 +14,7 @@ export enum AuditAction {
   LOGOUT = 'LOGOUT',
   PASSWORD_RESET = 'PASSWORD_RESET',
   PASSWORD_CHANGED = 'PASSWORD_CHANGED',
-  
+
   // Admin actions
   ADMIN_SELLER_VERIFY = 'ADMIN_SELLER_VERIFY',
   ADMIN_SELLER_REJECT = 'ADMIN_SELLER_REJECT',
@@ -24,23 +24,23 @@ export enum AuditAction {
   ADMIN_USER_DELETE = 'ADMIN_USER_DELETE',
   ADMIN_USER_UPDATE = 'ADMIN_USER_UPDATE',
   ADMIN_SEED_DATABASE = 'ADMIN_SEED_DATABASE',
-  
+
   // Seller actions
   SELLER_PRODUCT_CREATE = 'SELLER_PRODUCT_CREATE',
   SELLER_PRODUCT_UPDATE = 'SELLER_PRODUCT_UPDATE',
   SELLER_PRODUCT_DELETE = 'SELLER_PRODUCT_DELETE',
   SELLER_ORDER_UPDATE = 'SELLER_ORDER_UPDATE',
-  
+
   // Security events
   SECURITY_RATE_LIMIT_EXCEEDED = 'SECURITY_RATE_LIMIT_EXCEEDED',
   SECURITY_CSRF_VIOLATION = 'SECURITY_CSRF_VIOLATION',
   SECURITY_INVALID_FILE_UPLOAD = 'SECURITY_INVALID_FILE_UPLOAD',
   SECURITY_SUSPICIOUS_ACTIVITY = 'SECURITY_SUSPICIOUS_ACTIVITY',
-  
+
   // Data operations
   DATA_EXPORT = 'DATA_EXPORT',
   DATA_DELETE = 'DATA_DELETE',
-  
+
   // Payment events
   PAYMENT_INITIATED = 'PAYMENT_INITIATED',
   PAYMENT_SUCCESS = 'PAYMENT_SUCCESS',
@@ -64,34 +64,49 @@ export interface AuditLogEntry {
 /**
  * Filter sensitive data from metadata before storing in audit log
  */
-function filterSensitiveData(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+function filterSensitiveData(
+  metadata: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
   if (!metadata) return undefined;
-  
+
   const filtered = { ...metadata };
   const sensitiveKeys = [
-    'password', 'secret', 'token', 'key', 'credential',
-    'api_key', 'apiKey', 'auth', 'authorization',
-    'cookie', 'session', 'credit_card', 'creditCard',
-    'ssn', 'social_security', 'passport', 'license'
+    'password',
+    'secret',
+    'token',
+    'key',
+    'credential',
+    'api_key',
+    'apiKey',
+    'auth',
+    'authorization',
+    'cookie',
+    'session',
+    'credit_card',
+    'creditCard',
+    'ssn',
+    'social_security',
+    'passport',
+    'license',
   ];
-  
+
   // Recursively filter sensitive keys
   function filterObject(obj: unknown): unknown {
     if (typeof obj !== 'object' || obj === null) return obj;
-    
+
     if (Array.isArray(obj)) {
       return obj.map(item => filterObject(item));
     }
-    
+
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       const lowerKey = key.toLowerCase();
-      
+
       // Check if key contains sensitive words
-      const isSensitive = sensitiveKeys.some(sensitive => 
+      const isSensitive = sensitiveKeys.some(sensitive =>
         lowerKey.includes(sensitive.toLowerCase())
       );
-      
+
       if (isSensitive) {
         result[key] = '[REDACTED]';
       } else if (typeof value === 'object' && value !== null) {
@@ -102,7 +117,7 @@ function filterSensitiveData(metadata: Record<string, unknown> | undefined): Rec
     }
     return result;
   }
-  
+
   return filterObject(filtered) as Record<string, unknown>;
 }
 
@@ -114,7 +129,7 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
     // Filter sensitive data from metadata
     const filteredMetadata = filterSensitiveData(entry.metadata);
     const timestamp = new Date();
-    
+
     // Generate HMAC signature for integrity protection
     const signature = generateAuditSignature({
       action: entry.action,
@@ -125,7 +140,7 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
       success: entry.success,
       timestamp,
     });
-    
+
     // Store in database
     await prisma.auditLog.create({
       data: {
@@ -135,7 +150,9 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
         userRole: entry.userRole || null,
         targetId: entry.targetId || null,
         targetType: entry.targetType || null,
-        metadata: filteredMetadata ? JSON.parse(JSON.stringify(filteredMetadata)) : null,
+        metadata: filteredMetadata
+          ? JSON.parse(JSON.stringify(filteredMetadata))
+          : null,
         ipAddress: entry.ipAddress || null,
         userAgent: entry.userAgent || null,
         success: entry.success,
@@ -185,9 +202,9 @@ export function extractRequestMetadata(request: Request): {
     request.headers.get('x-real-ip') ||
     request.headers.get('cf-connecting-ip') ||
     'unknown';
-    
+
   const userAgent = request.headers.get('user-agent') || 'unknown';
-  
+
   return { ipAddress, userAgent };
 }
 
@@ -223,10 +240,12 @@ export async function queryAuditLogs(filters: {
  * Clean up old audit logs (for GDPR compliance)
  * Keep logs for 90 days by default
  */
-export async function cleanupOldAuditLogs(retentionDays: number = 90): Promise<number> {
+export async function cleanupOldAuditLogs(
+  retentionDays: number = 90
+): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-  
+
   const result = await prisma.auditLog.deleteMany({
     where: {
       timestamp: {
@@ -234,7 +253,7 @@ export async function cleanupOldAuditLogs(retentionDays: number = 90): Promise<n
       },
     },
   });
-  
+
   if (process.env.NODE_ENV === 'development') {
     console.log(`Cleaned up ${result.count} old audit log entries`);
   }
@@ -247,7 +266,7 @@ export async function cleanupOldAuditLogs(retentionDays: number = 90): Promise<n
 export async function getSuspiciousActivitySummary(hours: number = 24) {
   const since = new Date();
   since.setHours(since.getHours() - hours);
-  
+
   const suspiciousEvents = await prisma.auditLog.findMany({
     where: {
       timestamp: { gte: since },
@@ -259,14 +278,14 @@ export async function getSuspiciousActivitySummary(hours: number = 24) {
     },
     orderBy: { timestamp: 'desc' },
   });
-  
+
   // Group by IP address to identify potential attackers
   const byIp = new Map<string, number>();
-  suspiciousEvents.forEach((event) => {
+  suspiciousEvents.forEach(event => {
     const ip = event.ipAddress || 'unknown';
     byIp.set(ip, (byIp.get(ip) || 0) + 1);
   });
-  
+
   return {
     totalEvents: suspiciousEvents.length,
     uniqueIps: byIp.size,
@@ -290,11 +309,11 @@ export function withAuditLog<T extends unknown[]>(
     const metadata = extractRequestMetadata(request);
     let success = false;
     let errorMessage: string | undefined;
-    
+
     try {
       const response = await handler(...args);
       success = response.status < 400;
-      
+
       if (!success) {
         const body = await response.text();
         try {
@@ -304,7 +323,7 @@ export function withAuditLog<T extends unknown[]>(
           errorMessage = `HTTP ${response.status}`;
         }
       }
-      
+
       // Log the action
       await createAuditLog({
         action,
@@ -312,7 +331,7 @@ export function withAuditLog<T extends unknown[]>(
         success,
         errorMessage,
       });
-      
+
       return response;
     } catch (error) {
       // Log the failed action
@@ -322,7 +341,7 @@ export function withAuditLog<T extends unknown[]>(
         success: false,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       throw error;
     }
   };

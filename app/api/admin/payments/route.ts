@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20')), 100);
+    const limit = Math.min(
+      Math.max(1, parseInt(searchParams.get('limit') || '20')),
+      100
+    );
     const offset = (page - 1) * limit;
 
     const where = status

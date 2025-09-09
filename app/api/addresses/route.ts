@@ -53,11 +53,13 @@ export async function POST(request: Request) {
     const addressCount = await prisma.address.count({
       where: { userId: session.user.id },
     });
-    
+
     const MAX_ADDRESSES_PER_USER = 10;
     if (addressCount >= MAX_ADDRESSES_PER_USER) {
       return NextResponse.json(
-        { error: `Maximum of ${MAX_ADDRESSES_PER_USER} addresses allowed per user` },
+        {
+          error: `Maximum of ${MAX_ADDRESSES_PER_USER} addresses allowed per user`,
+        },
         { status: 400 }
       );
     }

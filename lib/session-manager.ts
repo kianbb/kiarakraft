@@ -68,7 +68,7 @@ export async function isSessionValid(
     const passwordChangedTimestamp = Math.floor(
       user.passwordChangedAt.getTime() / 1000
     );
-    
+
     return tokenIssuedAt >= passwordChangedTimestamp;
   } catch (error) {
     console.error('Failed to check session validity:', error);
@@ -82,7 +82,7 @@ export async function isSessionValid(
  */
 export async function clearAuthCookies(): Promise<void> {
   const cookieStore = await cookies();
-  
+
   // NextAuth session cookies
   const authCookies = [
     'authjs.callback-url',

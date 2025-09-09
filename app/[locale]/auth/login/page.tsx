@@ -65,7 +65,7 @@ export default function LoginPage() {
         const callbackUrl = new URLSearchParams(window.location.search).get(
           'callbackUrl'
         );
-        
+
         // Validate callbackUrl to prevent open redirect attacks
         let safeRedirectUrl = `/${locale}`;
         if (callbackUrl) {
@@ -75,7 +75,10 @@ export default function LoginPage() {
             // Only allow redirects to the same origin or relative paths
             if (url.origin === window.location.origin) {
               safeRedirectUrl = url.pathname + url.search + url.hash;
-            } else if (callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+            } else if (
+              callbackUrl.startsWith('/') &&
+              !callbackUrl.startsWith('//')
+            ) {
               // Allow relative paths that don't start with //
               safeRedirectUrl = callbackUrl;
             }
@@ -83,7 +86,7 @@ export default function LoginPage() {
             // Invalid URL, use default redirect
           }
         }
-        
+
         router.push(safeRedirectUrl);
         router.refresh();
       }

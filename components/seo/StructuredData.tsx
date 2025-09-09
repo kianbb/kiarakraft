@@ -7,7 +7,7 @@ interface StructuredDataProps {
 export function StructuredData({ data }: StructuredDataProps) {
   // Safely sanitize and stringify the data to prevent XSS
   const safeJsonLd = createSafeJsonLd(data);
-  
+
   return (
     <script
       type="application/ld+json"

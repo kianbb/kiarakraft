@@ -8,16 +8,16 @@ import { NextRequest, NextResponse } from 'next/server';
 // Get allowed origins from environment or use defaults
 function getAllowedOrigins(): string[] {
   const origins: string[] = [];
-  
+
   // Add production domain
   origins.push('https://www.kiarakraft.com');
   origins.push('https://kiarakraft.com');
-  
+
   // Add Vercel preview domains if configured
   if (process.env.VERCEL_URL) {
     origins.push(`https://${process.env.VERCEL_URL}`);
   }
-  
+
   // Add custom allowed origins from environment
   const customOrigins = process.env.ALLOWED_CORS_ORIGINS;
   if (customOrigins) {
@@ -28,13 +28,13 @@ function getAllowedOrigins(): string[] {
       }
     });
   }
-  
+
   // In development, allow localhost
   if (process.env.NODE_ENV === 'development') {
     origins.push('http://localhost:3000');
     origins.push('http://127.0.0.1:3000');
   }
-  
+
   return origins;
 }
 
@@ -59,10 +59,16 @@ export function applyCorsHeaders(
   options?: CorsOptions
 ): NextResponse {
   const origin = request.headers.get('origin');
-  
+
   // Get configuration
   const allowedOrigins = options?.allowedOrigins || getAllowedOrigins();
-  const allowedMethods = options?.allowedMethods || ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+  const allowedMethods = options?.allowedMethods || [
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'OPTIONS',
+  ];
   const allowedHeaders = options?.allowedHeaders || [
     'Content-Type',
     'Authorization',
@@ -75,27 +81,36 @@ export function applyCorsHeaders(
   ];
   const credentials = options?.credentials !== false;
   const maxAge = options?.maxAge || 86400; // 24 hours
-  
+
   // Check if origin is allowed
   if (origin && allowedOrigins.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin);
   } else if (allowedOrigins.includes('*')) {
     response.headers.set('Access-Control-Allow-Origin', '*');
   }
-  
+
   // Set other CORS headers
   if (credentials && origin && allowedOrigins.includes(origin)) {
     response.headers.set('Access-Control-Allow-Credentials', 'true');
   }
-  
-  response.headers.set('Access-Control-Allow-Methods', allowedMethods.join(', '));
-  response.headers.set('Access-Control-Allow-Headers', allowedHeaders.join(', '));
-  response.headers.set('Access-Control-Expose-Headers', exposedHeaders.join(', '));
+
+  response.headers.set(
+    'Access-Control-Allow-Methods',
+    allowedMethods.join(', ')
+  );
+  response.headers.set(
+    'Access-Control-Allow-Headers',
+    allowedHeaders.join(', ')
+  );
+  response.headers.set(
+    'Access-Control-Expose-Headers',
+    exposedHeaders.join(', ')
+  );
   response.headers.set('Access-Control-Max-Age', maxAge.toString());
-  
+
   // Add Vary header for proper caching
   response.headers.set('Vary', 'Origin');
-  
+
   return response;
 }
 
@@ -112,22 +127,22 @@ export function withCORS<T extends unknown[]>(
       const response = new NextResponse(null, { status: 204 });
       return applyCorsHeaders(request, response, options);
     }
-    
+
     // Process actual request
     const response = await handler(request, ...rest);
-    
+
     // Apply CORS headers to response
     if (response instanceof NextResponse) {
       return applyCorsHeaders(request, response, options);
     }
-    
+
     // For regular Response objects, create a new NextResponse with CORS headers
     const nextResponse = new NextResponse(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers,
     });
-    
+
     return applyCorsHeaders(request, nextResponse, options);
   };
 }
