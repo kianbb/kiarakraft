@@ -18,36 +18,36 @@ updates:
       # Group minor and patch updates for UI/styling packages
       ui-minor-patch:
         patterns:
-          - "@radix-ui/*"
-          - "lucide-react"
-          - "tailwindcss"
-          - "@tailwindcss/*"
-          - "class-variance-authority"
-          - "clsx"
+          - '@radix-ui/*'
+          - 'lucide-react'
+          - 'tailwindcss'
+          - '@tailwindcss/*'
+          - 'class-variance-authority'
+          - 'clsx'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       # Group all Prisma-related updates together
       prisma:
         patterns:
-          - "@prisma/*"
-          - "prisma"
+          - '@prisma/*'
+          - 'prisma'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       # Group type definition updates
       types:
         patterns:
-          - "@types/*"
+          - '@types/*'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       # Group development dependencies
       dev-dependencies:
-        dependency-type: "development"
+        dependency-type: 'development'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
 
   # GitHub Actions
   - package-ecosystem: 'github-actions'
@@ -66,4 +66,4 @@ updates:
       # Group all GitHub Actions updates together
       actions:
         patterns:
-          - "*"
+          - '*'
