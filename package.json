@@ -69,7 +69,7 @@
     "dotenv": "^17.2.2",
     "lucide-react": "^0.541.0",
     "next": "15.5.0",
-    "next-auth": "5.0.0-beta.25",
+    "next-auth": "5.0.0-beta.29",
     "next-intl": "^4.3.5",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
