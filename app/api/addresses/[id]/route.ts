@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
 
 const updateAddressSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -16,8 +17,8 @@ const updateAddressSchema = z.object({
 });
 
 // PUT /api/addresses/[id] - Update address
-export async function PUT(
-  request: Request,
+export const PUT = withCSRF(async function (
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -62,11 +63,11 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
 // DELETE /api/addresses/[id] - Delete address
-export async function DELETE(
-  request: Request,
+export const DELETE = withCSRF(async function (
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -108,4 +109,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});

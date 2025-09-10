@@ -69,10 +69,13 @@ export const POST = withRateLimit(
 
       // Update user password and mark token as used in a transaction
       await prisma.$transaction(async tx => {
-        // Update user password
+        // Update user password and invalidate all sessions
         await tx.user.update({
           where: { id: resetToken.userId },
-          data: { password: hashedPassword },
+          data: {
+            password: hashedPassword,
+            passwordChangedAt: new Date(), // Invalidate all existing sessions
+          },
         });
 
         // Mark token as used
@@ -93,9 +96,7 @@ export const POST = withRateLimit(
         });
       });
 
-      console.log(
-        `Password reset completed for user: ${resetToken.user.email}`
-      );
+      console.log('Password reset completed successfully');
 
       return NextResponse.json({
         success: true,

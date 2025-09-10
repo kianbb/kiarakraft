@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { sendNotification } from '@/lib/notifications';
+import { withCSRF } from '@/lib/csrf';
 
 const updateShippingSchema = z.object({
   status: z.enum(['PROCESSING', 'SHIPPED', 'DELIVERED', 'RETURNED']),
@@ -12,7 +13,7 @@ const updateShippingSchema = z.object({
 });
 
 // PUT /api/admin/shipping/[id] - Update shipping status
-export async function PUT(
+export const PUT = withCSRF(async function (
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -137,7 +138,7 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
 // GET /api/admin/shipping/[id] - Get shipping details
 export async function GET(

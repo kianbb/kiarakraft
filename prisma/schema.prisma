@@ -17,6 +17,7 @@ model User {
   image               String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  passwordChangedAt   DateTime?            // Track when password was last changed for session invalidation
   cart                Cart?
   orders              Order[]
   addresses           Address[]
@@ -361,4 +362,27 @@ model FxRate {
   fetchedAt DateTime @default(now())
 
   @@unique([base, counter])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String   // Audit action type
+  userId       String?  // User who performed the action
+  userEmail    String?  // User email for quick reference
+  userRole     String?  // User role at time of action
+  targetId     String?  // ID of affected resource
+  targetType   String?  // Type of affected resource
+  metadata     Json?    // Additional context data
+  ipAddress    String?  // IP address of request
+  userAgent    String?  // User agent string
+  success      Boolean  // Whether action succeeded
+  errorMessage String?  // Error message if failed
+  timestamp    DateTime @default(now())
+  signature    String?  // HMAC signature for integrity verification
+
+  @@index([userId])
+  @@index([action])
+  @@index([targetId])
+  @@index([timestamp])
+  @@index([ipAddress])
 }
