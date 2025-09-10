@@ -3,6 +3,14 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
 import { withCSRF } from '@/lib/csrf';
+import { z } from 'zod';
+
+// Validation schema for order creation
+const createOrderSchema = z.object({
+  addressId: z.string().max(50),
+  shippingMethod: z.enum(['STANDARD', 'EXPRESS', 'OVERNIGHT']),
+  shippingPrice: z.number().min(0).max(1000000), // Max ~$10,000 for shipping
+});
 
 export const POST = withRateLimit(
   orderRateLimit,
@@ -22,26 +30,17 @@ export const POST = withRateLimit(
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
-      const { addressId, shippingMethod, shippingPrice } = await request.json();
+      const body = await request.json();
+      const validation = createOrderSchema.safeParse(body);
 
-      // Basic validation
-      if (!addressId || !shippingMethod || shippingPrice === undefined) {
+      if (!validation.success) {
         return NextResponse.json(
-          {
-            error:
-              'Missing required fields: addressId, shippingMethod, or shippingPrice',
-          },
+          { error: 'Invalid order data', details: validation.error.issues },
           { status: 400 }
         );
       }
 
-      // Validate addressId format and length
-      if (typeof addressId !== 'string' || addressId.length > 50) {
-        return NextResponse.json(
-          { error: 'Invalid address ID' },
-          { status: 400 }
-        );
-      }
+      const { addressId, shippingMethod, shippingPrice } = validation.data;
 
       // Validate address belongs to user
       const address = await prisma.address.findFirst({

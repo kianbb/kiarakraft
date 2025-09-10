@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
 
 const createReturnSchema = z.object({
   orderId: z.string().min(1).max(50),
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRF(async function (request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -232,4 +233,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

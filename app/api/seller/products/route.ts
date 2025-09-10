@@ -10,6 +10,7 @@ import {
 } from '@/lib/input-sanitization';
 import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
+import { withCSRF } from '@/lib/csrf';
 
 export const GET = withRateLimit(
   sellerProductRateLimit,
@@ -67,7 +68,7 @@ export const GET = withRateLimit(
 
 export const POST = withRateLimit(
   sellerProductRateLimit,
-  async function (request: NextRequest) {
+  withCSRF(async function (request: NextRequest) {
     let data: Record<string, unknown> = {};
     try {
       const session = await auth();
@@ -360,7 +361,7 @@ export const POST = withRateLimit(
         { status: 500 }
       );
     }
-  }
+  })
 );
 
 function generateSlug(input: string) {

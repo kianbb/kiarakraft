@@ -11,7 +11,7 @@ const makeCsp = () => {
 
   const policy = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' ${PLAUSIBLE};
+    script-src 'self' 'unsafe-inline' ${PLAUSIBLE};
     connect-src 'self' ${PLAUSIBLE} ${CLOUDINARY_API};
     img-src 'self' data: blob: ${UNSPLASH} ${PICSUM} ${CLOUDINARY_IMG};
     style-src 'self' 'unsafe-inline';
