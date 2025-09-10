@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { adapter } from '@/lib/payments';
 import { sendEmail } from '@/lib/email';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
@@ -111,8 +112,10 @@ export const GET = withRateLimit(
         try {
           await prisma.$transaction(
             async tx => {
-              // Lock payment row in this transaction
-              await tx.$queryRaw`SELECT id, status FROM "Payment" WHERE id = ${payment!.id} FOR UPDATE`;
+              // Lock payment row in this transaction using parameterized query
+              await tx.$queryRaw(
+                Prisma.sql`SELECT id, status FROM "Payment" WHERE id = ${payment!.id} FOR UPDATE`
+              );
 
               const fresh = await tx.payment.findUnique({
                 where: { id: payment!.id },
@@ -147,9 +150,10 @@ export const GET = withRateLimit(
                 where: { orderId: payment!.orderId },
               });
               for (const item of items) {
-                const updated: unknown =
-                  await tx.$executeRaw`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`;
-                if (Number(updated) === 0) {
+                const updated = await tx.$executeRaw(
+                  Prisma.sql`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`
+                );
+                if (updated === 0) {
                   throw new Error('Insufficient stock while finalizing order');
                 }
               }

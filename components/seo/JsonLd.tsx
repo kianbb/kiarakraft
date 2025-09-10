@@ -1,19 +1,31 @@
 import Script from 'next/script';
+import { createSafeJsonLd, validateJsonLdSafety } from '@/lib/seo-sanitizer';
 
 interface JsonLdProps {
   data: Record<string, unknown>;
 }
 
 /**
- * Generic JSON-LD component for structured data
+ * Generic JSON-LD component for structured data with XSS protection
  */
 export function JsonLd({ data }: JsonLdProps) {
+  // Safely sanitize and stringify the data
+  const safeJsonLd = createSafeJsonLd(data);
+
+  // Validate safety in development
+  if (process.env.NODE_ENV === 'development') {
+    const validation = validateJsonLdSafety(safeJsonLd);
+    if (!validation.safe) {
+      console.warn('JSON-LD safety warnings:', validation.warnings);
+    }
+  }
+
   return (
     <Script
       id="json-ld"
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify(data, null, 2),
+        __html: safeJsonLd,
       }}
     />
   );

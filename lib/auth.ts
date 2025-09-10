@@ -9,9 +9,42 @@ import {
   validateEmail,
 } from '@/lib/auth-security';
 import { authConfig } from '@/lib/auth-config';
+import { isSessionValid } from '@/lib/session-manager';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  callbacks: {
+    ...(authConfig.callbacks || {}),
+    async session(ctx) {
+      // First apply the base session mapping from shared authConfig
+      const baseSession = authConfig.callbacks?.session
+        ? await authConfig.callbacks.session(ctx)
+        : ctx.session;
+
+      try {
+        // Type-safe token access
+        const contextWithToken = ctx as {
+          token?: { sub?: string; iat?: number };
+        };
+        const token = contextWithToken.token;
+        const sub = token?.sub;
+        const iat = token?.iat;
+
+        if (sub && iat) {
+          const valid = await isSessionValid(sub, iat);
+          if (!valid) {
+            // Invalidate by clearing user to force auth checks to fail
+            return { ...baseSession, user: undefined };
+          }
+        }
+      } catch {
+        // Fail closed on errors: treat as invalid
+        return { ...baseSession, user: undefined };
+      }
+
+      return baseSession;
+    },
+  },
   providers: [
     CredentialsProvider({
       name: 'credentials',

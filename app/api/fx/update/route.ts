@@ -34,8 +34,15 @@ export async function POST(request: NextRequest) {
 }
 
 // Allow GET for manual testing
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const rates = await updateFxRates();
 
     return NextResponse.json({
