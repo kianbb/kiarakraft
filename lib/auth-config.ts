@@ -1,11 +1,15 @@
 import { NextAuthConfig } from 'next-auth';
+import { getSecureSessionConfig } from './security-config';
+
+// Get secure session configuration based on environment
+const sessionConfig = getSecureSessionConfig();
 
 // Shared auth configuration (Edge-compatible)
 export const authConfig: Omit<NextAuthConfig, 'providers'> = {
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours session timeout
-    updateAge: 60 * 60, // Update session every 1 hour if user is active
+    maxAge: sessionConfig.maxAge, // 8 hours in production, 24 hours in development
+    updateAge: sessionConfig.updateAge, // 30 minutes in production, 1 hour in development
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
@@ -13,6 +17,7 @@ export const authConfig: Omit<NextAuthConfig, 'providers'> = {
       if (user) {
         token.role = user.role;
         token.sellerProfile = user.sellerProfile;
+        token.iat = Math.floor(Date.now() / 1000); // Track token issue time
       }
       return token;
     },

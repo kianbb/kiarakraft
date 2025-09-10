@@ -10,6 +10,7 @@ import {
 } from '@/lib/input-sanitization';
 import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
+import { withCSRF } from '@/lib/csrf';
 
 export const GET = withRateLimit(
   sellerProductRateLimit,
@@ -37,9 +38,10 @@ export const GET = withRateLimit(
       // }
 
       const { searchParams } = new URL(request.url);
-      const limit = searchParams.get('limit')
-        ? parseInt(searchParams.get('limit')!)
-        : undefined;
+      const limitParam = searchParams.get('limit');
+      const limit = limitParam
+        ? Math.min(Math.max(1, parseInt(limitParam)), 100)
+        : 50;
 
       const products = await prisma.product.findMany({
         where: { sellerId: user.sellerProfile.id },
@@ -66,7 +68,7 @@ export const GET = withRateLimit(
 
 export const POST = withRateLimit(
   sellerProductRateLimit,
-  async function (request: NextRequest) {
+  withCSRF(async function (request: NextRequest) {
     let data: Record<string, unknown> = {};
     try {
       const session = await auth();
@@ -359,7 +361,7 @@ export const POST = withRateLimit(
         { status: 500 }
       );
     }
-  }
+  })
 );
 
 function generateSlug(input: string) {

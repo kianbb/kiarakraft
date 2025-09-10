@@ -15,13 +15,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = searchParams.get('limit')
-      ? parseInt(searchParams.get('limit')!)
-      : undefined;
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam
+      ? Math.min(Math.max(1, parseInt(limitParam)), 100)
+      : 50;
 
     const orders = await prisma.order.findMany({
       where: {
