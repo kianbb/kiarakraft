@@ -21,6 +21,23 @@ const sanitizeText = (text: string): string => {
   return text.replace(/[&<>"'`=\/]/g, char => htmlEntities[char]);
 };
 
+// XSS sanitization helper - HTML entity encoding
+const sanitizeText = (text: string): string => {
+  // HTML entity encode to prevent any XSS - this is safer than trying to strip patterns
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '/': '&#x2F;',
+    '`': '&#x60;',
+    '=': '&#x3D;',
+  };
+
+  return text.replace(/[&<>"'`=\/]/g, char => htmlEntities[char]);
+};
+
 const createReviewSchema = z.object({
   productId: z.string().max(50),
   orderId: z.string().max(50),
