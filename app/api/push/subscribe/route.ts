@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
 
 const subscriptionSchema = z.object({
   endpoint: z.string().url(),
@@ -14,7 +15,7 @@ const subscriptionSchema = z.object({
 
 export const POST = withRateLimit(
   authRateLimit,
-  async function (request: NextRequest) {
+  withCSRF(async function (request: NextRequest) {
     try {
       const session = await auth();
       if (!session?.user?.id) {
@@ -58,7 +59,7 @@ export const POST = withRateLimit(
         { status: 500 }
       );
     }
-  }
+  })
 );
 
 // Get VAPID public key for client-side subscription

@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
 
 // XSS sanitization helper - HTML entity encoding
 const sanitizeText = (text: string): string => {
@@ -28,7 +29,7 @@ const createReviewSchema = z.object({
   body: z.string().max(1000).transform(sanitizeText).optional(),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRF(async function (request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // Get reviews for admin moderation
 export async function GET(request: NextRequest) {

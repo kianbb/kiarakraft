@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
 
 const createAddressSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
@@ -39,7 +40,7 @@ export async function GET() {
 }
 
 // POST /api/addresses - Create new address
-export async function POST(request: Request) {
+export const POST = withCSRF(async function (request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -90,4 +91,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

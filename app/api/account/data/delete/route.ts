@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { withCSRF } from '@/lib/csrf';
 
 /**
  * Request account deletion for privacy compliance (GDPR Article 17)
  * This marks the account for deletion rather than immediately deleting it
  * to allow for proper data handling and legal retention requirements
  */
-export async function POST(request: NextRequest) {
+export const POST = withCSRF(async function (request: NextRequest) {
   try {
     const session = await auth();
 
@@ -104,12 +105,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * Cancel account deletion request
  */
-export async function DELETE() {
+export const DELETE = withCSRF(async function () {
   try {
     const session = await auth();
 
@@ -133,4 +134,4 @@ export async function DELETE() {
       { status: 500 }
     );
   }
-}
+});
