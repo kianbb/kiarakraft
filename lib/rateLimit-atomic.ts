@@ -5,6 +5,7 @@
 
 import { NextRequest } from 'next/server';
 import { prisma } from './prisma';
+import { Prisma } from '@prisma/client';
 
 interface RateLimitConfig {
   windowMs: number;
@@ -44,7 +45,7 @@ export function createAtomicRateLimiter(config: RateLimitConfig) {
       const result = await prisma.$transaction(
         async tx => {
           // Try to find and lock the rate limit entry
-          // Using raw SQL for SELECT ... FOR UPDATE to ensure row-level lock
+          // Using parameterized query with Prisma.sql for safe row-level lock
           const existing = await tx.$queryRaw<
             Array<{
               id: string;
@@ -52,11 +53,13 @@ export function createAtomicRateLimiter(config: RateLimitConfig) {
               count: number;
               resetTime: Date;
             }>
-          >`
-          SELECT * FROM "RateLimit"
-          WHERE identifier = ${identifier}
-          FOR UPDATE
-        `;
+          >(
+            Prisma.sql`
+              SELECT * FROM "RateLimit"
+              WHERE identifier = ${identifier}
+              FOR UPDATE
+            `
+          );
 
           const existingEntry = existing[0];
 

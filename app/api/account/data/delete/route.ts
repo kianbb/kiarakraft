@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { withCSRF } from '@/lib/csrf';
+import { z } from 'zod';
+
+// Validation schema for account deletion request
+const accountDeletionSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
 
 /**
  * Request account deletion for privacy compliance (GDPR Article 17)
@@ -16,7 +22,17 @@ export const POST = withCSRF(async function (request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reason } = await request.json();
+    const body = await request.json();
+    const validation = accountDeletionSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    const { reason } = validation.data;
 
     console.log('🗑️ Account deletion requested for user:', session.user.id);
 
