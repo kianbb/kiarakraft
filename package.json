@@ -49,7 +49,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
     "@hookform/resolvers": "^5.2.1",
-    "@prisma/client": "^6.14.0",
+    "@prisma/client": "^6.16.0",
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@react-email/render": "^1.2.1",
@@ -103,7 +103,7 @@
     "pg": "^8.16.3",
     "postcss": "^8",
     "prettier": "^3.6.2",
-    "prisma": "^6.14.0",
+    "prisma": "^6.16.0",
     "tailwindcss": "^4.1.12",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.5",
