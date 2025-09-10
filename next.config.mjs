@@ -66,13 +66,6 @@ const nextConfig = {
     },
     optimizePackageImports: ['lucide-react', '@/components/ui'],
   },
-  // API route size limits
-  api: {
-    bodyParser: {
-      sizeLimit: '5mb', // Default API body size limit
-    },
-    responseLimit: '8mb', // Response size limit
-  },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },

@@ -90,7 +90,7 @@ export default function LoginPage() {
         router.push(safeRedirectUrl);
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       setError(t('loginFailed'));
     } finally {
       setIsLoading(false);

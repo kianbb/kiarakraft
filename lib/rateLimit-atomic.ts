@@ -65,7 +65,7 @@ export function createAtomicRateLimiter(config: RateLimitConfig) {
 
           // If no entry exists, create one
           if (!existingEntry) {
-            const created = await tx.rateLimit.create({
+            await tx.rateLimit.create({
               data: {
                 identifier,
                 count: 1,
@@ -83,7 +83,7 @@ export function createAtomicRateLimiter(config: RateLimitConfig) {
 
           // If the window has expired, reset the counter
           if (existingEntry.resetTime < now) {
-            const updated = await tx.rateLimit.update({
+            await tx.rateLimit.update({
               where: { id: existingEntry.id },
               data: {
                 count: 1,
