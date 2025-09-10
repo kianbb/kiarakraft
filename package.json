@@ -70,7 +70,7 @@
     "lucide-react": "^0.541.0",
     "next": "15.5.2",
     "next-auth": "5.0.0-beta.29",
-    "next-intl": "^4.3.5",
+    "next-intl": "^4.3.7",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
     "react": "^19.1.1",
