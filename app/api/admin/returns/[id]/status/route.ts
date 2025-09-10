@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
 
 const updateStatusSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED']),
 });
 
-export async function PATCH(
+export const PATCH = withCSRF(async function (
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -142,4 +143,4 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+});

@@ -2,16 +2,34 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { withCSRF } from '@/lib/csrf';
+
+// XSS sanitization helper - HTML entity encoding
+const sanitizeText = (text: string): string => {
+  // HTML entity encode to prevent any XSS - this is safer than trying to strip patterns
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '/': '&#x2F;',
+    '`': '&#x60;',
+    '=': '&#x3D;',
+  };
+
+  return text.replace(/[&<>"'`=\/]/g, char => htmlEntities[char]);
+};
 
 const createReviewSchema = z.object({
-  productId: z.string(),
-  orderId: z.string(),
+  productId: z.string().max(50),
+  orderId: z.string().max(50),
   rating: z.number().min(1).max(5),
-  title: z.string().max(100).optional(),
-  body: z.string().max(1000).optional(),
+  title: z.string().max(100).transform(sanitizeText).optional(),
+  body: z.string().max(1000).transform(sanitizeText).optional(),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRF(async function (request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -49,8 +67,22 @@ export async function POST(request: NextRequest) {
 
     if (!order || order.items.length === 0) {
       return NextResponse.json(
-        { error: 'Order not found or not eligible for review' },
+        { error: 'Not found' }, // Generic message to prevent enumeration
         { status: 404 }
+      );
+    }
+
+    // Check review time window (90 days after delivery)
+    const deliveryDate = order.updatedAt; // Assuming updatedAt is when status changed to DELIVERED
+    const daysSinceDelivery = Math.floor(
+      (Date.now() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const REVIEW_WINDOW_DAYS = 90;
+
+    if (daysSinceDelivery > REVIEW_WINDOW_DAYS) {
+      return NextResponse.json(
+        { error: `Review window of ${REVIEW_WINDOW_DAYS} days has expired` },
+        { status: 400 }
       );
     }
 
@@ -91,7 +123,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // Get reviews for admin moderation
 export async function GET(request: NextRequest) {

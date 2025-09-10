@@ -5,6 +5,7 @@ import { withRateLimit, sellerRateLimit } from '@/lib/rateLimit';
 import { revalidateSeller, revalidateProductsForSeller } from '@/lib/cache';
 import { z } from 'zod';
 import * as Sentry from '@sentry/nextjs';
+import { withCSRF } from '@/lib/csrf';
 
 export const GET = withRateLimit(sellerRateLimit, async function GET() {
   try {
@@ -48,7 +49,7 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
 
 export const PUT = withRateLimit(
   sellerRateLimit,
-  async function PUT(request: NextRequest) {
+  withCSRF(async function PUT(request: NextRequest) {
     try {
       const session = await auth();
 
@@ -181,5 +182,5 @@ export const PUT = withRateLimit(
         { status: 500 }
       );
     }
-  }
+  })
 );

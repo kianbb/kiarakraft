@@ -6,6 +6,7 @@ import { assessProductForHandcrafted } from '@/lib/moderation';
 import { revalidateProduct } from '@/lib/cache';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/nextjs';
+import { withCSRF } from '@/lib/csrf';
 
 export async function GET(
   request: NextRequest,
@@ -50,7 +51,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
+export const PUT = withCSRF(async function (
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -218,9 +219,9 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(
+export const DELETE = withCSRF(async function (
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -322,4 +323,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});
