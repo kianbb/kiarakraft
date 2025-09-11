@@ -89,6 +89,7 @@ model Product {
   eligibilityConfidence Int?
   eligibilityReasons    String?
   eligibilityStatus     String               @default("PENDING")
+  tags                  Json?                // Array of strings for product tags
   cartItems             CartItem[]
   images                ListingImage[]
   orderItems            OrderItem[]

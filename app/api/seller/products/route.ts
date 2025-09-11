@@ -3,7 +3,11 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
+import { assessProductWithAI } from '@/lib/moderation-ai';
+import { enhanceProductBeforeApproval } from '@/lib/product-enhancement-openai';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { withRateLimit, sellerProductRateLimit } from '@/lib/rateLimit';
+import { revalidateProduct } from '@/lib/cache';
 import {
   sanitizeAndValidate,
   SanitizationLevel,
@@ -273,12 +277,121 @@ export const POST = withRateLimit(
           .catch(e => console.error('Translation error', e));
       }
 
-      // Handcrafted eligibility assessment (best-effort, async)
-      assessProductForHandcrafted({
+      // Capture the first uploaded image URL (if any) to pass into AI steps
+      const images = data.images as Array<{ url?: string }> | undefined;
+      const firstUploadedImageUrl: string | undefined =
+        images && Array.isArray(images) && images.length > 0
+          ? images[0]?.url
+          : undefined;
+
+      // STEP 1: Enhance product presentation with AI (OpenAI)
+      // This helps sellers present their products better
+      enhanceProductBeforeApproval({
+        id: product.id,
         title: product.title,
         description: product.description,
+        imageUrl: firstUploadedImageUrl,
         categorySlug: (data.category as string) || undefined,
+        price: product.priceToman,
       })
+        .then(async enhancement => {
+          if (enhancement.enhanced) {
+            try {
+              // If AI produced an enhanced image (data URL), upload it to Cloudinary
+              let enhancedImageUrlToUse = enhancement.imageUrl;
+              if (
+                enhancement.imageUrl &&
+                typeof enhancement.imageUrl === 'string' &&
+                enhancement.imageUrl.startsWith('data:image/')
+              ) {
+                try {
+                  const base64 = enhancement.imageUrl.split(',')[1];
+                  if (base64) {
+                    const buffer = Buffer.from(base64, 'base64');
+                    const upload = await uploadImageToCloudinary(buffer, {
+                      folder: `kiarakraft/products/${product.id}`,
+                      public_id: `enhanced-${Date.now()}`,
+                    });
+
+                    enhancedImageUrlToUse = upload.secure_url;
+
+                    // Insert enhanced image as the first image and reorder existing ones
+                    const existingImages = await prisma.listingImage.findMany({
+                      where: { productId: product.id },
+                      orderBy: { sortOrder: 'asc' },
+                      select: { id: true },
+                    });
+
+                    await prisma.$transaction(async tx => {
+                      // Create the enhanced image at sortOrder 0
+                      await tx.listingImage.create({
+                        data: {
+                          productId: product.id,
+                          url: enhancedImageUrlToUse!,
+                          alt: `${product.title} (enhanced)`,
+                          sortOrder: 0,
+                        },
+                      });
+                      // Push existing images down by 1 in order
+                      for (let i = 0; i < existingImages.length; i++) {
+                        await tx.listingImage.update({
+                          where: { id: existingImages[i].id },
+                          data: { sortOrder: i + 1 },
+                        });
+                      }
+                    });
+                  }
+                } catch (e) {
+                  console.warn(
+                    'Enhanced image save failed; continuing with original',
+                    e
+                  );
+                }
+              }
+
+              // Update product with enhanced content
+              await prisma.product.update({
+                where: { id: product.id },
+                data: {
+                  description: enhancement.description || product.description,
+                  tags: enhancement.tags || undefined, // Store tags in the new JSONB field
+                },
+              });
+              // Refresh product/search caches so explore picks up improvements fast
+              try {
+                await revalidateProduct(product.id);
+              } catch {}
+              console.log('Product enhanced successfully');
+
+              // Use enhanced content for assessment
+              return {
+                title: product.title,
+                description: enhancement.description || product.description,
+                imageUrl: enhancedImageUrlToUse || firstUploadedImageUrl,
+                categorySlug: (data.category as string) || undefined,
+                price: product.priceToman,
+              };
+            } catch (e) {
+              console.error('Failed to save enhancement:', e);
+            }
+          }
+          // Return original if enhancement failed
+          return {
+            title: product.title,
+            description: product.description,
+            imageUrl: firstUploadedImageUrl,
+            categorySlug: (data.category as string) || undefined,
+            price: product.priceToman,
+          };
+        })
+        .then(async enhancedProduct => {
+          // STEP 2: Assess the enhanced product for eligibility
+          const assessmentPromise = enhancedProduct.imageUrl
+            ? assessProductWithAI(enhancedProduct)
+            : assessProductForHandcrafted(enhancedProduct);
+
+          return assessmentPromise;
+        })
         .then(async res => {
           try {
             await prisma.product.update({
@@ -292,6 +405,9 @@ export const POST = withRateLimit(
                 } as Record<string, unknown>),
               },
             });
+            try {
+              await revalidateProduct(product.id);
+            } catch {}
           } catch (e) {
             console.error('Failed to update eligibility', e);
           }

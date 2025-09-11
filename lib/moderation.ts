@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 type EligibilityResult = {
-  status: 'APPROVED' | 'REJECTED' | 'REVIEW' | 'PENDING';
+  status: 'APPROVED' | 'REJECTED';
   confidence?: number; // 0-100
   reasons?: string[];
 };
@@ -119,12 +119,20 @@ export async function assessProductForHandcrafted(input: {
     // ignore optional signals
   }
 
-  // Map score to status
-  let status: EligibilityResult['status'] = 'REVIEW';
+  // Map score to status - always make a definitive decision
   const confidence = Math.max(0, Math.min(100, 50 + score));
-  if (score >= 20) status = 'APPROVED';
-  else if (score <= -20) status = 'REJECTED';
-  else status = 'REVIEW';
+
+  // Make definitive decision - if uncertain, lean towards approval to support artisans
+  let status: EligibilityResult['status'];
+  if (score > 0) {
+    status = 'APPROVED';
+  } else if (score < 0) {
+    status = 'REJECTED';
+  } else {
+    // Neutral score - approve by default to support sellers
+    status = 'APPROVED';
+    reasons.push('Neutral assessment - approved to support artisan');
+  }
 
   return { status, confidence, reasons };
 }

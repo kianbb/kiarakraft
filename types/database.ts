@@ -167,6 +167,7 @@ export interface ProductFilters {
 export interface PrismaWhereClause {
   active?: boolean;
   isTest?: boolean;
+  eligibilityStatus?: string;
   OR?: Array<{
     title?: { contains: string; mode: 'insensitive' };
     description?: { contains: string; mode: 'insensitive' };
