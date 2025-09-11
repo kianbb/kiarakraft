@@ -247,6 +247,17 @@ export default function Navbar() {
                       </Link>
                     )}
 
+                    {session.user.role === 'ADMIN' && (
+                      <Link
+                        href={`/${locale}/admin`}
+                        className="block px-4 py-2 text-sm text-foreground hover:bg-accent flex items-center"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Package className="w-4 h-4 mr-2" />
+                        Admin Dashboard
+                      </Link>
+                    )}
+
                     <Link
                       href={
                         session.user.role === 'ADMIN'
