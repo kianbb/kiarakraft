@@ -82,6 +82,22 @@ export const POST = withRateLimit(
         data: updateData,
       });
 
+      // If verifying, activate all the seller's products
+      if (action === 'verify') {
+        await prisma.product.updateMany({
+          where: {
+            sellerId: sellerId,
+            active: false,
+          },
+          data: {
+            active: true,
+          },
+        });
+        console.log(
+          `Activated all products for newly verified seller ${sellerProfile.shopName}`
+        );
+      }
+
       // Log the action for audit trail
       console.log(
         `Admin verification action: ${adminUser.email} ${action}ed seller ${sellerProfile.user.email} (${sellerProfile.shopName}). Notes: ${notes}`
