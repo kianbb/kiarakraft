@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import {
   CreditCard,
   Users,
@@ -10,53 +12,87 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  params: { locale },
+}: {
+  params: { locale: string };
+}) {
   const session = await auth();
+  const t = await getTranslations('admin');
 
   if (!session || session.user?.role !== 'ADMIN') {
     redirect('/');
   }
 
+  // Fetch real stats
+  const [pendingSellers, activeOrders, pendingPayments, openReturns] =
+    await Promise.all([
+      prisma.sellerProfile.count({
+        where: {
+          verified: false,
+        },
+      }),
+      prisma.order.count({
+        where: {
+          status: {
+            in: ['PENDING', 'PROCESSING', 'PAID'],
+          },
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          status: 'PENDING',
+        },
+      }),
+      prisma.returnRequest.count({
+        where: {
+          status: {
+            in: ['REQUESTED', 'APPROVED'],
+          },
+        },
+      }),
+    ]);
+
   const adminSections = [
     {
-      title: 'Seller Verification',
-      description: 'Review and approve new seller applications',
-      href: '/admin/sellers',
+      title: t('sellerVerification'),
+      description: t('sellerVerificationDesc'),
+      href: `/${locale}/admin/sellers`,
       icon: Users,
       color: 'bg-blue-500',
     },
     {
-      title: 'Orders Management',
-      description: 'View and manage all customer orders',
-      href: '/admin/orders',
+      title: t('ordersManagement'),
+      description: t('ordersManagementDesc'),
+      href: `/${locale}/admin/orders`,
       icon: ShoppingBag,
       color: 'bg-green-500',
     },
     {
-      title: 'Payments',
-      description: 'Track and manage payment transactions',
-      href: '/admin/payments',
+      title: t('paymentsTitle'),
+      description: t('paymentsDesc'),
+      href: `/${locale}/admin/payments`,
       icon: CreditCard,
       color: 'bg-purple-500',
     },
     {
-      title: 'Shipping',
-      description: 'Manage shipping and tracking information',
-      href: '/admin/shipping',
+      title: t('shippingTitle'),
+      description: t('shippingDesc'),
+      href: `/${locale}/admin/shipping`,
       icon: Truck,
       color: 'bg-orange-500',
     },
     {
-      title: 'Reviews',
-      description: 'Moderate product reviews and ratings',
-      href: '/admin/reviews',
+      title: t('reviewsTitle'),
+      description: t('reviewsDesc'),
+      href: `/${locale}/admin/reviews`,
       icon: Star,
       color: 'bg-yellow-500',
     },
     {
-      title: 'Returns',
-      description: 'Handle return and refund requests',
-      href: '/admin/returns',
+      title: t('returnsTitle'),
+      description: t('returnsDesc'),
+      href: `/${locale}/admin/returns`,
       icon: RotateCcw,
       color: 'bg-red-500',
     },
@@ -67,10 +103,10 @@ export default async function AdminDashboard() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">
-            Admin Dashboard
+            {t('dashboard')}
           </h1>
           <p className="text-muted-foreground mt-2">
-            Welcome back, {session.user.name || session.user.email}
+            {t('welcomeBack')}, {session.user.name || session.user.email}
           </p>
         </div>
 
@@ -84,7 +120,7 @@ export default async function AdminDashboard() {
                 className="block group"
               >
                 <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start space-x-4">
+                  <div className="flex items-start space-x-4 rtl:space-x-reverse">
                     <div
                       className={`${section.color} rounded-lg p-3 text-white`}
                     >
@@ -106,23 +142,35 @@ export default async function AdminDashboard() {
         </div>
 
         <div className="mt-12 bg-card border border-border rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('quickStats')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-3xl font-bold text-primary">-</p>
-              <p className="text-sm text-muted-foreground">Pending Sellers</p>
+              <p className="text-3xl font-bold text-primary">
+                {pendingSellers}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t('pendingSellers')}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-primary">-</p>
-              <p className="text-sm text-muted-foreground">Active Orders</p>
+              <p className="text-3xl font-bold text-primary">{activeOrders}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('activeOrders')}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-primary">-</p>
-              <p className="text-sm text-muted-foreground">Pending Payments</p>
+              <p className="text-3xl font-bold text-primary">
+                {pendingPayments}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t('pendingPayments')}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-primary">-</p>
-              <p className="text-sm text-muted-foreground">Open Returns</p>
+              <p className="text-3xl font-bold text-primary">{openReturns}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('openReturns')}
+              </p>
             </div>
           </div>
         </div>
