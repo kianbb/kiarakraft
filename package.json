@@ -73,6 +73,7 @@
     "next-intl": "^4.3.7",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
+    "openai": "^5.20.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",

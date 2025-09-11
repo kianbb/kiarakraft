@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
+import { assessProductWithAI } from '@/lib/moderation-ai';
 import { withRateLimit, sellerProductRateLimit } from '@/lib/rateLimit';
 import {
   sanitizeAndValidate,
@@ -273,12 +274,24 @@ export const POST = withRateLimit(
           .catch(e => console.error('Translation error', e));
       }
 
-      // Handcrafted eligibility assessment (best-effort, async)
-      assessProductForHandcrafted({
-        title: product.title,
-        description: product.description,
-        categorySlug: (data.category as string) || undefined,
-      })
+      // Handcrafted eligibility assessment with AI (best-effort, async)
+      // Use AI assessment if image is available, otherwise fallback to keyword-based
+      const assessmentPromise =
+        product.images && product.images.length > 0
+          ? assessProductWithAI({
+              title: product.title,
+              description: product.description,
+              imageUrl: product.images[0].url,
+              categorySlug: (data.category as string) || undefined,
+              price: product.priceToman,
+            })
+          : assessProductForHandcrafted({
+              title: product.title,
+              description: product.description,
+              categorySlug: (data.category as string) || undefined,
+            });
+
+      assessmentPromise
         .then(async res => {
           try {
             await prisma.product.update({
