@@ -154,6 +154,13 @@ export default function Navbar() {
                 {item.name}
               </Link>
             ))}
+            <Link
+              href={`/${locale}/sell`}
+              prefetch={false}
+              className="text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 px-4 py-2 rounded-md transition-colors"
+            >
+              {t('sellOnKiaraKraft')}
+            </Link>
           </div>
 
           {/* Search Bar */}
@@ -353,6 +360,14 @@ export default function Navbar() {
                   {item.name}
                 </Link>
               ))}
+              <Link
+                href={`/${locale}/sell`}
+                prefetch={false}
+                className="block px-3 py-2 mx-3 rounded-md text-base font-medium text-primary-foreground bg-primary hover:bg-primary/90 transition-colors text-center"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {t('sellOnKiaraKraft')}
+              </Link>
 
               {/* Language switcher on mobile */}
               <div className="sm:hidden px-3 py-2">

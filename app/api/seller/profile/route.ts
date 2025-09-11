@@ -27,13 +27,13 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Return combined user and seller profile data
+    // Return user data with properly nested sellerProfile
     const profileData = {
       id: user.id,
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
-      ...user.sellerProfile,
+      sellerProfile: user.sellerProfile,
     };
 
     return NextResponse.json(profileData);
@@ -166,11 +166,13 @@ export const PUT = withRateLimit(
         console.warn('Cache revalidation (seller) failed:', e);
       }
 
-      // Return combined data
+      // Return data with properly nested sellerProfile
       const profileData = {
-        ...updatedProfile,
+        id: user.id,
         email: user.email,
         name: data.displayName || user.name,
+        createdAt: user.createdAt,
+        sellerProfile: updatedProfile,
       };
 
       return NextResponse.json(profileData);

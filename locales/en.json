@@ -8,7 +8,8 @@
     "dashboard": "Dashboard",
     "logout": "Logout",
     "search": "Search products...",
-    "profile": "Profile"
+    "profile": "Profile",
+    "sellOnKiaraKraft": "Sell on KiaraKraft"
   },
   "common": {
     "search": "Search...",
@@ -1148,5 +1149,18 @@
       "exploreProducts": "Explore Products",
       "backToHome": "Back to Home"
     }
+  },
+  "sell": {
+    "pageTitle": "Sell on KiaraKraft",
+    "pageDescription": "Join thousands of artisans selling handmade products on KiaraKraft",
+    "title": "Sell on KiaraKraft",
+    "subtitle": "Open your shop in minutes. Lower fees, real buyers, global reach.",
+    "getStarted": "Get Started",
+    "applyPageTitle": "Apply to Sell - KiaraKraft",
+    "applyPageDescription": "Apply to become a seller on KiaraKraft marketplace",
+    "applyTitle": "Seller Application",
+    "applySubtitle": "Complete your application to start selling on KiaraKraft",
+    "applyComingSoon": "Application form coming soon. Please check back later.",
+    "backToSell": "Back to Seller Info"
   }
 }
