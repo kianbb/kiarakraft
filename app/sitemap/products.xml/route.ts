@@ -3,9 +3,13 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    // Get all active products
+    // Get all active and approved products
     const products = await db.product.findMany({
-      where: { active: true, isTest: false },
+      where: {
+        active: true,
+        isTest: false,
+        eligibilityStatus: 'APPROVED', // Only include approved products in sitemap
+      },
       select: {
         slug: true,
         updatedAt: true,

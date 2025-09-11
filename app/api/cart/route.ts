@@ -46,7 +46,15 @@ export const GET = withRateLimit(cartRateLimit, async function GET() {
       },
     });
 
-    return NextResponse.json(cartItems);
+    // Filter out products that are no longer eligible
+    const eligibleCartItems = cartItems.filter(
+      item =>
+        item.product.active &&
+        !item.product.isTest &&
+        item.product.eligibilityStatus === 'APPROVED'
+    );
+
+    return NextResponse.json(eligibleCartItems);
   } catch (error) {
     console.error('Error fetching cart:', error);
     Sentry.captureException(error);
@@ -109,10 +117,15 @@ export const POST = withRateLimit(
         );
       }
 
-      // Check if product exists and is active and not a test product
+      // Check if product exists and is active, approved, and not a test product
       // Note: findUnique only accepts unique fields; using findFirst for compound filters
       const product = await prisma.product.findFirst({
-        where: { id: productId, active: true, isTest: false },
+        where: {
+          id: productId,
+          active: true,
+          isTest: false,
+          eligibilityStatus: 'APPROVED', // Only allow approved products in cart
+        },
       });
 
       if (!product) {

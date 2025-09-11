@@ -10,6 +10,8 @@ export async function GET(
       where: {
         id: params.id,
         active: true,
+        isTest: false,
+        eligibilityStatus: 'APPROVED', // Only show approved products
       },
       include: {
         seller: true,

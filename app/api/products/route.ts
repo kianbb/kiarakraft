@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const where: PrismaWhereClause = {
       active: true,
       isTest: false,
+      eligibilityStatus: 'APPROVED', // Only show approved products
     };
 
     // Add search filter
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       }>;
       eligibilityStatus?: string;
     };
-    let mapped = (products as WithTranslations[]).map(p => {
+    const mapped = (products as WithTranslations[]).map(p => {
       if (locale === 'en' && Array.isArray(p.translations)) {
         const en = p.translations.find(t => t.locale === 'en');
         if (en)
@@ -79,11 +80,6 @@ export async function GET(request: NextRequest) {
       }
       return p;
     });
-
-    // Soft-filter: hide non-handcrafted items if eligibilityStatus is present and REJECTED
-    mapped = mapped.filter(
-      p => !p.eligibilityStatus || p.eligibilityStatus !== 'REJECTED'
-    );
 
     return NextResponse.json(mapped);
   } catch (error) {

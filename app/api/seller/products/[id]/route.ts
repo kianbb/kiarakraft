@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
+import { assessProductWithAI } from '@/lib/moderation-ai';
 import { revalidateProduct } from '@/lib/cache';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/nextjs';
@@ -94,6 +95,12 @@ export const PUT = withCSRF(async function (
         id: params.id,
         sellerId: user.sellerProfile.id,
       },
+      include: {
+        images: {
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
+      },
     });
 
     if (!product) {
@@ -184,12 +191,22 @@ export const PUT = withCSRF(async function (
         .catch(e => console.error('Translation error (update)', e));
     }
 
-    // Update handcrafted eligibility in background (best-effort)
-    assessProductForHandcrafted({
-      title: updatedProduct.title,
-      description: updatedProduct.description,
-      categorySlug: undefined,
-    })
+    // Re-assess product eligibility with AI in background (best-effort)
+    // Use AI assessment if we have an image, otherwise use fallback
+    const assessmentPromise = product.images?.[0]?.url
+      ? assessProductWithAI({
+          title: updatedProduct.title,
+          description: updatedProduct.description,
+          imageUrl: product.images[0].url,
+          categorySlug: undefined,
+        })
+      : assessProductForHandcrafted({
+          title: updatedProduct.title,
+          description: updatedProduct.description,
+          categorySlug: undefined,
+        });
+
+    assessmentPromise
       .then(async res => {
         try {
           await prisma.product.update({
