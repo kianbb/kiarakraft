@@ -16,6 +16,184 @@ import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
 import { withCSRF } from '@/lib/csrf';
 
+// Async function to process enhancement and assessment in background
+async function processProductEnhancementAndAssessment({
+  product,
+  firstUploadedImageUrl,
+  categorySlug,
+  userId,
+}: {
+  product: {
+    id: string;
+    title: string;
+    description: string;
+    priceToman: number;
+  };
+  firstUploadedImageUrl?: string;
+  categorySlug?: string;
+  userId: string;
+}) {
+  const startTime = Date.now();
+  console.log(`🚀 Starting background processing for product ${product.id}...`);
+
+  let enhancedDescription = product.description;
+  let enhancedTags: string[] | undefined;
+  let enhancedImageUrl = firstUploadedImageUrl;
+  let enhancementSuccessful = false;
+
+  // STEP 1: Enhance product presentation with AI
+  try {
+    console.log(`🎨 Starting AI enhancement for product ${product.id}...`);
+    const enhancement = await enhanceProductBeforeApproval({
+      id: product.id,
+      title: product.title,
+      description: product.description,
+      imageUrl: firstUploadedImageUrl,
+      categorySlug,
+      price: product.priceToman,
+      userId,
+    });
+
+    if (enhancement.enhanced) {
+      enhancementSuccessful = true;
+      console.log(`✅ Enhancement successful for product ${product.id}`);
+
+      // Handle enhanced image if available
+      if (
+        enhancement.imageUrl &&
+        typeof enhancement.imageUrl === 'string' &&
+        enhancement.imageUrl.startsWith('data:image/')
+      ) {
+        try {
+          const base64 = enhancement.imageUrl.split(',')[1];
+          if (base64) {
+            console.log(`📸 Uploading enhanced image to Cloudinary...`);
+            const buffer = Buffer.from(base64, 'base64');
+            const upload = await uploadImageToCloudinary(buffer, {
+              folder: `kiarakraft/products/${product.id}`,
+              public_id: `enhanced-${Date.now()}`,
+            });
+
+            enhancedImageUrl = upload.secure_url;
+
+            // Insert enhanced image as the first image
+            const existingImages = await prisma.listingImage.findMany({
+              where: { productId: product.id },
+              orderBy: { sortOrder: 'asc' },
+              select: { id: true },
+            });
+
+            await prisma.$transaction(async tx => {
+              await tx.listingImage.create({
+                data: {
+                  productId: product.id,
+                  url: enhancedImageUrl!,
+                  alt: `${product.title} (enhanced)`,
+                  sortOrder: 0,
+                },
+              });
+              // Push existing images down
+              for (let i = 0; i < existingImages.length; i++) {
+                await tx.listingImage.update({
+                  where: { id: existingImages[i].id },
+                  data: { sortOrder: i + 1 },
+                });
+              }
+            });
+            console.log(`✅ Enhanced image saved`);
+          }
+        } catch (e) {
+          console.warn('Enhanced image upload failed:', e);
+          Sentry.captureException(e);
+        }
+      }
+
+      // Update product with enhanced content
+      if (enhancement.description || enhancement.tags) {
+        enhancedDescription = enhancement.description || product.description;
+        enhancedTags = enhancement.tags;
+
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            description: enhancedDescription,
+            tags: enhancedTags,
+          },
+        });
+        console.log(`✅ Enhanced description and tags saved`);
+      }
+    } else {
+      console.log(`⚠️ Enhancement returned false for product ${product.id}`);
+    }
+  } catch (enhancementError) {
+    console.error('❌ Enhancement failed:', enhancementError);
+    Sentry.captureException(enhancementError);
+    // Continue with original content if enhancement fails
+  }
+
+  // STEP 2: Assess the (potentially enhanced) product for eligibility
+  try {
+    console.log(`🔍 Starting AI assessment for product ${product.id}...`);
+
+    const productToAssess = {
+      title: product.title,
+      description: enhancedDescription,
+      imageUrl: enhancedImageUrl,
+      categorySlug,
+      price: product.priceToman,
+      userId,
+    };
+
+    const assessmentResult = enhancedImageUrl
+      ? await assessProductWithAI(productToAssess)
+      : await assessProductForHandcrafted(productToAssess);
+
+    // Update product with final assessment results
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        eligibilityStatus: assessmentResult.status,
+        eligibilityConfidence: assessmentResult.confidence ?? null,
+        eligibilityReasons:
+          assessmentResult.reasons?.join('; ').slice(0, 1000) || null,
+      },
+    });
+
+    const totalDuration = Date.now() - startTime;
+    console.log(
+      `✅ Product ${product.id} fully processed in ${totalDuration}ms`
+    );
+    console.log(
+      `   Status: ${assessmentResult.status} (${assessmentResult.confidence}%)`
+    );
+    console.log(
+      `   Enhancement: ${enhancementSuccessful ? 'Success' : 'Failed/Skipped'}`
+    );
+
+    // Revalidate caches to reflect the updates
+    try {
+      await revalidateProduct(product.id);
+    } catch {}
+
+    // TODO: Send notification to user about the assessment result
+    // This could be an email, push notification, or in-app notification
+  } catch (assessmentError) {
+    console.error('❌ Assessment failed:', assessmentError);
+    Sentry.captureException(assessmentError);
+
+    // If assessment fails, set a safe default
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        eligibilityStatus: 'REJECTED',
+        eligibilityConfidence: 0,
+        eligibilityReasons:
+          'Assessment failed - please contact support if this persists',
+      },
+    });
+  }
+}
+
 export const GET = withRateLimit(
   sellerProductRateLimit,
   async function (request: NextRequest) {
@@ -284,138 +462,38 @@ export const POST = withRateLimit(
           ? images[0]?.url
           : undefined;
 
-      // STEP 1: Enhance product presentation with AI (OpenAI)
-      // This helps sellers present their products better
-      enhanceProductBeforeApproval({
-        id: product.id,
-        title: product.title,
-        description: product.description,
-        imageUrl: firstUploadedImageUrl,
+      // Return product immediately with PENDING status while processing happens in background
+      const productWithImages = await prisma.product.findUnique({
+        where: { id: product.id },
+        include: {
+          images: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
+
+      // Start async processing for enhancement and assessment
+      // This runs in the background while we return to the user immediately
+      processProductEnhancementAndAssessment({
+        product,
+        firstUploadedImageUrl,
         categorySlug: (data.category as string) || undefined,
-        price: product.priceToman,
         userId: user.id,
-      })
-        .then(async enhancement => {
-          if (enhancement.enhanced) {
-            try {
-              // If AI produced an enhanced image (data URL), upload it to Cloudinary
-              let enhancedImageUrlToUse = enhancement.imageUrl;
-              if (
-                enhancement.imageUrl &&
-                typeof enhancement.imageUrl === 'string' &&
-                enhancement.imageUrl.startsWith('data:image/')
-              ) {
-                try {
-                  const base64 = enhancement.imageUrl.split(',')[1];
-                  if (base64) {
-                    const buffer = Buffer.from(base64, 'base64');
-                    const upload = await uploadImageToCloudinary(buffer, {
-                      folder: `kiarakraft/products/${product.id}`,
-                      public_id: `enhanced-${Date.now()}`,
-                    });
+      }).catch((error: unknown) => {
+        console.error(
+          `Background processing failed for product ${product.id}:`,
+          error
+        );
+        Sentry.captureException(error);
+      });
 
-                    enhancedImageUrlToUse = upload.secure_url;
-
-                    // Insert enhanced image as the first image and reorder existing ones
-                    const existingImages = await prisma.listingImage.findMany({
-                      where: { productId: product.id },
-                      orderBy: { sortOrder: 'asc' },
-                      select: { id: true },
-                    });
-
-                    await prisma.$transaction(async tx => {
-                      // Create the enhanced image at sortOrder 0
-                      await tx.listingImage.create({
-                        data: {
-                          productId: product.id,
-                          url: enhancedImageUrlToUse!,
-                          alt: `${product.title} (enhanced)`,
-                          sortOrder: 0,
-                        },
-                      });
-                      // Push existing images down by 1 in order
-                      for (let i = 0; i < existingImages.length; i++) {
-                        await tx.listingImage.update({
-                          where: { id: existingImages[i].id },
-                          data: { sortOrder: i + 1 },
-                        });
-                      }
-                    });
-                  }
-                } catch (e) {
-                  console.warn(
-                    'Enhanced image save failed; continuing with original',
-                    e
-                  );
-                }
-              }
-
-              // Update product with enhanced content
-              await prisma.product.update({
-                where: { id: product.id },
-                data: {
-                  description: enhancement.description || product.description,
-                  tags: enhancement.tags || undefined, // Store tags in the new JSONB field
-                },
-              });
-              // Refresh product/search caches so explore picks up improvements fast
-              try {
-                await revalidateProduct(product.id);
-              } catch {}
-              console.log('Product enhanced successfully');
-
-              // Use enhanced content for assessment
-              return {
-                title: product.title,
-                description: enhancement.description || product.description,
-                imageUrl: enhancedImageUrlToUse || firstUploadedImageUrl,
-                categorySlug: (data.category as string) || undefined,
-                price: product.priceToman,
-              };
-            } catch (e) {
-              console.error('Failed to save enhancement:', e);
-            }
-          }
-          // Return original if enhancement failed
-          return {
-            title: product.title,
-            description: product.description,
-            imageUrl: firstUploadedImageUrl,
-            categorySlug: (data.category as string) || undefined,
-            price: product.priceToman,
-          };
-        })
-        .then(async enhancedProduct => {
-          // STEP 2: Assess the enhanced product for eligibility
-          const assessmentPromise = enhancedProduct.imageUrl
-            ? assessProductWithAI({ ...enhancedProduct, userId: user.id })
-            : assessProductForHandcrafted(enhancedProduct);
-
-          return assessmentPromise;
-        })
-        .then(async res => {
-          try {
-            await prisma.product.update({
-              where: { id: product.id },
-              data: {
-                ...({
-                  eligibilityStatus: res.status,
-                  eligibilityConfidence: res.confidence ?? null,
-                  eligibilityReasons:
-                    res.reasons?.join('; ').slice(0, 1000) || null,
-                } as Record<string, unknown>),
-              },
-            });
-            try {
-              await revalidateProduct(product.id);
-            } catch {}
-          } catch (e) {
-            console.error('Failed to update eligibility', e);
-          }
-        })
-        .catch(e => console.error('Eligibility error', e));
-
-      return NextResponse.json(product);
+      // Return immediately with PENDING status
+      return NextResponse.json({
+        ...productWithImages,
+        eligibilityStatus: 'PENDING',
+        message:
+          'Product is under review. You will be notified once the review is complete.',
+      });
     } catch (error) {
       Sentry.captureException(error);
       console.error('Error creating product:', error);
