@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   uploadProductImage,
@@ -32,6 +33,7 @@ export default function ImageUploadManager({
   onImagesChange,
   maxImages = 5,
 }: ImageUploadManagerProps) {
+  const t = useTranslations('seller');
   const [images, setImages] = useState<ImageData[]>(initialImages);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -60,7 +62,7 @@ export default function ImageUploadManager({
     if (list.length === 0) return;
 
     if (images.length + list.length > maxImages) {
-      toast.error(`Maximum ${maxImages} images allowed`);
+      toast.error(t('maximumImagesAllowed', { count: maxImages }));
       return;
     }
 
@@ -88,10 +90,10 @@ export default function ImageUploadManager({
 
         setProgress(Math.round(((i + 1) / list.length) * 100));
       }
-      if (list.length > 0) toast.success('Upload complete');
+      if (list.length > 0) toast.success(t('uploadComplete'));
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Upload failed');
+      toast.error(t('uploadFailed'));
     } finally {
       setUploading(false);
       setTimeout(() => setProgress(0), 400);
@@ -112,9 +114,9 @@ export default function ImageUploadManager({
 
     if (result.success) {
       updateImages(images.filter(img => img.id !== imageId));
-      toast.success('Image deleted');
+      toast.success(t('imageDeleted'));
     } else {
-      toast.error(result.error || 'Delete failed');
+      toast.error(result.error || t('deleteFailed'));
     }
   };
 
@@ -156,9 +158,9 @@ export default function ImageUploadManager({
     const result = await reorderProductImages(productId, imageIds);
 
     if (result.success) {
-      toast.success('Images reordered');
+      toast.success(t('imagesReordered'));
     } else {
-      toast.error('Failed to save order');
+      toast.error(t('failedToSaveOrder'));
       // Revert on error
       updateImages(images);
     }
@@ -183,18 +185,18 @@ export default function ImageUploadManager({
         img.id === editingAltId ? { ...img, alt: result.alt ?? '' } : img
       );
       updateImages(newImages);
-      toast.success('Alt text updated');
+      toast.success(t('altTextUpdated'));
       setEditingAltId(null);
       setAltDraft('');
     } else {
-      toast.error(result.error || 'Failed to update alt');
+      toast.error(result.error || t('failedToUpdateAlt'));
     }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Product Images</h3>
+        <h3 className="text-lg font-semibold">{t('productImages')}</h3>
         <div className="text-sm text-muted-foreground">
           {images.length} / {maxImages} images
         </div>
@@ -251,10 +253,10 @@ export default function ImageUploadManager({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                {uploading ? 'Uploading...' : 'Choose Images'}
+                {uploading ? t('uploadingImages') : t('chooseImages')}
               </Button>
               <p className="text-sm text-muted-foreground mt-2">
-                Drag & drop or click to upload. JPEG, PNG, WebP up to 5MB each
+                {t('dragDropImages')}
               </p>
 
               {uploading && (
@@ -317,7 +319,7 @@ export default function ImageUploadManager({
                 {/* Primary indicator */}
                 {index === 0 && (
                   <div className="absolute bottom-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                    Primary
+                    {t('primaryImage')}
                   </div>
                 )}
 
@@ -330,12 +332,12 @@ export default function ImageUploadManager({
                           type="text"
                           value={altDraft}
                           onChange={e => setAltDraft(e.target.value)}
-                          placeholder="Alt text (max 200 chars)"
+                          placeholder={t('altTextPlaceholder')}
                           maxLength={200}
                           className="flex-1 text-xs px-2 py-1 rounded bg-white text-black"
                         />
                         <Button size="sm" variant="secondary" onClick={saveAlt}>
-                          Save
+                          {t('saveAlt')}
                         </Button>
                         <Button
                           size="sm"
@@ -345,7 +347,7 @@ export default function ImageUploadManager({
                             setAltDraft('');
                           }}
                         >
-                          Cancel
+                          {t('cancelAlt')}
                         </Button>
                       </>
                     ) : (
@@ -354,14 +356,14 @@ export default function ImageUploadManager({
                           className="flex-1 text-xs text-white truncate"
                           title={image.alt || ''}
                         >
-                          {image.alt || 'No alt text'}
+                          {image.alt || t('noAltText')}
                         </div>
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => startEditAlt(image)}
                         >
-                          Edit alt
+                          {t('editAlt')}
                         </Button>
                       </>
                     )}
@@ -374,7 +376,7 @@ export default function ImageUploadManager({
 
       {images.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          No images uploaded yet
+          {t('noImagesUploaded')}
         </div>
       )}
     </div>

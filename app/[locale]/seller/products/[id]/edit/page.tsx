@@ -299,7 +299,7 @@ export default function EditProductPage() {
               />
             </div>
 
-            {/* Legacy Image URL field - keep for backward compatibility */}
+            {/* Legacy Image URL field - hidden to avoid confusion
             <div>
               <Label htmlFor="imageUrl">{t('productImageUrl')} (Legacy)</Label>
               <Input
@@ -315,7 +315,7 @@ export default function EditProductPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Legacy field - use image uploader above for new images
               </p>
-            </div>
+            </div> */}
 
             <div>
               <Label htmlFor="tags">{t('productTags')}</Label>
