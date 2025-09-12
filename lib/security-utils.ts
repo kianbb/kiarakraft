@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { URL } from 'url';
 import * as Sentry from '@sentry/nextjs';
+import DOMPurify from 'isomorphic-dompurify';
 
 // Maximum costs per month in USD
 const MAX_MONTHLY_AI_COST = 100;
@@ -356,19 +357,21 @@ export function sanitizeProductFields(data: {
   const result: { title?: string; description?: string } = {};
 
   if (data.title) {
-    // Remove any HTML/script tags
-    result.title = data.title
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .trim();
+    // Use DOMPurify to sanitize - strip all HTML tags but keep text content
+    result.title = DOMPurify.sanitize(data.title, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+      KEEP_CONTENT: true,
+    }).trim();
   }
 
   if (data.description) {
-    // Remove any HTML/script tags but preserve newlines
-    result.description = data.description
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .trim();
+    // Use DOMPurify to sanitize - strip all HTML tags but keep text content
+    result.description = DOMPurify.sanitize(data.description, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+      KEEP_CONTENT: true,
+    }).trim();
   }
 
   return result;
