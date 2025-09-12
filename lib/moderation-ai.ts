@@ -82,12 +82,17 @@ Description: ${input.description}
 Category: ${input.categorySlug || 'Not specified'}
 Price: ${input.price ? `${input.price} Toman` : 'Not specified'}
 
-Analyze the product based on our criteria and provide your response in JSON format with:
-1. A definitive decision: APPROVED or REJECTED
-2. Confidence level (0-100)
-3. Clear reasons for your decision
+Analyze the product based on our criteria and respond with a JSON object containing:
+1. status: "APPROVED" or "REJECTED" (definitive decision)
+2. confidence: number between 0-100 (your confidence level)
+3. reasons: array of strings (clear explanations for your decision)
 
-Return your response as a JSON object with fields: status, confidence, reasons
+You MUST respond with valid JSON in this exact format:
+{
+  "status": "APPROVED" or "REJECTED",
+  "confidence": 85,
+  "reasons": ["reason 1", "reason 2", "reason 3"]
+}
 
 ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was provided, evaluate based on text only.'}`,
           },
@@ -107,11 +112,36 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Using the more cost-effective mini model
+      model: 'gpt-5-mini-2025-08-07', // Using GPT-5 mini for better assessment capabilities
       messages,
-      max_tokens: 500,
-      temperature: 0.3, // Lower temperature for more consistent decisions
-      response_format: { type: 'json_object' },
+      max_completion_tokens: 1000, // GPT-5 mini uses max_completion_tokens parameter
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'product_assessment',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              status: {
+                type: 'string',
+                enum: ['APPROVED', 'REJECTED'],
+              },
+              confidence: {
+                type: 'number',
+                minimum: 0,
+                maximum: 100,
+              },
+              reasons: {
+                type: 'array',
+                items: { type: 'string' },
+              },
+            },
+            required: ['status', 'confidence', 'reasons'],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
     const response = completion.choices[0]?.message?.content;
