@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductForHandcrafted } from '@/lib/moderation';
 import { assessProductWithAI } from '@/lib/moderation-ai';
+import { enhanceProductBeforeApproval } from '@/lib/product-enhancement-openai';
 import { revalidateProduct } from '@/lib/cache';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/nextjs';
@@ -191,23 +192,75 @@ export const PUT = withCSRF(async function (
         .catch(e => console.error('Translation error (update)', e));
     }
 
-    // Re-assess product eligibility with AI in background (best-effort)
-    // Use AI assessment if we have an image, otherwise use fallback
-    const assessmentPromise = product.images?.[0]?.url
-      ? assessProductWithAI({
-          title: updatedProduct.title,
-          description: updatedProduct.description,
-          imageUrl: product.images[0].url,
-          categorySlug: undefined,
-          userId: user.id,
-        })
-      : assessProductForHandcrafted({
-          title: updatedProduct.title,
-          description: updatedProduct.description,
-          categorySlug: undefined,
-        });
+    // STEP 1: Enhance product presentation with AI (OpenAI)
+    // This was missing from the edit flow!
+    enhanceProductBeforeApproval({
+      id: updatedProduct.id,
+      title: updatedProduct.title,
+      description: updatedProduct.description,
+      imageUrl: product.images?.[0]?.url,
+      categorySlug: undefined,
+      price: updatedProduct.priceToman,
+      userId: user.id,
+    })
+      .then(async enhancement => {
+        // Apply enhancements if available
+        if (enhancement.enhanced) {
+          try {
+            // Update product with enhanced content
+            await prisma.product.update({
+              where: { id: updatedProduct.id },
+              data: {
+                description:
+                  enhancement.description || updatedProduct.description,
+                tags: enhancement.tags || undefined,
+              },
+            });
 
-    assessmentPromise
+            // Note: We're not handling enhanced images here since that would require
+            // more complex logic to upload to Cloudinary and update images table
+            // This can be added later if needed
+
+            console.log('Product enhanced during edit:', {
+              productId: updatedProduct.id,
+              hasEnhancedDescription: !!enhancement.description,
+              tagsAdded: enhancement.tags?.length || 0,
+            });
+
+            // Return enhanced content for assessment
+            return {
+              title: updatedProduct.title,
+              description:
+                enhancement.description || updatedProduct.description,
+              imageUrl: product.images?.[0]?.url,
+              categorySlug: undefined,
+              price: updatedProduct.priceToman,
+              userId: user.id,
+            };
+          } catch (e) {
+            console.error('Failed to save enhancement during edit:', e);
+            // Fall through to use original content
+          }
+        }
+
+        // Return original if enhancement failed or wasn't applied
+        return {
+          title: updatedProduct.title,
+          description: updatedProduct.description,
+          imageUrl: product.images?.[0]?.url,
+          categorySlug: undefined,
+          price: updatedProduct.priceToman,
+          userId: user.id,
+        };
+      })
+      .then(async productToAssess => {
+        // STEP 2: Assess the (potentially enhanced) product for eligibility
+        const assessmentPromise = productToAssess.imageUrl
+          ? assessProductWithAI(productToAssess)
+          : assessProductForHandcrafted(productToAssess);
+
+        return assessmentPromise;
+      })
       .then(async res => {
         try {
           await prisma.product.update({
@@ -221,12 +274,20 @@ export const PUT = withCSRF(async function (
               } as Record<string, unknown>),
             },
           });
+          console.log('Product eligibility updated:', {
+            productId: updatedProduct.id,
+            status: res.status,
+            confidence: res.confidence,
+          });
         } catch (e) {
           console.error('Failed to update eligibility', e);
           Sentry.captureException(e);
         }
       })
-      .catch(e => console.error('Eligibility error (update)', e));
+      .catch(e => {
+        console.error('Enhancement/eligibility error (update)', e);
+        Sentry.captureException(e);
+      });
 
     return NextResponse.json(updatedProduct);
   } catch (error) {
