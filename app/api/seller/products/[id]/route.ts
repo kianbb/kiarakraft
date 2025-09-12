@@ -341,6 +341,14 @@ async function processProductEnhancementAndAssessment({
   console.log(`   User ID: ${userId}`);
   console.log(`   Has image: ${!!firstUploadedImageUrl}`);
 
+  // Update status to show processing has started
+  await prisma.product.update({
+    where: { id: product.id },
+    data: {
+      eligibilityReasons: '🔄 Step 1/3: Validating product data...',
+    },
+  });
+
   // Validate user exists
   try {
     const userExists = await prisma.user.findUnique({
@@ -366,6 +374,15 @@ async function processProductEnhancementAndAssessment({
 
   // STEP 1: Enhance product presentation with AI
   try {
+    // Update status to show enhancement is starting
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        eligibilityReasons:
+          '🎨 Step 2/3: Enhancing product presentation with AI...',
+      },
+    });
+
     console.log(`🎨 Starting AI enhancement for product ${product.id}...`);
     const enhancement = await enhanceProductBeforeApproval({
       id: product.id,
@@ -444,18 +461,54 @@ async function processProductEnhancementAndAssessment({
           },
         });
         console.log(`✅ Enhanced description and tags saved`);
+
+        // Update progress
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            eligibilityReasons:
+              '✨ Enhancement complete. Starting eligibility assessment...',
+          },
+        });
       }
     } else {
       console.log(`⚠️ Enhancement returned false for product ${product.id}`);
+
+      // Update progress even if enhancement didn't make changes
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          eligibilityReasons:
+            '⏭️ Enhancement skipped. Starting eligibility assessment...',
+        },
+      });
     }
   } catch (enhancementError) {
     console.error('❌ Enhancement failed:', enhancementError);
     Sentry.captureException(enhancementError);
+
+    // Update status to show enhancement failed but continuing
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        eligibilityReasons:
+          '⚠️ Enhancement failed. Continuing with eligibility assessment...',
+      },
+    });
     // Continue with original content if enhancement fails
   }
 
   // STEP 2: Assess the (potentially enhanced) product for eligibility
   try {
+    // Update status to show assessment is starting
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        eligibilityReasons:
+          '🔍 Step 3/3: Assessing product for marketplace eligibility...',
+      },
+    });
+
     console.log(`🔍 Starting AI assessment for product ${product.id}...`);
     const productToAssess = {
       title: product.title,

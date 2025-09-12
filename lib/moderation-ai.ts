@@ -165,7 +165,7 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini-2025-08-07', // Using GPT-5 mini for better assessment capabilities
       messages,
-      max_completion_tokens: 1000, // GPT-5 mini uses max_completion_tokens parameter
+      max_completion_tokens: 10000, // GPT-5 has invisible reasoning tokens that count toward output
       response_format: {
         type: 'json_schema',
         json_schema: {
