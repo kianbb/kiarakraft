@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
-import { assessProductForHandcrafted } from '@/lib/moderation';
 import { assessProductWithAI } from '@/lib/moderation-ai';
 import { enhanceProductBeforeApproval } from '@/lib/product-enhancement-openai';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
@@ -12,7 +11,7 @@ import * as Sentry from '@sentry/nextjs';
 import { withCSRF } from '@/lib/csrf';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -217,7 +216,7 @@ export const PUT = withCSRF(async function (
 });
 
 export const DELETE = withCSRF(async function (
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -339,6 +338,27 @@ async function processProductEnhancementAndAssessment({
 }) {
   const startTime = Date.now();
   console.log(`🚀 Starting background processing for product ${product.id}...`);
+  console.log(`   User ID: ${userId}`);
+  console.log(`   Has image: ${!!firstUploadedImageUrl}`);
+
+  // Validate user exists
+  try {
+    const userExists = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+
+    if (!userExists) {
+      console.error(`❌ USER NOT FOUND IN DATABASE: ${userId}`);
+      throw new Error(`User ${userId} not found in database`);
+    }
+
+    console.log(`✅ User verified: ${userExists.email}`);
+  } catch (error) {
+    console.error('❌ Failed to verify user:', error);
+    throw error;
+  }
+
   let enhancedDescription = product.description;
   let enhancedTags: string[] | undefined;
   let enhancedImageUrl = firstUploadedImageUrl;
@@ -446,9 +466,8 @@ async function processProductEnhancementAndAssessment({
       userId,
     };
 
-    const assessmentResult = enhancedImageUrl
-      ? await assessProductWithAI(productToAssess)
-      : await assessProductForHandcrafted(productToAssess);
+    // Always use AI assessment - never use fallback
+    const assessmentResult = await assessProductWithAI(productToAssess);
 
     // Update product with final assessment results
     await prisma.product.update({

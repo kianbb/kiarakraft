@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
-import { assessProductForHandcrafted } from '@/lib/moderation';
 import { assessProductWithAI } from '@/lib/moderation-ai';
 import { enhanceProductBeforeApproval } from '@/lib/product-enhancement-openai';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
@@ -35,6 +34,26 @@ async function processProductEnhancementAndAssessment({
 }) {
   const startTime = Date.now();
   console.log(`🚀 Starting background processing for product ${product.id}...`);
+  console.log(`   User ID: ${userId}`);
+  console.log(`   Has image: ${!!firstUploadedImageUrl}`);
+
+  // Validate user exists
+  try {
+    const userExists = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+
+    if (!userExists) {
+      console.error(`❌ USER NOT FOUND IN DATABASE: ${userId}`);
+      throw new Error(`User ${userId} not found in database`);
+    }
+
+    console.log(`✅ User verified: ${userExists.email}`);
+  } catch (error) {
+    console.error('❌ Failed to verify user:', error);
+    throw error;
+  }
 
   let enhancedDescription = product.description;
   let enhancedTags: string[] | undefined;
@@ -144,9 +163,8 @@ async function processProductEnhancementAndAssessment({
       userId,
     };
 
-    const assessmentResult = enhancedImageUrl
-      ? await assessProductWithAI(productToAssess)
-      : await assessProductForHandcrafted(productToAssess);
+    // Always use AI assessment - never use fallback
+    const assessmentResult = await assessProductWithAI(productToAssess);
 
     // Update product with final assessment results
     await prisma.product.update({
@@ -455,13 +473,6 @@ export const POST = withRateLimit(
           .catch(e => console.error('Translation error', e));
       }
 
-      // Capture the first uploaded image URL (if any) to pass into AI steps
-      const images = data.images as Array<{ url?: string }> | undefined;
-      const firstUploadedImageUrl: string | undefined =
-        images && Array.isArray(images) && images.length > 0
-          ? images[0]?.url
-          : undefined;
-
       // Return product immediately with PENDING status while processing happens in background
       const productWithImages = await prisma.product.findUnique({
         where: { id: product.id },
@@ -471,6 +482,18 @@ export const POST = withRateLimit(
           },
         },
       });
+
+      // Get the actual image URL from the database, not the request
+      const firstUploadedImageUrl = productWithImages?.images?.[0]?.url;
+
+      console.log(
+        `📸 Product ${product.id} has ${productWithImages?.images?.length || 0} images`
+      );
+      if (firstUploadedImageUrl) {
+        console.log(
+          `   First image URL: ${firstUploadedImageUrl.substring(0, 50)}...`
+        );
+      }
 
       // Start async processing for enhancement and assessment
       // This runs in the background while we return to the user immediately
