@@ -78,7 +78,7 @@ export function validateImageUrl(url: string): {
     const ipPattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
     const ipMatch = hostname.match(ipPattern);
     if (ipMatch) {
-      const [, a, b, c, d] = ipMatch.map(Number);
+      const [, a, b, ,] = ipMatch.map(Number);
 
       // 10.0.0.0/8
       if (a === 10) {
@@ -130,7 +130,7 @@ export function validateImageUrl(url: string): {
     }
 
     return { valid: true };
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Invalid URL format' };
   }
 }
@@ -226,8 +226,7 @@ export function estimateGPT5MiniCost(
  * Validate image fetch response
  */
 export async function validateImageResponse(
-  response: Response,
-  url: string
+  response: Response
 ): Promise<{ valid: boolean; error?: string }> {
   // Check content type
   const contentType = response.headers.get('content-type');
@@ -294,7 +293,7 @@ export async function secureFetchImage(
     }
 
     // Validate response
-    const responseValidation = await validateImageResponse(response, url);
+    const responseValidation = await validateImageResponse(response);
     if (!responseValidation.valid) {
       return { success: false, error: responseValidation.error };
     }

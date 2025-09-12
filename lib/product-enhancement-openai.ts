@@ -1,5 +1,5 @@
 import OpenAI, { toFile } from 'openai';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
+// import { uploadImageToCloudinary } from '@/lib/cloudinary'; // Used in route.ts for uploading enhanced images
 import {
   sanitizeForPrompt,
   secureFetchImage,
