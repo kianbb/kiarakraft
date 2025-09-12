@@ -64,8 +64,8 @@ export async function assessProductWithAI(input: {
     const openaiKey = process.env.OPENAI_API_KEY;
 
     if (!openaiKey) {
-      // Fallback to simple keyword-based assessment if no API key
-      return fallbackAssessment(input);
+      console.error('⚠️ No OpenAI API key found - cannot assess product');
+      throw new Error('AI configuration error - please contact support');
     }
 
     const openai = new OpenAI({
@@ -145,7 +145,9 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
           console.warn(
             `⚠️ AI assessment limit exceeded for user ${input.userId}`
           );
-          return fallbackAssessment(input);
+          throw new Error(
+            'Monthly AI usage limit exceeded - please try again next month'
+          );
         }
       } catch (trackingError) {
         // Don't fail assessment if usage tracking fails
@@ -220,10 +222,16 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
     // Log detailed error information
     console.error('🚨 AI ASSESSMENT FAILED - USING FALLBACK', {
       error: error instanceof Error ? error.message : error,
+      stack:
+        error instanceof Error
+          ? error.stack?.split('\n').slice(0, 3).join('\n')
+          : undefined,
       model: 'gpt-5-mini-2025-08-07',
       hasImage: !!input.imageUrl,
       title: input.title?.substring(0, 50),
       timestamp: new Date().toISOString(),
+      apiKeyPresent: !!process.env.OPENAI_API_KEY,
+      apiKeyPrefix: process.env.OPENAI_API_KEY?.substring(0, 10),
     });
 
     // Capture in Sentry for monitoring
@@ -240,14 +248,8 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       },
     });
 
-    // Return fallback with clear indication
-    const fallback = fallbackAssessment(input);
-    console.warn('📊 Fallback assessment result:', {
-      status: fallback.status,
-      confidence: fallback.confidence,
-      isRealAI: false,
-    });
-    return fallback;
+    // Don't use fallback - throw error so product stays in review
+    throw new Error('AI assessment failed - manual review required');
   }
 }
 

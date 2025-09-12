@@ -91,8 +91,8 @@ export async function enhanceProductPresentation(input: {
     const openaiKey = process.env.OPENAI_API_KEY;
 
     if (!openaiKey) {
-      // Fallback to basic enhancement without AI
-      return basicEnhancement(input);
+      console.error('⚠️ No OpenAI API key found - cannot enhance product');
+      throw new Error('AI configuration error - please contact support');
     }
 
     const openai = new OpenAI({
@@ -161,7 +161,9 @@ Focus on highlighting handmade qualities and improving marketability.`,
           console.warn(
             `⚠️ AI enhancement limit exceeded for user ${input.userId}: $${usageCheck.monthlyTotal}/$${usageCheck.limit}`
           );
-          return basicEnhancement(input);
+          throw new Error(
+            'Monthly AI usage limit exceeded - please try again next month'
+          );
         }
       } catch (trackingError) {
         // Don't fail enhancement if usage tracking fails
@@ -267,8 +269,14 @@ Focus on highlighting handmade qualities and improving marketability.`,
     // Log detailed error information
     console.error('🚨 AI ENHANCEMENT FAILED - USING BASIC FALLBACK', {
       error: error instanceof Error ? error.message : error,
+      stack:
+        error instanceof Error
+          ? error.stack?.split('\n').slice(0, 3).join('\n')
+          : undefined,
       model: 'gpt-5-mini-2025-08-07',
       hasImage: !!input.imageUrl,
+      apiKeyPresent: !!process.env.OPENAI_API_KEY,
+      apiKeyPrefix: process.env.OPENAI_API_KEY?.substring(0, 10),
       title: input.title?.substring(0, 50),
       timestamp: new Date().toISOString(),
     });
@@ -287,8 +295,8 @@ Focus on highlighting handmade qualities and improving marketability.`,
       },
     });
 
-    console.warn('📊 Using basic enhancement (no AI)');
-    return basicEnhancement(input);
+    // Don't use fallback - throw error so product stays in review
+    throw new Error('AI enhancement failed - manual review required');
   }
 }
 
@@ -390,99 +398,6 @@ async function enhanceImageWithGPTImage1(params: {
   }
 }
 
-// Basic enhancement without AI
-function basicEnhancement(input: {
-  title: string;
-  description: string;
-  categorySlug?: string;
-}): EnhancementResult {
-  const improvements: string[] = [];
-  let enhancedDescription = input.description;
-
-  // Add basic enhancements
-  if (input.description.length < 50) {
-    improvements.push('Added more detail to description');
-
-    // Add category-specific details
-    const categoryEnhancements: Record<string, string> = {
-      textiles: ' این محصول نساجی دست‌ساز با تکنیک‌های سنتی تولید شده است.',
-      jewelry: ' این جواهر منحصر به فرد با دقت و ظرافت دست‌ساز شده است.',
-      ceramics:
-        ' این محصول سرامیکی با مهارت هنرمندانه شکل گرفته و پرداخت شده است.',
-      woodwork: ' این محصول چوبی نمایانگر مهارت‌های حرفه‌ای در کار با چوب است.',
-      art: ' این اثر هنری نشان‌دهنده ساعت‌ها کار متعهدانه است.',
-    };
-
-    const addition =
-      categoryEnhancements[input.categorySlug || ''] ||
-      ' این محصول دست‌ساز با توجه به جزئیات ساخته شده است.';
-
-    enhancedDescription += addition;
-  }
-
-  // Generate basic tags
-  const tags: string[] = [];
-
-  // Add category tag
-  if (input.categorySlug) {
-    tags.push(input.categorySlug);
-  }
-
-  // Add common handmade tags
-  tags.push('دست‌ساز', 'handmade', 'artisanal', 'صنایع دستی');
-
-  // Extract potential tags from title and description
-  const text = `${input.title} ${input.description}`.toLowerCase();
-
-  const materialKeywords = [
-    'پشم',
-    'wool',
-    'پنبه',
-    'cotton',
-    'ابریشم',
-    'silk',
-    'چرم',
-    'leather',
-    'چوب',
-    'wood',
-    'سرامیک',
-    'ceramic',
-  ];
-  const techniqueKeywords = [
-    'بافته',
-    'woven',
-    'دوخته',
-    'sewn',
-    'نقاشی',
-    'painted',
-    'کنده‌کاری',
-    'carved',
-  ];
-
-  materialKeywords.forEach(keyword => {
-    if (text.includes(keyword)) tags.push(keyword);
-  });
-
-  techniqueKeywords.forEach(keyword => {
-    if (text.includes(keyword)) tags.push(keyword);
-  });
-
-  // Remove duplicates and limit to 10
-  const uniqueTags = [...new Set(tags)].slice(0, 10);
-
-  if (uniqueTags.length > 3) {
-    improvements.push('Generated relevant tags');
-  }
-
-  return {
-    enhancedDescription,
-    suggestedTags: uniqueTags,
-    confidence: 30,
-    improvements:
-      improvements.length > 0 ? improvements : ['No enhancements needed'],
-  };
-}
-
 // Function to be called during product creation
 export async function enhanceProductBeforeApproval(product: {
   id: string;
@@ -546,6 +461,7 @@ export async function enhanceProductBeforeApproval(product: {
     return { enhanced: false };
   } catch (error) {
     console.error('Enhancement failed:', error);
-    return { enhanced: false };
+    // Re-throw the error so it bubbles up to the async processing
+    throw error;
   }
 }
