@@ -199,6 +199,7 @@ export const PUT = withCSRF(async function (
           description: updatedProduct.description,
           imageUrl: product.images[0].url,
           categorySlug: undefined,
+          userId: user.id,
         })
       : assessProductForHandcrafted({
           title: updatedProduct.title,

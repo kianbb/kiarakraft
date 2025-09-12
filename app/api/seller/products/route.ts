@@ -293,6 +293,7 @@ export const POST = withRateLimit(
         imageUrl: firstUploadedImageUrl,
         categorySlug: (data.category as string) || undefined,
         price: product.priceToman,
+        userId: user.id,
       })
         .then(async enhancement => {
           if (enhancement.enhanced) {
@@ -387,7 +388,7 @@ export const POST = withRateLimit(
         .then(async enhancedProduct => {
           // STEP 2: Assess the enhanced product for eligibility
           const assessmentPromise = enhancedProduct.imageUrl
-            ? assessProductWithAI(enhancedProduct)
+            ? assessProductWithAI({ ...enhancedProduct, userId: user.id })
             : assessProductForHandcrafted(enhancedProduct);
 
           return assessmentPromise;

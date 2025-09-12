@@ -1,4 +1,10 @@
 import OpenAI from 'openai';
+import {
+  sanitizeForPrompt,
+  trackAIUsage,
+  estimateGPT5MiniCost,
+  validateImageUrl,
+} from '@/lib/security-utils';
 
 type EligibilityResult = {
   status: 'APPROVED' | 'REJECTED';
@@ -51,6 +57,7 @@ export async function assessProductWithAI(input: {
   imageUrl?: string;
   categorySlug?: string;
   price?: number;
+  userId?: string;
 }): Promise<EligibilityResult> {
   try {
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -63,6 +70,18 @@ export async function assessProductWithAI(input: {
     const openai = new OpenAI({
       apiKey: openaiKey,
     });
+
+    // Validate image URL if provided
+    if (input.imageUrl) {
+      const urlValidation = validateImageUrl(input.imageUrl);
+      if (!urlValidation.valid) {
+        console.warn(
+          `Invalid image URL for assessment: ${urlValidation.error}`
+        );
+        // Continue without image if URL is invalid
+        input.imageUrl = undefined;
+      }
+    }
 
     // Prepare the messages for GPT-4 Vision
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -77,9 +96,9 @@ export async function assessProductWithAI(input: {
             type: 'text',
             text: `Please evaluate this product for our handmade marketplace:
 
-Title: ${input.title}
-Description: ${input.description}
-Category: ${input.categorySlug || 'Not specified'}
+Title: ${sanitizeForPrompt(input.title, 200)}
+Description: ${sanitizeForPrompt(input.description, 1000)}
+Category: ${sanitizeForPrompt(input.categorySlug || 'Not specified', 50)}
 Price: ${input.price ? `${input.price} Toman` : 'Not specified'}
 
 Analyze the product based on our criteria and respond with a JSON object containing:
@@ -110,6 +129,21 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
         ],
       },
     ];
+
+    // Track AI usage if userId provided
+    if (input.userId) {
+      const estimatedCost = estimateGPT5MiniCost(1500, 500); // Rough estimate
+      const usageCheck = await trackAIUsage(
+        input.userId,
+        'GPT5_MINI',
+        estimatedCost
+      );
+
+      if (!usageCheck.allowed) {
+        console.warn(`AI assessment limit exceeded for user ${input.userId}`);
+        return fallbackAssessment(input);
+      }
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini-2025-08-07', // Using GPT-5 mini for better assessment capabilities
