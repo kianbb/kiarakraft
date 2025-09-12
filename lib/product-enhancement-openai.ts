@@ -182,7 +182,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini-2025-08-07', // Using GPT-5 mini with exact model version
       messages,
-      max_completion_tokens: 5000, // Increased to account for reasoning tokens + output
+      max_completion_tokens: 10000, // GPT-5 has invisible reasoning tokens that count toward output
       response_format: {
         type: 'json_schema',
         json_schema: {
