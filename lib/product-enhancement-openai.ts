@@ -1,4 +1,12 @@
 import OpenAI, { toFile } from 'openai';
+// import { uploadImageToCloudinary } from '@/lib/cloudinary'; // Used in route.ts for uploading enhanced images
+import {
+  sanitizeForPrompt,
+  secureFetchImage,
+  trackAIUsage,
+  estimateGPT5MiniCost,
+  AI_COSTS,
+} from '@/lib/security-utils';
 
 type EnhancementResult = {
   enhancedDescription: string;
@@ -76,6 +84,7 @@ export async function enhanceProductPresentation(input: {
   categorySlug?: string;
   price?: number;
   locale?: 'fa' | 'en';
+  userId?: string;
 }): Promise<EnhancementResult> {
   try {
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -102,9 +111,9 @@ export async function enhanceProductPresentation(input: {
             type: 'text',
             text: `Please enhance this product listing:
 
-Title: ${input.title}
-Description: ${input.description}
-Category: ${input.categorySlug || 'Not specified'}
+Title: ${sanitizeForPrompt(input.title, 200)}
+Description: ${sanitizeForPrompt(input.description, 1000)}
+Category: ${sanitizeForPrompt(input.categorySlug || 'Not specified', 50)}
 Price: ${input.price ? `${input.price} Toman` : 'Not specified'}
 Language: ${input.locale === 'fa' ? 'Persian/Farsi' : 'English'}
 
@@ -136,6 +145,23 @@ Focus on highlighting handmade qualities and improving marketability.`,
         ],
       },
     ];
+
+    // Track AI usage if userId provided
+    if (input.userId) {
+      const estimatedCost = estimateGPT5MiniCost(2000, 1000); // Rough estimate
+      const usageCheck = await trackAIUsage(
+        input.userId,
+        'GPT5_MINI',
+        estimatedCost
+      );
+
+      if (!usageCheck.allowed) {
+        console.warn(
+          `AI usage limit exceeded for user ${input.userId}: $${usageCheck.monthlyTotal}/$${usageCheck.limit}`
+        );
+        return basicEnhancement(input);
+      }
+    }
 
     // Use GPT-5 mini for analysis (more cost-effective than GPT-5)
     const completion = await openai.chat.completions.create({
@@ -208,6 +234,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
         enhancedImageUrl = await enhanceImageWithGPTImage1({
           originalImageUrl: input.imageUrl,
           editPrompt: result.imageEditPrompt,
+          userId: input.userId,
         });
       } catch (error) {
         console.error('Image enhancement failed, using original:', error);
@@ -232,20 +259,21 @@ Focus on highlighting handmade qualities and improving marketability.`,
 async function enhanceImageWithGPTImage1(params: {
   originalImageUrl: string;
   editPrompt: string;
+  userId?: string;
 }): Promise<string> {
   try {
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY!,
     });
 
-    // Fetch the original image
-    const imageResponse = await fetch(params.originalImageUrl);
+    // Securely fetch the original image with SSRF protection
+    const fetchResult = await secureFetchImage(params.originalImageUrl, 10000); // 10 second timeout
 
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+    if (!fetchResult.success || !fetchResult.data) {
+      throw new Error(fetchResult.error || 'Failed to fetch image');
     }
 
-    const imageBlob = await imageResponse.blob();
+    const imageBlob = fetchResult.data;
 
     // Create a professional, realistic enhancement prompt
     const realisticPrompt = `Professional product photography enhancement: ${params.editPrompt}. 
@@ -262,6 +290,20 @@ async function enhanceImageWithGPTImage1(params: {
     const imageFile = await toFile(imageBlob, 'product.png', {
       type: 'image/png',
     });
+
+    // Track AI usage for image enhancement
+    if (params.userId) {
+      const usageCheck = await trackAIUsage(
+        params.userId,
+        'GPT_IMAGE_1',
+        AI_COSTS.GPT_IMAGE_1_EDIT
+      );
+
+      if (!usageCheck.allowed) {
+        console.warn(`AI image usage limit exceeded for user ${params.userId}`);
+        return params.originalImageUrl; // Return original if limit exceeded
+      }
+    }
 
     // Use the OpenAI Images Edits endpoint
     // Note: supported sizes are typically 1024x1024, 1024x1792, or 1792x1024 for gpt-image-1
@@ -412,6 +454,7 @@ export async function enhanceProductBeforeApproval(product: {
   imageUrl?: string;
   categorySlug?: string;
   price?: number;
+  userId?: string;
 }): Promise<{
   enhanced: boolean;
   description?: string;
@@ -427,6 +470,7 @@ export async function enhanceProductBeforeApproval(product: {
       imageUrl: product.imageUrl,
       categorySlug: product.categorySlug,
       price: product.price,
+      userId: product.userId,
     });
 
     // Only apply enhancements if confidence is reasonable

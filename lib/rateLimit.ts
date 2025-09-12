@@ -146,7 +146,7 @@ export const uploadRateLimit = createRateLimiter({
 
 export const sellerProductRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 20, // 20 product operations per minute (create/edit/delete)
+  maxRequests: 5, // 5 product operations per minute (reduced to prevent AI cost abuse)
 });
 
 /**

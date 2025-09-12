@@ -28,6 +28,7 @@ model User {
   notificationLogs    NotificationLog[]
   returnRequests      ReturnRequest[]
   sellerProfile       SellerProfile?
+  aiUsageRecords      AIUsage[]
 }
 
 model SellerProfile {
@@ -386,4 +387,16 @@ model AuditLog {
   @@index([targetId])
   @@index([timestamp])
   @@index([ipAddress])
+}
+
+model AIUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  service   String   // 'GPT5_MINI' or 'GPT_IMAGE_1'
+  cost      Float    // Estimated cost in USD
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([timestamp])
 }
