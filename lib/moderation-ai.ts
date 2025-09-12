@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import * as Sentry from '@sentry/nextjs';
 import {
   sanitizeForPrompt,
   trackAIUsage,
@@ -132,18 +133,32 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
 
     // Track AI usage if userId provided
     if (input.userId) {
-      const estimatedCost = estimateGPT5MiniCost(1500, 500); // Rough estimate
-      const usageCheck = await trackAIUsage(
-        input.userId,
-        'GPT5_MINI',
-        estimatedCost
-      );
+      try {
+        const estimatedCost = estimateGPT5MiniCost(1500, 500); // Rough estimate
+        const usageCheck = await trackAIUsage(
+          input.userId,
+          'GPT5_MINI',
+          estimatedCost
+        );
 
-      if (!usageCheck.allowed) {
-        console.warn(`AI assessment limit exceeded for user ${input.userId}`);
-        return fallbackAssessment(input);
+        if (!usageCheck.allowed) {
+          console.warn(
+            `⚠️ AI assessment limit exceeded for user ${input.userId}`
+          );
+          return fallbackAssessment(input);
+        }
+      } catch (trackingError) {
+        // Don't fail assessment if usage tracking fails
+        console.error('AI usage tracking failed (continuing):', trackingError);
+        // Continue with assessment even if tracking fails
       }
     }
+
+    console.log('🤖 Calling GPT-5 mini for assessment...', {
+      model: 'gpt-5-mini-2025-08-07',
+      hasImage: !!input.imageUrl,
+      title: input.title?.substring(0, 30),
+    });
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini-2025-08-07', // Using GPT-5 mini for better assessment capabilities
@@ -202,9 +217,37 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       reasons: result.reasons || [],
     };
   } catch (error) {
-    console.error('AI assessment error:', error);
-    // Fallback to simple assessment on error
-    return fallbackAssessment(input);
+    // Log detailed error information
+    console.error('🚨 AI ASSESSMENT FAILED - USING FALLBACK', {
+      error: error instanceof Error ? error.message : error,
+      model: 'gpt-5-mini-2025-08-07',
+      hasImage: !!input.imageUrl,
+      title: input.title?.substring(0, 50),
+      timestamp: new Date().toISOString(),
+    });
+
+    // Capture in Sentry for monitoring
+    Sentry.captureException(error, {
+      tags: {
+        component: 'ai-assessment',
+        fallback: 'true',
+        model: 'gpt-5-mini-2025-08-07',
+      },
+      extra: {
+        productTitle: input.title,
+        hasImage: !!input.imageUrl,
+        userId: input.userId,
+      },
+    });
+
+    // Return fallback with clear indication
+    const fallback = fallbackAssessment(input);
+    console.warn('📊 Fallback assessment result:', {
+      status: fallback.status,
+      confidence: fallback.confidence,
+      isRealAI: false,
+    });
+    return fallback;
   }
 }
 

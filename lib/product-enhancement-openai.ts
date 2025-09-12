@@ -1,4 +1,5 @@
 import OpenAI, { toFile } from 'openai';
+import * as Sentry from '@sentry/nextjs';
 // import { uploadImageToCloudinary } from '@/lib/cloudinary'; // Used in route.ts for uploading enhanced images
 import {
   sanitizeForPrompt,
@@ -148,20 +149,32 @@ Focus on highlighting handmade qualities and improving marketability.`,
 
     // Track AI usage if userId provided
     if (input.userId) {
-      const estimatedCost = estimateGPT5MiniCost(2000, 1000); // Rough estimate
-      const usageCheck = await trackAIUsage(
-        input.userId,
-        'GPT5_MINI',
-        estimatedCost
-      );
-
-      if (!usageCheck.allowed) {
-        console.warn(
-          `AI usage limit exceeded for user ${input.userId}: $${usageCheck.monthlyTotal}/$${usageCheck.limit}`
+      try {
+        const estimatedCost = estimateGPT5MiniCost(2000, 1000); // Rough estimate
+        const usageCheck = await trackAIUsage(
+          input.userId,
+          'GPT5_MINI',
+          estimatedCost
         );
-        return basicEnhancement(input);
+
+        if (!usageCheck.allowed) {
+          console.warn(
+            `⚠️ AI enhancement limit exceeded for user ${input.userId}: $${usageCheck.monthlyTotal}/$${usageCheck.limit}`
+          );
+          return basicEnhancement(input);
+        }
+      } catch (trackingError) {
+        // Don't fail enhancement if usage tracking fails
+        console.error('AI usage tracking failed (continuing):', trackingError);
+        // Continue with enhancement even if tracking fails
       }
     }
+
+    console.log('🎆 Calling GPT-5 mini for enhancement...', {
+      model: 'gpt-5-mini-2025-08-07',
+      hasImage: !!input.imageUrl,
+      title: input.title?.substring(0, 30),
+    });
 
     // Use GPT-5 mini for analysis (more cost-effective than GPT-5)
     const completion = await openai.chat.completions.create({
@@ -228,8 +241,9 @@ Focus on highlighting handmade qualities and improving marketability.`,
     };
 
     // Step 2: If image provided and needs enhancement, use GPT Image 1
+    // Always enhance images when possible to better showcase handmade qualities
     let enhancedImageUrl = input.imageUrl;
-    if (input.imageUrl && result.imageEditPrompt && result.confidence >= 50) {
+    if (input.imageUrl && result.imageEditPrompt) {
       try {
         enhancedImageUrl = await enhanceImageWithGPTImage1({
           originalImageUrl: input.imageUrl,
@@ -250,7 +264,30 @@ Focus on highlighting handmade qualities and improving marketability.`,
       improvements: result.improvements,
     };
   } catch (error) {
-    console.error('Enhancement error:', error);
+    // Log detailed error information
+    console.error('🚨 AI ENHANCEMENT FAILED - USING BASIC FALLBACK', {
+      error: error instanceof Error ? error.message : error,
+      model: 'gpt-5-mini-2025-08-07',
+      hasImage: !!input.imageUrl,
+      title: input.title?.substring(0, 50),
+      timestamp: new Date().toISOString(),
+    });
+
+    // Capture in Sentry for monitoring
+    Sentry.captureException(error, {
+      tags: {
+        component: 'ai-enhancement',
+        fallback: 'true',
+        model: 'gpt-5-mini-2025-08-07',
+      },
+      extra: {
+        productTitle: input.title,
+        hasImage: !!input.imageUrl,
+        userId: input.userId,
+      },
+    });
+
+    console.warn('📊 Using basic enhancement (no AI)');
     return basicEnhancement(input);
   }
 }
@@ -473,21 +510,38 @@ export async function enhanceProductBeforeApproval(product: {
       userId: product.userId,
     });
 
-    // Only apply enhancements if confidence is reasonable
-    if (enhancement.confidence >= 50) {
+    // Always apply all available enhancements
+    // We've already paid for the API calls, so use everything we generated
+    const hasTextEnhancement =
+      enhancement.enhancedDescription &&
+      enhancement.enhancedDescription !== product.description;
+    const hasImageEnhancement =
+      enhancement.enhancedImageUrl &&
+      enhancement.enhancedImageUrl !== product.imageUrl;
+    const hasTags =
+      enhancement.suggestedTags && enhancement.suggestedTags.length > 0;
+
+    if (hasTextEnhancement || hasImageEnhancement || hasTags) {
       console.log(`✨ Enhanced with ${enhancement.confidence}% confidence`);
+      console.log(`   Text enhancement: ${hasTextEnhancement ? 'Yes' : 'No'}`);
+      console.log(
+        `   Image enhancement: ${hasImageEnhancement ? 'Yes' : 'No'}`
+      );
+      console.log(
+        `   Tags added: ${hasTags ? enhancement.suggestedTags.length : 0}`
+      );
       console.log(`   Improvements: ${enhancement.improvements.join(', ')}`);
 
       return {
         enhanced: true,
-        description: enhancement.enhancedDescription,
-        tags: enhancement.suggestedTags,
-        imageUrl: enhancement.enhancedImageUrl,
+        description: enhancement.enhancedDescription || product.description,
+        tags: enhancement.suggestedTags || [],
+        imageUrl: enhancement.enhancedImageUrl || product.imageUrl,
       };
     }
 
     console.log(
-      `⚠️ Low confidence (${enhancement.confidence}%), keeping original`
+      `⚠️ No enhancements generated (confidence: ${enhancement.confidence}%)`
     );
     return { enhanced: false };
   } catch (error) {
