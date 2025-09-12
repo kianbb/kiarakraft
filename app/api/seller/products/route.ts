@@ -145,8 +145,29 @@ async function processProductEnhancementAndAssessment({
       console.log(`⚠️ Enhancement returned false for product ${product.id}`);
     }
   } catch (enhancementError) {
-    console.error('❌ Enhancement failed:', enhancementError);
-    Sentry.captureException(enhancementError);
+    // Log detailed enhancement error
+    const enhancementErrorDetails = {
+      message:
+        enhancementError instanceof Error
+          ? enhancementError.message
+          : String(enhancementError),
+      stack:
+        enhancementError instanceof Error
+          ? enhancementError.stack?.split('\n').slice(0, 3)
+          : undefined,
+      productId: product.id,
+      hasImage: !!firstUploadedImageUrl,
+      imageUrl: firstUploadedImageUrl?.substring(0, 100),
+      userId,
+    };
+
+    console.error(
+      '❌ Enhancement failed with details:',
+      enhancementErrorDetails
+    );
+    Sentry.captureException(enhancementError, {
+      extra: enhancementErrorDetails,
+    });
     // Continue with original content if enhancement fails
   }
 
@@ -196,19 +217,63 @@ async function processProductEnhancementAndAssessment({
     // TODO: Send notification to user about the assessment result
     // This could be an email, push notification, or in-app notification
   } catch (assessmentError) {
-    console.error('❌ Assessment failed:', assessmentError);
-    Sentry.captureException(assessmentError);
+    // Log detailed error information for debugging
+    const errorDetails = {
+      message:
+        assessmentError instanceof Error
+          ? assessmentError.message
+          : String(assessmentError),
+      stack:
+        assessmentError instanceof Error
+          ? assessmentError.stack?.split('\n').slice(0, 5)
+          : undefined,
+      productId: product.id,
+      hasImage: !!enhancedImageUrl,
+      userId,
+      timestamp: new Date().toISOString(),
+    };
 
-    // If assessment fails, set a safe default
+    console.error('❌ Assessment failed with details:', errorDetails);
+    Sentry.captureException(assessmentError, {
+      extra: errorDetails,
+    });
+
+    // Create a user-friendly error message based on the actual error
+    let errorReason = 'AI assessment unavailable - manual review required';
+
+    if (assessmentError instanceof Error) {
+      if (assessmentError.message.includes('API key')) {
+        errorReason = 'AI configuration error - please contact support';
+      } else if (
+        assessmentError.message.includes('User') &&
+        assessmentError.message.includes('not found')
+      ) {
+        errorReason = 'User validation failed - please re-login and try again';
+      } else if (assessmentError.message.includes('Monthly AI usage limit')) {
+        errorReason = 'Monthly AI limit exceeded - manual review required';
+      } else if (
+        assessmentError.message.includes('400 Error while downloading')
+      ) {
+        errorReason = 'Image processing failed - please re-upload image';
+      } else {
+        // Include the actual error for debugging
+        errorReason = `AI error: ${assessmentError.message.substring(0, 100)}`;
+      }
+    }
+
+    // Keep product as PENDING for manual review
     await prisma.product.update({
       where: { id: product.id },
       data: {
-        eligibilityStatus: 'REJECTED',
-        eligibilityConfidence: 0,
-        eligibilityReasons:
-          'Assessment failed - please contact support if this persists',
+        eligibilityStatus: 'PENDING',
+        eligibilityConfidence: null,
+        eligibilityReasons: errorReason,
       },
     });
+
+    console.log(
+      `⚠️ Product ${product.id} kept as PENDING due to: ${errorReason}`
+    );
   }
 }
 
