@@ -233,13 +233,21 @@ async function processProductEnhancementAndAssessment({
     const assessmentResult = await assessProductWithAI(productToAssess);
 
     // Update product with final assessment results
+    // Store both English and Persian reasons as JSON
+    const bilingualReasons = {
+      en: assessmentResult.reasons?.join('; ') || '',
+      fa:
+        assessmentResult.reasons_fa?.join('; ') ||
+        assessmentResult.reasons?.join('; ') ||
+        '',
+    };
+
     await prisma.product.update({
       where: { id: product.id },
       data: {
         eligibilityStatus: assessmentResult.status,
         eligibilityConfidence: assessmentResult.confidence ?? null,
-        eligibilityReasons:
-          assessmentResult.reasons?.join('; ').slice(0, 1000) || null,
+        eligibilityReasons: JSON.stringify(bilingualReasons).slice(0, 1000),
       },
     });
 

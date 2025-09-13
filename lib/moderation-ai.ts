@@ -11,6 +11,7 @@ type EligibilityResult = {
   status: 'APPROVED' | 'REJECTED';
   confidence: number; // 0-100
   reasons: string[];
+  reasons_fa?: string[];
 };
 
 // Define clear marketplace criteria
@@ -107,13 +108,17 @@ Analyze the product based on our criteria and respond with a JSON object contain
 1. status: "APPROVED" or "REJECTED" (definitive decision)
 2. confidence: number between 0-100 (your confidence level)
 3. reasons: array of strings (clear explanations for your decision)
+4. reasons_fa: array of strings (Persian/Farsi translation of the reasons)
 
 You MUST respond with valid JSON in this exact format:
 {
   "status": "APPROVED" or "REJECTED",
   "confidence": 85,
-  "reasons": ["reason 1", "reason 2", "reason 3"]
+  "reasons": ["English reason 1", "English reason 2", "English reason 3"],
+  "reasons_fa": ["دلیل فارسی ۱", "دلیل فارسی ۲", "دلیل فارسی ۳"]
 }
+
+IMPORTANT: Always provide BOTH English and Persian (Farsi) reasons. The Persian reasons should be natural Persian translations, not literal word-for-word translations.
 
 ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was provided, evaluate based on text only.'}`,
           },
@@ -188,8 +193,12 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
                 type: 'array',
                 items: { type: 'string' },
               },
+              reasons_fa: {
+                type: 'array',
+                items: { type: 'string' },
+              },
             },
-            required: ['status', 'confidence', 'reasons'],
+            required: ['status', 'confidence', 'reasons', 'reasons_fa'],
             additionalProperties: false,
           },
         },
@@ -207,6 +216,7 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       status: 'APPROVED' | 'REJECTED';
       confidence: number;
       reasons: string[];
+      reasons_fa?: string[];
     };
 
     // Ensure status is only APPROVED or REJECTED
@@ -218,6 +228,7 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       status: result.status,
       confidence: Math.max(0, Math.min(100, result.confidence)),
       reasons: result.reasons || [],
+      reasons_fa: result.reasons_fa || result.reasons || [],
     };
   } catch (error) {
     // Log detailed error information
