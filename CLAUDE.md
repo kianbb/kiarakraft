@@ -198,6 +198,44 @@ kiarakraft/
 
 ---
 
+## AI Product Assessment Flow
+
+### Overview
+
+Products undergo AI assessment for marketplace eligibility using GPT-5 mini with bilingual support (English/Persian).
+
+### Process Flow
+
+1. **Product Creation/Update**: When a seller creates or updates a product
+2. **Immediate PENDING Status**: Product is set to PENDING with progress messages
+3. **Background Processing** (3 steps):
+   - Step 1: Product validation and initial checks
+   - Step 2: Enhancement with AI (improve descriptions, generate tags)
+   - Step 3: Eligibility assessment (APPROVED/REJECTED decision)
+
+### Bilingual Support
+
+- AI generates assessment reasons in both English and Persian
+- Stored as JSON in `eligibilityReasons` field: `{"en": "...", "fa": "..."}`
+- ProductStatusBadge component displays correct language based on locale
+- Important: JSON must not be truncated to preserve valid structure
+
+### Key Files
+
+- `/lib/moderation-ai.ts` - AI assessment logic with GPT-5 mini
+- `/lib/product-enhancement-openai.ts` - Product enhancement before assessment
+- `/app/api/seller/products/route.ts` - POST endpoint for new products
+- `/app/api/seller/products/[id]/route.ts` - PUT endpoint for updates
+- `/components/products/ProductStatusBadge.tsx` - Status display with bilingual support
+
+### Monitoring
+
+- Use `npx tsx scripts/watch-product-status.ts [productId]` to monitor status changes
+- Products poll every 3 seconds when PENDING to get updates
+- Check logs for AI processing steps and decisions
+
+---
+
 ## Important Notes
 
 ### Demo Accounts (after seeding)
