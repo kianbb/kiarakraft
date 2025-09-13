@@ -33,9 +33,16 @@ export function ProductStatusBadge({
   const [open, setOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(product);
   const [isPolling, setIsPolling] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Poll for updates if PENDING
+  // Track when component is mounted (client-side only)
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Poll for updates if PENDING (only on client)
+  useEffect(() => {
+    if (!isMounted) return;
     if (currentProduct.eligibilityStatus === 'PENDING' && !isPolling) {
       setIsPolling(true);
 
@@ -75,7 +82,13 @@ export function ProductStatusBadge({
         setIsPolling(false);
       };
     }
-  }, [currentProduct.eligibilityStatus, product.id, onUpdate, isPolling]);
+  }, [
+    currentProduct.eligibilityStatus,
+    product.id,
+    onUpdate,
+    isPolling,
+    isMounted,
+  ]);
 
   // Update when product prop changes
   useEffect(() => {
@@ -149,13 +162,8 @@ export function ProductStatusBadge({
               : '';
           }
         } catch (e) {
-          // Not valid JSON, log for debugging
-          console.warn(
-            'Failed to parse reasons as JSON:',
-            e,
-            'Raw:',
-            trimmedReasons.substring(0, 100)
-          );
+          // Not valid JSON, silently fallback
+          // Don't use console.warn as it causes hydration issues
         }
       }
     }
@@ -200,12 +208,8 @@ export function ProductStatusBadge({
           }
         }
       } catch (e) {
-        console.warn(
-          'Failed to parse reasons as JSON:',
-          e,
-          'Raw:',
-          trimmedReasons.substring(0, 100)
-        );
+        // Not valid JSON, silently fallback
+        // Don't use console.warn as it causes hydration issues
       }
     }
 
@@ -286,7 +290,7 @@ export function ProductStatusBadge({
               {currentProduct.eligibilityStatus === 'PENDING' && (
                 <div className="relative">
                   <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
-                  {isPolling && (
+                  {isMounted && isPolling && (
                     <RefreshCw className="absolute -bottom-2 -right-2 w-4 h-4 text-muted-foreground animate-spin" />
                   )}
                 </div>
@@ -312,15 +316,19 @@ export function ProductStatusBadge({
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-sm font-medium mb-1">{progress.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {getLocalizedReasonText(
-                      currentProduct.eligibilityReasons
-                    ) || t('aiProcessing.processingDescription')}
+                    {currentProduct.eligibilityReasons
+                      ? getLocalizedReasonText(
+                          currentProduct.eligibilityReasons
+                        )
+                      : t('aiProcessing.processingDescription')}
                   </p>
                 </div>
 
-                <div className="text-xs text-center text-muted-foreground">
-                  {t('aiProcessing.autoRefresh')}
-                </div>
+                {isMounted && (
+                  <div className="text-xs text-center text-muted-foreground">
+                    {t('aiProcessing.autoRefresh')}
+                  </div>
+                )}
               </div>
             )}
 
