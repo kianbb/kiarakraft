@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
 import { ProductWithRelations } from '@/types/database';
+import { ProductStatusBadge } from '@/components/products/ProductStatusBadge';
 import {
   Plus,
   Search,
@@ -205,19 +206,17 @@ export default function SellerProductsPage() {
                         <Badge variant="outline">{t('inactive')}</Badge>
                       )}
                       {product.eligibilityStatus && (
-                        <Badge
-                          variant={
-                            product.eligibilityStatus === 'APPROVED'
-                              ? 'default'
-                              : product.eligibilityStatus === 'REJECTED'
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                        >
-                          {t(
-                            `eligibility_${product.eligibilityStatus.toLowerCase()}`
-                          ) || product.eligibilityStatus}
-                        </Badge>
+                        <ProductStatusBadge
+                          product={product}
+                          onUpdate={updatedProduct => {
+                            // Update the product in the list
+                            setProducts(prevProducts =>
+                              prevProducts.map(p =>
+                                p.id === updatedProduct.id ? updatedProduct : p
+                              )
+                            );
+                          }}
+                        />
                       )}
                     </div>
                   </div>

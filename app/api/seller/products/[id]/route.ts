@@ -9,6 +9,7 @@ import { revalidateProduct } from '@/lib/cache';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/nextjs';
 import { withCSRF } from '@/lib/csrf';
+import { waitUntil } from '@vercel/functions';
 
 export async function GET(
   _request: NextRequest,
@@ -197,12 +198,21 @@ export const PUT = withCSRF(async function (
     }
 
     // Process enhancement and assessment asynchronously in background
-    processProductEnhancementAndAssessment({
-      product: updatedProduct,
-      firstUploadedImageUrl: product.images?.[0]?.url,
-      categorySlug: undefined,
-      userId: user.id,
-    });
+    // Use Vercel's waitUntil to keep the function alive after response
+    waitUntil(
+      processProductEnhancementAndAssessment({
+        product: updatedProduct,
+        firstUploadedImageUrl: product.images?.[0]?.url,
+        categorySlug: undefined,
+        userId: user.id,
+      }).catch((error: unknown) => {
+        console.error(
+          `Background processing failed for product ${updatedProduct.id}:`,
+          error
+        );
+        Sentry.captureException(error);
+      })
+    );
 
     return NextResponse.json(updatedProduct);
   } catch (error) {

@@ -605,7 +605,27 @@
     "eligibility_review": "بررسی صلاحیت",
     "eligibility_approved": "تأیید شده",
     "eligibility_pending": "در انتظار بررسی",
-    "eligibility_rejected": "رد شده"
+    "eligibility_rejected": "رد شده",
+    "productReviewStatus": "وضعیت بررسی محصول",
+    "aiProcessing": {
+      "step": "مرحله",
+      "of": "از",
+      "step1": "اعتبارسنجی اطلاعات محصول",
+      "step2": "بهبود با هوش مصنوعی",
+      "step3": "ارزیابی نهایی",
+      "starting": "شروع فرآیند بررسی",
+      "complete": "بررسی کامل شد",
+      "processingDescription": "محصول شما در حال بررسی توسط سیستم هوش مصنوعی ما برای اطمینان از رعایت استانداردهای بازار است.",
+      "autoRefresh": "وضعیت هر ۳ ثانیه به‌روزرسانی می‌شود"
+    },
+    "productApproved": "محصول تایید شد",
+    "aiConfidence": "اطمینان هوش مصنوعی",
+    "aiAssessment": "ارزیابی",
+    "nextSteps": "مراحل بعدی",
+    "approvedNextSteps": "محصول شما اکنون در بازار فعال است و برای خریداران قابل مشاهده می‌باشد.",
+    "rejectionReasons": "دلایل رد",
+    "whatToDo": "چه کنیم",
+    "rejectedNextSteps": "بازخورد را بررسی کنید و محصول خود را برای رعایت استانداردهای بازار صنایع دستی ما به‌روزرسانی کنید. می‌توانید محصول را ویرایش و مجدداً ارسال کنید."
   },
   "shop": {
     "verified": "تایید شده",

@@ -14,6 +14,7 @@ import {
 import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
 import { withCSRF } from '@/lib/csrf';
+import { waitUntil } from '@vercel/functions';
 
 // Async function to process enhancement and assessment in background
 async function processProductEnhancementAndAssessment({
@@ -605,19 +606,21 @@ export const POST = withRateLimit(
       }
 
       // Start async processing for enhancement and assessment
-      // This runs in the background while we return to the user immediately
-      processProductEnhancementAndAssessment({
-        product,
-        firstUploadedImageUrl,
-        categorySlug: (data.category as string) || undefined,
-        userId: user.id,
-      }).catch((error: unknown) => {
-        console.error(
-          `Background processing failed for product ${product.id}:`,
-          error
-        );
-        Sentry.captureException(error);
-      });
+      // Use Vercel's waitUntil to keep the function alive after response
+      waitUntil(
+        processProductEnhancementAndAssessment({
+          product,
+          firstUploadedImageUrl,
+          categorySlug: (data.category as string) || undefined,
+          userId: user.id,
+        }).catch((error: unknown) => {
+          console.error(
+            `Background processing failed for product ${product.id}:`,
+            error
+          );
+          Sentry.captureException(error);
+        })
+      );
 
       // Return immediately with PENDING status
       return NextResponse.json({

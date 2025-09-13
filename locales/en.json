@@ -605,7 +605,27 @@
     "eligibility_review": "Eligibility Review",
     "eligibility_approved": "Approved",
     "eligibility_pending": "Pending Review",
-    "eligibility_rejected": "Rejected"
+    "eligibility_rejected": "Rejected",
+    "productReviewStatus": "Product Review Status",
+    "aiProcessing": {
+      "step": "Step",
+      "of": "of",
+      "step1": "Validating product data",
+      "step2": "Enhancing with AI",
+      "step3": "Final assessment",
+      "starting": "Starting review process",
+      "complete": "Review complete",
+      "processingDescription": "Your product is being reviewed by our AI system to ensure it meets marketplace standards.",
+      "autoRefresh": "Status updates automatically every 3 seconds"
+    },
+    "productApproved": "Product Approved",
+    "aiConfidence": "AI Confidence",
+    "aiAssessment": "Assessment",
+    "nextSteps": "Next Steps",
+    "approvedNextSteps": "Your product is now live on the marketplace and visible to buyers.",
+    "rejectionReasons": "Rejection Reasons",
+    "whatToDo": "What to do",
+    "rejectedNextSteps": "Review the feedback and update your product to meet our handmade marketplace standards. You can edit and resubmit your product."
   },
   "shop": {
     "verified": "Verified",
