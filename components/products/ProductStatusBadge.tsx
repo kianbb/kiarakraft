@@ -332,7 +332,7 @@ export function ProductStatusBadge({
               {currentProduct.eligibilityStatus === 'PENDING' && (
                 <div className="relative">
                   <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
-                  {isMounted && isPolling && (
+                  {isPolling && (
                     <RefreshCw className="absolute -bottom-2 -right-2 w-4 h-4 text-muted-foreground animate-spin" />
                   )}
                 </div>
@@ -364,11 +364,9 @@ export function ProductStatusBadge({
                   </p>
                 </div>
 
-                {isMounted && (
-                  <div className="text-xs text-center text-muted-foreground">
-                    {t('aiProcessing.autoRefresh')}
-                  </div>
-                )}
+                <div className="text-xs text-center text-muted-foreground">
+                  {t('aiProcessing.autoRefresh')}
+                </div>
               </div>
             )}
 
