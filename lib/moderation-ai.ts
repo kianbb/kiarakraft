@@ -70,6 +70,7 @@ export async function assessProductWithAI(input: {
 
     const openai = new OpenAI({
       apiKey: openaiKey,
+      timeout: 120000, // 2 minute timeout
     });
 
     // Validate image URL if provided

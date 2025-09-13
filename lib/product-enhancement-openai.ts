@@ -97,6 +97,7 @@ export async function enhanceProductPresentation(input: {
 
     const openai = new OpenAI({
       apiKey: openaiKey,
+      timeout: 120000, // 2 minute timeout (enough for GPT-5 + image)
     });
 
     // Step 1: Use GPT-5 mini to analyze product and generate enhancements
@@ -309,6 +310,7 @@ async function enhanceImageWithGPTImage1(params: {
   try {
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY!,
+      timeout: 120000, // 2 minute timeout for image operations
     });
 
     // Securely fetch the original image with SSRF protection
