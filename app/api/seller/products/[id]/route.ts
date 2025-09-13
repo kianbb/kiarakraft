@@ -542,12 +542,23 @@ async function processProductEnhancementAndAssessment({
         '',
     };
 
+    // Ensure JSON string fits in database field (1000 chars)
+    // If too long, truncate individual reasons before JSON encoding
+    let jsonString = JSON.stringify(bilingualReasons);
+    if (jsonString.length > 1000) {
+      // Truncate individual reasons to fit
+      const maxReasonLength = 400; // Leave room for JSON structure
+      bilingualReasons.en = bilingualReasons.en.slice(0, maxReasonLength);
+      bilingualReasons.fa = bilingualReasons.fa.slice(0, maxReasonLength);
+      jsonString = JSON.stringify(bilingualReasons);
+    }
+
     await prisma.product.update({
       where: { id: product.id },
       data: {
         eligibilityStatus: assessmentResult.status,
         eligibilityConfidence: assessmentResult.confidence ?? null,
-        eligibilityReasons: JSON.stringify(bilingualReasons).slice(0, 1000),
+        eligibilityReasons: jsonString,
       },
     });
 

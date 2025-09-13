@@ -86,15 +86,24 @@ export function ProductStatusBadge({
   const getProgress = () => {
     const reasons = currentProduct.eligibilityReasons || '';
 
-    if (reasons.includes('Step 3/3') || reasons.includes('Assessing product')) {
+    // Convert reasons to string if it's not already (for safety)
+    const reasonsStr = typeof reasons === 'string' ? reasons : String(reasons);
+
+    if (
+      reasonsStr.includes('Step 3/3') ||
+      reasonsStr.includes('Assessing product')
+    ) {
       return { step: 3, label: t('aiProcessing.step3'), percent: 90 };
     }
-    if (reasons.includes('Step 2/3') || reasons.includes('Enhancing product')) {
+    if (
+      reasonsStr.includes('Step 2/3') ||
+      reasonsStr.includes('Enhancing product')
+    ) {
       return { step: 2, label: t('aiProcessing.step2'), percent: 60 };
     }
     if (
-      reasons.includes('Step 1/3') ||
-      reasons.includes('Validating product')
+      reasonsStr.includes('Step 1/3') ||
+      reasonsStr.includes('Validating product')
     ) {
       return { step: 1, label: t('aiProcessing.step1'), percent: 30 };
     }
@@ -118,37 +127,86 @@ export function ProductStatusBadge({
   ): string => {
     if (!reasons) return '';
 
-    try {
-      const parsed = JSON.parse(reasons);
-      if (parsed && typeof parsed === 'object') {
-        return parsed[locale] || parsed.en || reasons;
-      }
-    } catch {
-      // Not JSON, return as is
+    // If it's a PENDING status with progress messages, return as is
+    if (currentProduct.eligibilityStatus === 'PENDING') {
+      return typeof reasons === 'string' ? reasons : '';
     }
 
-    return reasons;
+    // Only try to parse JSON for APPROVED/REJECTED statuses
+    if (typeof reasons === 'string') {
+      // Try to parse as JSON - check for JSON-like structure
+      const trimmedReasons = reasons.trim();
+      if (trimmedReasons.startsWith('{') && trimmedReasons.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmedReasons);
+          if (parsed && typeof parsed === 'object') {
+            // Get the appropriate language based on locale
+            // The JSON structure is { en: "...", fa: "..." }
+            const localizedText = parsed[locale] || parsed.en || '';
+            // Return the cleaned text
+            return typeof localizedText === 'string'
+              ? localizedText.trim()
+              : '';
+          }
+        } catch (e) {
+          // Not valid JSON, log for debugging
+          console.warn(
+            'Failed to parse reasons as JSON:',
+            e,
+            'Raw:',
+            trimmedReasons.substring(0, 100)
+          );
+        }
+      }
+    }
+
+    // Fallback: return as is
+    return typeof reasons === 'string' ? reasons : '';
   };
 
   // Parse rejection reasons - now handles bilingual JSON format
-  const parseReasons = (reasons: string | null | undefined) => {
+  const parseReasons = (reasons: string | null | undefined): string[] => {
     if (!reasons) return [];
 
-    // Try to parse as JSON first (new format)
-    try {
-      const parsed = JSON.parse(reasons);
-      if (parsed && typeof parsed === 'object') {
-        // Get the appropriate language based on locale
-        const localizedReasons = parsed[locale] || parsed.en || '';
-        if (localizedReasons) {
-          return localizedReasons
-            .split(/[;•\n]/)
-            .map((r: string) => r.trim())
-            .filter((r: string) => r.length > 0);
+    // Don't try to parse if it's not a string
+    if (typeof reasons !== 'string') return [];
+
+    // For PENDING status, don't try to parse as array
+    if (currentProduct.eligibilityStatus === 'PENDING') {
+      return [];
+    }
+
+    const trimmedReasons = reasons.trim();
+
+    // Try to parse as JSON if it looks like JSON
+    if (trimmedReasons.startsWith('{') && trimmedReasons.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmedReasons);
+        if (parsed && typeof parsed === 'object') {
+          // Get the appropriate language based on locale
+          // The JSON structure is { en: "...", fa: "..." }
+          const localizedReasons = parsed[locale] || parsed.en || '';
+          if (localizedReasons && typeof localizedReasons === 'string') {
+            // Split by semicolons and clean up
+            const reasonsList = localizedReasons
+              .split(';')
+              .map((r: string) => r.trim())
+              .filter((r: string) => r.length > 0 && r !== '.');
+
+            // If we got valid reasons, return them
+            if (reasonsList.length > 0) {
+              return reasonsList;
+            }
+          }
         }
+      } catch (e) {
+        console.warn(
+          'Failed to parse reasons as JSON:',
+          e,
+          'Raw:',
+          trimmedReasons.substring(0, 100)
+        );
       }
-    } catch {
-      // If not JSON, fall back to old format
     }
 
     // Fall back to old format (plain string with separators)
@@ -254,8 +312,9 @@ export function ProductStatusBadge({
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-sm font-medium mb-1">{progress.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {currentProduct.eligibilityReasons ||
-                      t('aiProcessing.processingDescription')}
+                    {getLocalizedReasonText(
+                      currentProduct.eligibilityReasons
+                    ) || t('aiProcessing.processingDescription')}
                   </p>
                 </div>
 
@@ -302,11 +361,34 @@ export function ProductStatusBadge({
                       <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
                         {t('aiAssessment')}:
                       </p>
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        {getLocalizedReasonText(
-                          currentProduct.eligibilityReasons
-                        )}
-                      </p>
+                      <div className="text-sm text-green-700 dark:text-green-300">
+                        {(() => {
+                          const reasonText = getLocalizedReasonText(
+                            currentProduct.eligibilityReasons
+                          );
+                          // Check if we have a semicolon-separated list
+                          if (reasonText.includes(';')) {
+                            const reasons = reasonText
+                              .split(';')
+                              .map(r => r.trim())
+                              .filter(r => r);
+                            return (
+                              <ul className="space-y-1">
+                                {reasons.map((reason, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex items-start gap-1"
+                                  >
+                                    <span className="text-green-600">•</span>
+                                    <span>{reason}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          }
+                          return <p>{reasonText}</p>;
+                        })()}
+                      </div>
                     </div>
                   )}
                 </div>

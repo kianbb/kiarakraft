@@ -118,7 +118,12 @@ You MUST respond with valid JSON in this exact format:
   "reasons_fa": ["دلیل فارسی ۱", "دلیل فارسی ۲", "دلیل فارسی ۳"]
 }
 
-IMPORTANT: Always provide BOTH English and Persian (Farsi) reasons. The Persian reasons should be natural Persian translations, not literal word-for-word translations.
+IMPORTANT: 
+- Always provide BOTH English and Persian (Farsi) reasons
+- The reasons array MUST contain English text only
+- The reasons_fa array MUST contain Persian/Farsi text only (using Persian script: فارسی)
+- Persian reasons should be natural translations that make sense to Persian speakers
+- Do NOT mix languages in either array
 
 ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was provided, evaluate based on text only.'}`,
           },
