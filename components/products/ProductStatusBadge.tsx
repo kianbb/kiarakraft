@@ -33,16 +33,9 @@ export function ProductStatusBadge({
   const [open, setOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(product);
   const [isPolling, setIsPolling] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Track when component is mounted (client-side only)
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Poll for updates if PENDING (only on client)
   useEffect(() => {
-    if (!isMounted) return;
     if (currentProduct.eligibilityStatus === 'PENDING' && !isPolling) {
       setIsPolling(true);
 
@@ -83,13 +76,7 @@ export function ProductStatusBadge({
         setIsPolling(false);
       };
     }
-  }, [
-    currentProduct.eligibilityStatus,
-    product.id,
-    onUpdate,
-    isPolling,
-    isMounted,
-  ]);
+  }, [currentProduct.eligibilityStatus, product.id, onUpdate, isPolling]);
 
   // Update when product prop changes
   useEffect(() => {
@@ -313,189 +300,192 @@ export function ProductStatusBadge({
           currentProduct.eligibilityStatus}
       </Badge>
 
-      {/* Detail Modal */}
+      {/* Detail Modal - Only render content when open to avoid hydration issues */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" suppressHydrationWarning>
           <DialogHeader>
             <DialogTitle>{t('productReviewStatus')}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Status Icon */}
-            <div className="flex justify-center">
-              {currentProduct.eligibilityStatus === 'APPROVED' && (
-                <CheckCircle className="w-16 h-16 text-green-500" />
-              )}
-              {currentProduct.eligibilityStatus === 'REJECTED' && (
-                <XCircle className="w-16 h-16 text-red-500" />
-              )}
+          {open && (
+            <div className="space-y-4">
+              {/* Status Icon */}
+              <div className="flex justify-center">
+                {currentProduct.eligibilityStatus === 'APPROVED' && (
+                  <CheckCircle className="w-16 h-16 text-green-500" />
+                )}
+                {currentProduct.eligibilityStatus === 'REJECTED' && (
+                  <XCircle className="w-16 h-16 text-red-500" />
+                )}
+                {currentProduct.eligibilityStatus === 'PENDING' && (
+                  <div className="relative">
+                    <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
+                    {isPolling && (
+                      <RefreshCw className="absolute -bottom-2 -right-2 w-4 h-4 text-muted-foreground animate-spin" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Progress Bar for PENDING */}
               {currentProduct.eligibilityStatus === 'PENDING' && (
-                <div className="relative">
-                  <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
-                  {isPolling && (
-                    <RefreshCw className="absolute -bottom-2 -right-2 w-4 h-4 text-muted-foreground animate-spin" />
-                  )}
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">
+                        {t('aiProcessing.step')} {progress.step}{' '}
+                        {t('aiProcessing.of')} 3
+                      </span>
+                      <span className="text-muted-foreground">
+                        {progress.percent}%
+                      </span>
+                    </div>
+                    <Progress value={progress.percent} className="h-2" />
+                  </div>
+
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-sm font-medium mb-1">{progress.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {getLocalizedReasonText(
+                        currentProduct.eligibilityReasons
+                      ) || t('aiProcessing.processingDescription')}
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-center text-muted-foreground">
+                    {t('aiProcessing.autoRefresh')}
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Progress Bar for PENDING */}
-            {currentProduct.eligibilityStatus === 'PENDING' && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">
-                      {t('aiProcessing.step')} {progress.step}{' '}
-                      {t('aiProcessing.of')} 3
-                    </span>
-                    <span className="text-muted-foreground">
-                      {progress.percent}%
-                    </span>
-                  </div>
-                  <Progress value={progress.percent} className="h-2" />
-                </div>
-
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm font-medium mb-1">{progress.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {getLocalizedReasonText(
-                      currentProduct.eligibilityReasons
-                    ) || t('aiProcessing.processingDescription')}
-                  </p>
-                </div>
-
-                <div className="text-xs text-center text-muted-foreground">
-                  {t('aiProcessing.autoRefresh')}
-                </div>
-              </div>
-            )}
-
-            {/* Approval Details */}
-            {currentProduct.eligibilityStatus === 'APPROVED' && (
-              <div className="space-y-3">
-                <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="font-semibold text-green-900 dark:text-green-100">
-                      {t('productApproved')}
-                    </span>
-                  </div>
-
-                  {currentProduct.eligibilityConfidence && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm text-green-800 dark:text-green-200">
-                        {t('aiConfidence')}:
+              {/* Approval Details */}
+              {currentProduct.eligibilityStatus === 'APPROVED' && (
+                <div className="space-y-3">
+                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="font-semibold text-green-900 dark:text-green-100">
+                        {t('productApproved')}
                       </span>
-                      <div className="flex items-center gap-1">
-                        <div className="w-24 bg-green-200 dark:bg-green-800 rounded-full h-2">
-                          <div
-                            className="bg-green-600 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${currentProduct.eligibilityConfidence}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                          {currentProduct.eligibilityConfidence}%
+                    </div>
+
+                    {currentProduct.eligibilityConfidence && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm text-green-800 dark:text-green-200">
+                          {t('aiConfidence')}:
                         </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentProduct.eligibilityReasons && (
-                    <div>
-                      <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
-                        {t('aiAssessment')}:
-                      </p>
-                      <div className="text-sm text-green-700 dark:text-green-300">
-                        {(() => {
-                          const reasonText = getLocalizedReasonText(
-                            currentProduct.eligibilityReasons
-                          );
-                          // Check if we have a semicolon-separated list
-                          if (reasonText.includes(';')) {
-                            const reasons = reasonText
-                              .split(';')
-                              .map(r => r.trim())
-                              .filter(r => r);
-                            return (
-                              <ul className="space-y-1">
-                                {reasons.map((reason, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex items-start gap-1"
-                                  >
-                                    <span className="text-green-600">•</span>
-                                    <span>{reason}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            );
-                          }
-                          return <p>{reasonText}</p>;
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>{t('nextSteps')}:</strong> {t('approvedNextSteps')}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Rejection Details */}
-            {currentProduct.eligibilityStatus === 'REJECTED' && (
-              <div className="space-y-3">
-                <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-4">
-                  <div className="flex items-start gap-2 mb-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-red-900 dark:text-red-100 mb-2">
-                        {t('rejectionReasons')}:
-                      </p>
-
-                      {currentProduct.eligibilityConfidence && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm text-red-700 dark:text-red-300">
-                            {t('aiConfidence')}:
-                          </span>
-                          <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                        <div className="flex items-center gap-1">
+                          <div className="w-24 bg-green-200 dark:bg-green-800 rounded-full h-2">
+                            <div
+                              className="bg-green-600 h-2 rounded-full transition-all"
+                              style={{
+                                width: `${currentProduct.eligibilityConfidence}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-green-800 dark:text-green-200">
                             {currentProduct.eligibilityConfidence}%
                           </span>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      <ul className="space-y-2">
-                        {parseReasons(currentProduct.eligibilityReasons).map(
-                          (reason: string, i: number) => (
-                            <li
-                              key={i}
-                              className="text-sm flex items-start gap-2"
-                            >
-                              <span className="text-red-500 mt-0.5">•</span>
-                              <span className="text-red-700 dark:text-red-300">
-                                {reason}
-                              </span>
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
+                    {currentProduct.eligibilityReasons && (
+                      <div>
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+                          {t('aiAssessment')}:
+                        </p>
+                        <div className="text-sm text-green-700 dark:text-green-300">
+                          {(() => {
+                            const reasonText = getLocalizedReasonText(
+                              currentProduct.eligibilityReasons
+                            );
+                            // Check if we have a semicolon-separated list
+                            if (reasonText.includes(';')) {
+                              const reasons = reasonText
+                                .split(';')
+                                .map(r => r.trim())
+                                .filter(r => r);
+                              return (
+                                <ul className="space-y-1">
+                                  {reasons.map((reason, i) => (
+                                    <li
+                                      key={i}
+                                      className="flex items-start gap-1"
+                                    >
+                                      <span className="text-green-600">•</span>
+                                      <span>{reason}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              );
+                            }
+                            return <p>{reasonText}</p>;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      <strong>{t('nextSteps')}:</strong>{' '}
+                      {t('approvedNextSteps')}
+                    </p>
                   </div>
                 </div>
+              )}
 
-                <div className="bg-yellow-50 dark:bg-yellow-950/30 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>{t('whatToDo')}:</strong> {t('rejectedNextSteps')}
-                  </p>
+              {/* Rejection Details */}
+              {currentProduct.eligibilityStatus === 'REJECTED' && (
+                <div className="space-y-3">
+                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-4">
+                    <div className="flex items-start gap-2 mb-3">
+                      <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-red-900 dark:text-red-100 mb-2">
+                          {t('rejectionReasons')}:
+                        </p>
+
+                        {currentProduct.eligibilityConfidence && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm text-red-700 dark:text-red-300">
+                              {t('aiConfidence')}:
+                            </span>
+                            <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                              {currentProduct.eligibilityConfidence}%
+                            </span>
+                          </div>
+                        )}
+
+                        <ul className="space-y-2">
+                          {parseReasons(currentProduct.eligibilityReasons).map(
+                            (reason: string, i: number) => (
+                              <li
+                                key={i}
+                                className="text-sm flex items-start gap-2"
+                              >
+                                <span className="text-red-500 mt-0.5">•</span>
+                                <span className="text-red-700 dark:text-red-300">
+                                  {reason}
+                                </span>
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 dark:bg-yellow-950/30 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <strong>{t('whatToDo')}:</strong> {t('rejectedNextSteps')}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
