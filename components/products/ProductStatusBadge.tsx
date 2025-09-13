@@ -33,9 +33,16 @@ export function ProductStatusBadge({
   const [open, setOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(product);
   const [isPolling, setIsPolling] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Poll for updates if PENDING
+  // Track when component is mounted (client-side only)
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Poll for updates if PENDING (only on client)
+  useEffect(() => {
+    if (!isMounted) return;
     if (currentProduct.eligibilityStatus === 'PENDING' && !isPolling) {
       setIsPolling(true);
 
@@ -53,8 +60,9 @@ export function ProductStatusBadge({
               return false; // Stop polling
             }
           }
-        } catch (error) {
-          console.error('Error polling product status:', error);
+        } catch {
+          // Silently handle polling errors to avoid hydration issues
+          // Error already handled by try-catch
         }
         return true; // Continue polling
       };
@@ -75,7 +83,13 @@ export function ProductStatusBadge({
         setIsPolling(false);
       };
     }
-  }, [currentProduct.eligibilityStatus, product.id, onUpdate, isPolling]);
+  }, [
+    currentProduct.eligibilityStatus,
+    product.id,
+    onUpdate,
+    isPolling,
+    isMounted,
+  ]);
 
   // Update when product prop changes
   useEffect(() => {
@@ -140,28 +154,45 @@ export function ProductStatusBadge({
         try {
           const parsed = JSON.parse(trimmedReasons);
           if (parsed && typeof parsed === 'object') {
-            // Get the appropriate language based on locale
-            // The JSON structure is { en: "...", fa: "..." }
-            const localizedText = parsed[locale] || parsed.en || '';
-            // Return the cleaned text
-            return typeof localizedText === 'string'
-              ? localizedText.trim()
-              : '';
+            // STRICT LANGUAGE SEPARATION
+            // Only return content for the current locale, nothing else
+            const localizedText = locale === 'fa' ? parsed.fa : parsed.en;
+
+            // Validate that we got the right language
+            if (typeof localizedText === 'string' && localizedText.trim()) {
+              // For Persian locale, prioritize Persian content
+              if (locale === 'fa') {
+                // Check if it's predominantly Persian (has Persian chars)
+                if (/[\u0600-\u06FF]/.test(localizedText)) {
+                  // Check for English contamination (basic Latin letters in words)
+                  const englishWords =
+                    localizedText.match(/\b[a-zA-Z]{2,}\b/g) || [];
+                  // Allow some English (like brand names), but not too much
+                  if (englishWords.length <= 2) {
+                    return localizedText.trim();
+                  }
+                }
+              } else {
+                // For English locale, ensure it's predominantly English
+                // Check if there are NO Persian characters (clean English)
+                if (!/[\u0600-\u06FF]/.test(localizedText)) {
+                  return localizedText.trim();
+                }
+              }
+            }
+
+            // If validation fails, return empty to avoid mixed content
+            return '';
           }
-        } catch (e) {
-          // Not valid JSON, log for debugging
-          console.warn(
-            'Failed to parse reasons as JSON:',
-            e,
-            'Raw:',
-            trimmedReasons.substring(0, 100)
-          );
+        } catch {
+          // Not valid JSON, silently fallback
+          // Don't use console.warn as it causes hydration issues
         }
       }
     }
 
-    // Fallback: return as is
-    return typeof reasons === 'string' ? reasons : '';
+    // Fallback: return empty to avoid mixed language display
+    return '';
   };
 
   // Parse rejection reasons - now handles bilingual JSON format
@@ -183,10 +214,29 @@ export function ProductStatusBadge({
       try {
         const parsed = JSON.parse(trimmedReasons);
         if (parsed && typeof parsed === 'object') {
-          // Get the appropriate language based on locale
-          // The JSON structure is { en: "...", fa: "..." }
-          const localizedReasons = parsed[locale] || parsed.en || '';
+          // STRICT LANGUAGE SEPARATION - Only use the current locale
+          const localizedReasons = locale === 'fa' ? parsed.fa : parsed.en;
+
           if (localizedReasons && typeof localizedReasons === 'string') {
+            // Language validation - ensure correct language per locale
+            if (locale === 'fa') {
+              // Persian text should contain Persian characters
+              if (!/[\u0600-\u06FF]/.test(localizedReasons)) {
+                return []; // No Persian chars, return empty
+              }
+              // Check for excessive English (more than 2 English words)
+              const englishWords =
+                localizedReasons.match(/\b[a-zA-Z]{2,}\b/g) || [];
+              if (englishWords.length > 2) {
+                return []; // Too much English mixed in
+              }
+            } else {
+              // English text should NOT contain Persian characters
+              if (/[\u0600-\u06FF]/.test(localizedReasons)) {
+                return []; // Has Persian chars, return empty
+              }
+            }
+
             // Split by semicolons and clean up
             const reasonsList = localizedReasons
               .split(';')
@@ -199,13 +249,9 @@ export function ProductStatusBadge({
             }
           }
         }
-      } catch (e) {
-        console.warn(
-          'Failed to parse reasons as JSON:',
-          e,
-          'Raw:',
-          trimmedReasons.substring(0, 100)
-        );
+      } catch {
+        // Not valid JSON, silently fallback
+        // Don't use console.warn as it causes hydration issues
       }
     }
 
@@ -286,7 +332,7 @@ export function ProductStatusBadge({
               {currentProduct.eligibilityStatus === 'PENDING' && (
                 <div className="relative">
                   <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
-                  {isPolling && (
+                  {isMounted && isPolling && (
                     <RefreshCw className="absolute -bottom-2 -right-2 w-4 h-4 text-muted-foreground animate-spin" />
                   )}
                 </div>
@@ -318,9 +364,11 @@ export function ProductStatusBadge({
                   </p>
                 </div>
 
-                <div className="text-xs text-center text-muted-foreground">
-                  {t('aiProcessing.autoRefresh')}
-                </div>
+                {isMounted && (
+                  <div className="text-xs text-center text-muted-foreground">
+                    {t('aiProcessing.autoRefresh')}
+                  </div>
+                )}
               </div>
             )}
 
