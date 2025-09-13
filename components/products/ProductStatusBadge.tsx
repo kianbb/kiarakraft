@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ export function ProductStatusBadge({
   onUpdate,
 }: ProductStatusBadgeProps) {
   const t = useTranslations('seller');
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(product);
   const [isPolling, setIsPolling] = useState(false);
@@ -111,11 +112,46 @@ export function ProductStatusBadge({
 
   const progress = getProgress();
 
-  // Parse rejection reasons if they're separated by semicolons or bullet points
+  // Get localized reason text from bilingual JSON or fallback to plain text
+  const getLocalizedReasonText = (
+    reasons: string | null | undefined
+  ): string => {
+    if (!reasons) return '';
+
+    try {
+      const parsed = JSON.parse(reasons);
+      if (parsed && typeof parsed === 'object') {
+        return parsed[locale] || parsed.en || reasons;
+      }
+    } catch {
+      // Not JSON, return as is
+    }
+
+    return reasons;
+  };
+
+  // Parse rejection reasons - now handles bilingual JSON format
   const parseReasons = (reasons: string | null | undefined) => {
     if (!reasons) return [];
 
-    // Split by common separators
+    // Try to parse as JSON first (new format)
+    try {
+      const parsed = JSON.parse(reasons);
+      if (parsed && typeof parsed === 'object') {
+        // Get the appropriate language based on locale
+        const localizedReasons = parsed[locale] || parsed.en || '';
+        if (localizedReasons) {
+          return localizedReasons
+            .split(/[;•\n]/)
+            .map((r: string) => r.trim())
+            .filter((r: string) => r.length > 0);
+        }
+      }
+    } catch {
+      // If not JSON, fall back to old format
+    }
+
+    // Fall back to old format (plain string with separators)
     const parts = reasons
       .split(/[;•\n]/)
       .map(r => r.trim())
@@ -267,7 +303,9 @@ export function ProductStatusBadge({
                         {t('aiAssessment')}:
                       </p>
                       <p className="text-sm text-green-700 dark:text-green-300">
-                        {currentProduct.eligibilityReasons}
+                        {getLocalizedReasonText(
+                          currentProduct.eligibilityReasons
+                        )}
                       </p>
                     </div>
                   )}
@@ -305,7 +343,7 @@ export function ProductStatusBadge({
 
                       <ul className="space-y-2">
                         {parseReasons(currentProduct.eligibilityReasons).map(
-                          (reason, i) => (
+                          (reason: string, i: number) => (
                             <li
                               key={i}
                               className="text-sm flex items-start gap-2"
