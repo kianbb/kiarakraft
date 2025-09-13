@@ -104,26 +104,30 @@ Description: ${sanitizeForPrompt(input.description, 1000)}
 Category: ${sanitizeForPrompt(input.categorySlug || 'Not specified', 50)}
 Price: ${input.price ? `${input.price} Toman` : 'Not specified'}
 
-Analyze the product based on our criteria and respond with a JSON object containing:
-1. status: "APPROVED" or "REJECTED" (definitive decision)
-2. confidence: number between 0-100 (your confidence level)
-3. reasons: array of strings (clear explanations for your decision)
-4. reasons_fa: array of strings (Persian/Farsi translation of the reasons)
+IMPORTANT INSTRUCTION - Think in TWO languages separately:
 
-You MUST respond with valid JSON in this exact format:
+STEP 1: Think in ENGLISH
+Analyze this product as if you only speak English. Write your assessment naturally in English.
+
+STEP 2: Think in PERSIAN (فارسی)
+حالا فراموش کن که انگلیسی بلد هستی. این محصول را به عنوان یک فارسی‌زبان بومی ارزیابی کن.
+دلایل را طبیعی و روان به فارسی بنویس، نه ترجمه از انگلیسی.
+
+You MUST respond with valid JSON:
 {
   "status": "APPROVED" or "REJECTED",
   "confidence": 85,
-  "reasons": ["English reason 1", "English reason 2", "English reason 3"],
-  "reasons_fa": ["دلیل فارسی ۱", "دلیل فارسی ۲", "دلیل فارسی ۳"]
+  "reasons": ["Natural English reason 1", "Natural English reason 2", "Natural English reason 3"],
+  "reasons_fa": ["دلیل طبیعی فارسی ۱", "دلیل طبیعی فارسی ۲", "دلیل طبیعی فارسی ۳"]
 }
 
-IMPORTANT: 
-- Always provide BOTH English and Persian (Farsi) reasons
-- The reasons array MUST contain English text only
-- The reasons_fa array MUST contain Persian/Farsi text only (using Persian script: فارسی)
-- Persian reasons should be natural translations that make sense to Persian speakers
-- Do NOT mix languages in either array
+CRITICAL RULES:
+- DO NOT TRANSLATE between languages
+- Think independently in each language
+- English reasons: Write as a native English speaker would
+- Persian reasons: بنویس مثل یک فارسی‌زبان که اصلاً انگلیسی بلد نیست
+- Each language should have its own natural expression and cultural context
+- Never mix languages in the same array
 
 ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was provided, evaluate based on text only.'}`,
           },
