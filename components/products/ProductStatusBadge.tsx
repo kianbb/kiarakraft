@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -24,7 +25,7 @@ export function ProductStatusBadge({
 }: ProductStatusBadgeProps) {
   const t = useTranslations('seller');
   const locale = useLocale();
-  const [open, setOpen] = useState(false);
+  // Use uncontrolled Dialog via DialogTrigger to avoid nested update loops
   const [currentProduct, setCurrentProduct] = useState(product);
   const [isPolling, setIsPolling] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -357,18 +358,20 @@ export function ProductStatusBadge({
   return (
     <>
       {/* Clickable Badge */}
-      <Badge
-        className="cursor-pointer hover:opacity-80 transition-opacity"
-        variant={getStatusVariant()}
-        onClick={() => setOpen(true)}
-      >
-        {getStatusIcon()}
-        {t(`eligibility_${currentProduct.eligibilityStatus?.toLowerCase()}`) ||
-          currentProduct.eligibilityStatus}
-      </Badge>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Badge
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            variant={getStatusVariant()}
+          >
+            {getStatusIcon()}
+            {t(
+              `eligibility_${currentProduct.eligibilityStatus?.toLowerCase()}`
+            ) || currentProduct.eligibilityStatus}
+          </Badge>
+        </DialogTrigger>
 
-      {/* Detail Modal - Render consistently to avoid hydration issues */}
-      <Dialog open={open} onOpenChange={setOpen}>
+        {/* Detail Modal - Render consistently to avoid hydration issues */}
         <DialogContent className="max-w-md" suppressHydrationWarning>
           {/* Only render dialog content on client to avoid hydration issues */}
           {mounted && (
