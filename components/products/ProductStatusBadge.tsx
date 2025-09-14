@@ -27,7 +27,8 @@ export function ProductStatusBadge({
   const locale = useLocale();
   // Use uncontrolled Dialog via DialogTrigger to avoid nested update loops
   const [currentProduct, setCurrentProduct] = useState(product);
-  const [isPolling, setIsPolling] = useState(false);
+  // Use a ref for polling state to avoid setState loops on rerender
+  const isPollingRef = useRef(false);
   const [mounted, setMounted] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
@@ -41,13 +42,13 @@ export function ProductStatusBadge({
     };
   }, []);
 
-  // Poll for updates if PENDING (only after mount to avoid hydration issues)
+  // Poll for updates if PENDING (only after mount). Avoid setState in cleanup.
   useEffect(() => {
-    // Don't start polling until after mount
     if (!mounted) return;
 
-    if (currentProduct.eligibilityStatus === 'PENDING' && !isPolling) {
-      setIsPolling(true);
+    const startPolling = () => {
+      if (isPollingRef.current) return; // Already polling
+      isPollingRef.current = true;
 
       const pollProduct = async () => {
         try {
@@ -55,49 +56,47 @@ export function ProductStatusBadge({
           if (res.ok) {
             const updated = await res.json();
             setCurrentProduct(updated);
-
-            // If status changed from PENDING, notify parent
             if (updated.eligibilityStatus !== 'PENDING') {
+              // Stop polling on terminal state
+              if (pollIntervalRef.current)
+                clearInterval(pollIntervalRef.current);
+              isPollingRef.current = false;
               onUpdate?.(updated);
-              setIsPolling(false);
-              return false; // Stop polling
+              return false;
             }
           }
         } catch {
-          // Silently handle polling errors to avoid hydration issues
-          // Error already handled by try-catch
+          // Ignore transient polling errors
         }
-        return true; // Continue polling
+        return true;
       };
 
-      // Delay initial poll slightly to ensure hydration completes
+      // Delay initial poll to ensure hydration completes
       const timeoutId = setTimeout(() => {
         pollProduct();
-
-        // Set up interval
         pollIntervalRef.current = setInterval(async () => {
-          const shouldContinue = await pollProduct();
-          if (!shouldContinue && pollIntervalRef.current) {
+          const keepGoing = await pollProduct();
+          if (!keepGoing && pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
           }
-        }, 3000); // Poll every 3 seconds
+        }, 3000);
       }, 100);
 
-      return () => {
-        clearTimeout(timeoutId);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-        }
-        setIsPolling(false);
-      };
+      // Clear initial delay if component rerenders/unmounts before it fires
+      return () => clearTimeout(timeoutId);
+    };
+
+    const stopPolling = () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      isPollingRef.current = false;
+    };
+
+    if (currentProduct.eligibilityStatus === 'PENDING') {
+      return startPolling();
+    } else {
+      stopPolling();
     }
-  }, [
-    currentProduct.eligibilityStatus,
-    product.id,
-    onUpdate,
-    isPolling,
-    mounted,
-  ]);
+  }, [mounted, currentProduct.eligibilityStatus, product.id, onUpdate]);
 
   // Update when product prop changes
   useEffect(() => {
