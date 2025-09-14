@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Dialog,
@@ -305,6 +305,48 @@ export function ProductStatusBadge({
     }
   };
 
+  // Memoize progress calculation to avoid recalculating during renders
+  const progress = useMemo(() => {
+    if (currentProduct.eligibilityStatus === 'PENDING') {
+      return getProgress();
+    }
+    return null;
+  }, [
+    currentProduct.eligibilityStatus,
+    currentProduct.eligibilityReasons,
+    t,
+    getProgress,
+  ]);
+
+  // Prepare approval reason text for rendering
+  const approvalReasonContent = useMemo(() => {
+    if (
+      currentProduct.eligibilityStatus !== 'APPROVED' ||
+      !currentProduct.eligibilityReasons
+    ) {
+      return null;
+    }
+
+    const reasonText = getLocalizedReasonText(
+      currentProduct.eligibilityReasons
+    );
+    if (!reasonText) return null;
+
+    if (reasonText.includes(';')) {
+      const reasons = reasonText
+        .split(';')
+        .map(r => r.trim())
+        .filter(r => r);
+      return { type: 'list' as const, reasons };
+    }
+    return { type: 'text' as const, text: reasonText };
+  }, [
+    currentProduct.eligibilityStatus,
+    currentProduct.eligibilityReasons,
+    locale,
+    getLocalizedReasonText,
+  ]);
+
   return (
     <>
       {/* Clickable Badge */}
@@ -341,42 +383,35 @@ export function ProductStatusBadge({
             </div>
 
             {/* Progress Bar for PENDING */}
-            {currentProduct.eligibilityStatus === 'PENDING' &&
-              (() => {
-                // Calculate progress inline to avoid stale closures
-                const progress = getProgress();
-                return (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">
-                          {t('aiProcessing.step')} {progress.step}{' '}
-                          {t('aiProcessing.of')} 3
-                        </span>
-                        <span className="text-muted-foreground">
-                          {progress.percent}%
-                        </span>
-                      </div>
-                      <Progress value={progress.percent} className="h-2" />
-                    </div>
-
-                    <div className="bg-muted/50 rounded-lg p-3">
-                      <p className="text-sm font-medium mb-1">
-                        {progress.label}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {getLocalizedReasonText(
-                          currentProduct.eligibilityReasons
-                        ) || t('aiProcessing.processingDescription')}
-                      </p>
-                    </div>
-
-                    <div className="text-xs text-center text-muted-foreground">
-                      {t('aiProcessing.autoRefresh')}
-                    </div>
+            {currentProduct.eligibilityStatus === 'PENDING' && progress && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">
+                      {t('aiProcessing.step')} {progress.step}{' '}
+                      {t('aiProcessing.of')} 3
+                    </span>
+                    <span className="text-muted-foreground">
+                      {progress.percent}%
+                    </span>
                   </div>
-                );
-              })()}
+                  <Progress value={progress.percent} className="h-2" />
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm font-medium mb-1">{progress.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {getLocalizedReasonText(
+                      currentProduct.eligibilityReasons
+                    ) || t('aiProcessing.processingDescription')}
+                  </p>
+                </div>
+
+                <div className="text-xs text-center text-muted-foreground">
+                  {t('aiProcessing.autoRefresh')}
+                </div>
+              </div>
+            )}
 
             {/* Approval Details */}
             {currentProduct.eligibilityStatus === 'APPROVED' && (
@@ -410,38 +445,24 @@ export function ProductStatusBadge({
                     </div>
                   )}
 
-                  {currentProduct.eligibilityReasons && (
+                  {approvalReasonContent && (
                     <div>
                       <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
                         {t('aiAssessment')}:
                       </p>
                       <div className="text-sm text-green-700 dark:text-green-300">
-                        {(() => {
-                          const reasonText = getLocalizedReasonText(
-                            currentProduct.eligibilityReasons
-                          );
-                          // Check if we have a semicolon-separated list
-                          if (reasonText.includes(';')) {
-                            const reasons = reasonText
-                              .split(';')
-                              .map(r => r.trim())
-                              .filter(r => r);
-                            return (
-                              <ul className="space-y-1">
-                                {reasons.map((reason, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex items-start gap-1"
-                                  >
-                                    <span className="text-green-600">•</span>
-                                    <span>{reason}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            );
-                          }
-                          return <p>{reasonText}</p>;
-                        })()}
+                        {approvalReasonContent.type === 'list' ? (
+                          <ul className="space-y-1">
+                            {approvalReasonContent.reasons.map((reason, i) => (
+                              <li key={i} className="flex items-start gap-1">
+                                <span className="text-green-600">•</span>
+                                <span>{reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>{approvalReasonContent.text}</p>
+                        )}
                       </div>
                     </div>
                   )}
