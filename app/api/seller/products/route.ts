@@ -89,6 +89,7 @@ async function processProductEnhancementAndAssessment({
       categorySlug,
       price: product.priceToman,
       userId,
+      locale: 'fa', // Default to Persian for Iranian marketplace
     });
 
     if (enhancement.enhanced) {
