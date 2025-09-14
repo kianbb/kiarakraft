@@ -414,12 +414,28 @@ export function ProductStatusBadge({
 
                     <div className="bg-muted/50 rounded-lg p-3">
                       <p className="text-sm font-medium mb-1">
-                        {progress.label}
+                        {typeof progress.label === 'string'
+                          ? progress.label
+                          : t('aiProcessing.processingDescription')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {getLocalizedReasonText(
-                          currentProduct.eligibilityReasons
-                        ) || t('aiProcessing.processingDescription')}
+                        {(() => {
+                          const reason = getLocalizedReasonText(
+                            currentProduct.eligibilityReasons
+                          );
+                          if (typeof reason === 'string') return reason;
+                          if (Array.isArray(reason))
+                            return (reason as unknown[]).join(', ');
+                          if (
+                            reason &&
+                            typeof reason === 'object' &&
+                            'text' in reason
+                          )
+                            return String(
+                              (reason as Record<string, unknown>).text
+                            );
+                          return t('aiProcessing.processingDescription');
+                        })()}
                       </p>
                     </div>
 
