@@ -415,6 +415,7 @@ export async function enhanceProductBeforeApproval(product: {
   categorySlug?: string;
   price?: number;
   userId?: string;
+  locale?: 'fa' | 'en';
 }): Promise<{
   enhanced: boolean;
   description?: string;
@@ -432,6 +433,7 @@ export async function enhanceProductBeforeApproval(product: {
       categorySlug: product.categorySlug,
       price: product.price,
       userId: product.userId,
+      locale: product.locale || 'fa', // Default to Persian if not specified
     });
 
     // Always apply all available enhancements
