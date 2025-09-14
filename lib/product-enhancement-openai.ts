@@ -10,7 +10,8 @@ import {
 } from '@/lib/security-utils';
 
 type EnhancementResult = {
-  enhancedDescription: string;
+  enhancedDescription: string; // Persian/original language description
+  enhancedDescriptionEn?: string; // English translation if original is Persian
   suggestedTags: string[];
   imageEnhancementTips?: string[];
   enhancedImageUrl?: string;
@@ -71,8 +72,9 @@ When analyzing the product image for realistic improvements, identify:
 - Professional composition (center product, adjust angle for best presentation)
 - Keep the product 100% realistic - no fantasy elements or major alterations
 
-IMPORTANT: 
-- For Persian/Farsi products, maintain bilingual descriptions
+IMPORTANT:
+- For Persian/Farsi products, DO NOT mix languages in descriptions
+- Keep Persian and English descriptions SEPARATE in the JSON response
 - Highlight what makes this product special and handmade
 - If the product seems mass-produced, be honest but try to find unique selling points
 - Always maintain ethical standards - no false claims
@@ -123,7 +125,8 @@ ${input.imageUrl ? 'An image of the product is provided for analysis.' : 'No ima
 
 Analyze the product and provide enhancements. You MUST respond with valid JSON in the following format:
 {
-  "enhancedDescription": "Improved detailed description (300-500 characters)",
+  "enhancedDescription": "Improved description in ORIGINAL language (Persian if input is Persian, 300-500 chars)",
+  "enhancedDescriptionEn": "English translation/version ONLY if original is Persian (300-500 chars, null if already English)",
   "suggestedTags": ["tag1", "tag2", ...] (max 10),
   "imageEnhancementTips": ["specific improvement suggestions for seller"],
   "imageEditPrompt": "Brief prompt for realistic photo enhancement focusing ONLY on: better lighting, clean background, sharp focus, correct colors. DO NOT change the product itself",
@@ -193,6 +196,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
             type: 'object',
             properties: {
               enhancedDescription: { type: 'string' },
+              enhancedDescriptionEn: { type: ['string', 'null'] },
               suggestedTags: {
                 type: 'array',
                 items: { type: 'string' },
@@ -236,6 +240,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
     // Parse the JSON response
     const result = JSON.parse(response) as {
       enhancedDescription: string;
+      enhancedDescriptionEn?: string | null;
       suggestedTags: string[];
       imageEnhancementTips?: string[];
       imageEditPrompt?: string;
@@ -260,6 +265,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
 
     return {
       enhancedDescription: result.enhancedDescription,
+      enhancedDescriptionEn: result.enhancedDescriptionEn || undefined,
       suggestedTags: result.suggestedTags.slice(0, 10),
       imageEnhancementTips: result.imageEnhancementTips,
       enhancedImageUrl,
@@ -412,6 +418,7 @@ export async function enhanceProductBeforeApproval(product: {
 }): Promise<{
   enhanced: boolean;
   description?: string;
+  descriptionEn?: string;
   tags?: string[];
   imageUrl?: string;
 }> {
@@ -452,6 +459,7 @@ export async function enhanceProductBeforeApproval(product: {
       return {
         enhanced: true,
         description: enhancement.enhancedDescription || product.description,
+        descriptionEn: enhancement.enhancedDescriptionEn,
         tags: enhancement.suggestedTags || [],
         imageUrl: enhancement.enhancedImageUrl || product.imageUrl,
       };
