@@ -347,6 +347,13 @@ export function ProductStatusBadge({
     getLocalizedReasonText,
   ]);
 
+  // Only render on client to avoid any hydration issues
+  if (!mounted) {
+    // Return null during SSR to avoid hydration mismatch
+    // The component will appear after client-side hydration
+    return null;
+  }
+
   return (
     <>
       {/* Clickable Badge */}
@@ -354,7 +361,6 @@ export function ProductStatusBadge({
         className="cursor-pointer hover:opacity-80 transition-opacity"
         variant={getStatusVariant()}
         onClick={() => setOpen(true)}
-        suppressHydrationWarning
       >
         {getStatusIcon()}
         {t(`eligibility_${currentProduct.eligibilityStatus?.toLowerCase()}`) ||
