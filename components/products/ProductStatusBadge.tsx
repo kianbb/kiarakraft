@@ -10,13 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react';
+import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { ProductWithRelations } from '@/types/database';
 
 interface ProductStatusBadgeProps {
@@ -342,12 +336,7 @@ export function ProductStatusBadge({
                 <XCircle className="w-16 h-16 text-red-500" />
               )}
               {currentProduct.eligibilityStatus === 'PENDING' && (
-                <div className="relative">
-                  <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
-                  {mounted && isPolling && (
-                    <RefreshCw className="absolute -bottom-2 -right-2 w-4 h-4 text-muted-foreground animate-spin" />
-                  )}
-                </div>
+                <Clock className="w-16 h-16 text-yellow-500 animate-pulse" />
               )}
             </div>
 
