@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Dialog,
@@ -104,7 +104,7 @@ export function ProductStatusBadge({
   }, [product]);
 
   // Extract progress from eligibilityReasons
-  const getProgress = () => {
+  const getProgress = useCallback(() => {
     const reasons = currentProduct.eligibilityReasons || '';
 
     // Convert reasons to string if it's not already (for safety)
@@ -138,7 +138,7 @@ export function ProductStatusBadge({
     }
 
     return { step: 0, label: t('aiProcessing.starting'), percent: 5 };
-  };
+  }, [currentProduct.eligibilityReasons, currentProduct.eligibilityStatus, t]);
 
   // Get localized reason text from bilingual JSON or fallback to plain text
   const getLocalizedReasonText = (
