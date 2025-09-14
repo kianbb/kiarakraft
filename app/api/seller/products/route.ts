@@ -159,6 +159,55 @@ async function processProductEnhancementAndAssessment({
         });
         console.log(`✅ Enhanced description and tags saved`);
 
+        // Save English translation if provided
+        if (enhancement.descriptionEn) {
+          try {
+            // Check if translation already exists
+            const existingTranslation =
+              await prisma.productTranslation.findUnique({
+                where: {
+                  productId_locale: {
+                    productId: product.id,
+                    locale: 'en',
+                  },
+                },
+              });
+
+            if (existingTranslation) {
+              // Update existing translation
+              await prisma.productTranslation.update({
+                where: {
+                  productId_locale: {
+                    productId: product.id,
+                    locale: 'en',
+                  },
+                },
+                data: {
+                  description: enhancement.descriptionEn,
+                },
+              });
+              console.log(`✅ Updated English translation`);
+            } else {
+              // Create new translation
+              await prisma.productTranslation.create({
+                data: {
+                  productId: product.id,
+                  locale: 'en',
+                  title: product.title, // Will need proper translation later
+                  description: enhancement.descriptionEn,
+                },
+              });
+              console.log(`✅ Created English translation`);
+            }
+          } catch (translationError) {
+            console.error(
+              'Failed to save English translation:',
+              translationError
+            );
+            // Don't fail the whole process if translation save fails
+          }
+        }
+
         // Update progress
         await prisma.product.update({
           where: { id: product.id },
