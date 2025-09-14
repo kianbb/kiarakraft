@@ -392,7 +392,12 @@ export function ProductStatusBadge({
                 </div>
 
                 {/* Progress Bar for PENDING */}
-                {currentProduct.eligibilityStatus === 'PENDING' && progress && (
+                {currentProduct.eligibilityStatus === 'PENDING' &&
+                progress &&
+                typeof progress === 'object' &&
+                progress.step !== undefined &&
+                progress.percent !== undefined &&
+                progress.label !== undefined ? (
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -422,7 +427,7 @@ export function ProductStatusBadge({
                       {t('aiProcessing.autoRefresh')}
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 {/* Approval Details */}
                 {currentProduct.eligibilityStatus === 'APPROVED' && (
