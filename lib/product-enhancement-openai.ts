@@ -219,6 +219,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
             },
             required: [
               'enhancedDescription',
+              'enhancedDescriptionEn',
               'suggestedTags',
               'imageEnhancementTips',
               'imageEditPrompt',
