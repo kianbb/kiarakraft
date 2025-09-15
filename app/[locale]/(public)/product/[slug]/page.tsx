@@ -468,25 +468,57 @@ export default async function Page({ params }: { params: Params }) {
 
                 {/* Tags */}
                 {product.tags &&
-                  Array.isArray(product.tags) &&
-                  product.tags.length > 0 && (
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {t('tags')}:
-                        </span>
-                        {(product.tags as string[]).map((tag, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
+                  (() => {
+                    // Handle both formats: simple array or object with language keys
+                    let tagsToDisplay: string[] = [];
+
+                    if (Array.isArray(product.tags)) {
+                      // Old format: simple array of Persian tags
+                      tagsToDisplay = product.tags as string[];
+                    } else if (
+                      typeof product.tags === 'object' &&
+                      product.tags !== null
+                    ) {
+                      // New format: object with fa/en keys
+                      const tagsObj = product.tags as {
+                        fa?: string[];
+                        en?: string[];
+                      };
+                      if (
+                        params.locale === 'en' &&
+                        tagsObj.en &&
+                        tagsObj.en.length > 0
+                      ) {
+                        tagsToDisplay = tagsObj.en;
+                      } else if (tagsObj.fa) {
+                        tagsToDisplay = tagsObj.fa;
+                      }
+                    }
+
+                    return tagsToDisplay.length > 0 ? (
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {t('tags')}:
+                          </span>
+                          {tagsToDisplay.map((tag, index) => (
+                            <Link
+                              key={index}
+                              href={`/${params.locale}/explore?q=${encodeURIComponent(tag)}`}
+                              className="inline-block"
+                            >
+                              <Badge
+                                variant="secondary"
+                                className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors"
+                              >
+                                {tag.replace(/_/g, ' ')}
+                              </Badge>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ) : null;
+                  })()}
 
                 {/* Purchase Section */}
                 {product.stock > 0 && (

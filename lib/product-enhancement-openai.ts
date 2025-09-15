@@ -14,7 +14,8 @@ type EnhancementResult = {
   enhancedTitleEn?: string; // English translation of title if original is Persian
   enhancedDescription: string; // Persian/original language description
   enhancedDescriptionEn?: string; // English translation if original is Persian
-  suggestedTags: string[];
+  suggestedTags: string[]; // Tags in original language
+  suggestedTagsEn?: string[]; // English tags if original is Persian
   imageEnhancementTips?: string[];
   enhancedImageUrl?: string;
   confidence: number;
@@ -58,12 +59,14 @@ DESCRIPTION ENHANCEMENT GUIDELINES:
    - Be honest about imperfections (they add character!)
 
 TAG GENERATION RULES:
+- Use underscores for multi-word tags (e.g., hand_woven, custom_made, gift_ready)
 - Include material tags (wool, cotton, ceramic, etc.)
-- Add technique tags (handwoven, embroidered, painted, etc.)
+- Add technique tags (hand_woven, embroidered, painted, etc.)
 - Include style tags (traditional, modern, minimalist, etc.)
 - Add cultural tags if relevant (Persian, Iranian, ethnic, etc.)
 - Include functional tags (decorative, wearable, practical, etc.)
 - Maximum 10 tags, most relevant first
+- Keep tags concise and searchable (2-3 words max per tag)
 
 IMAGE ENHANCEMENT ANALYSIS:
 When analyzing the product image for realistic improvements, identify:
@@ -131,7 +134,8 @@ Analyze the product and provide enhancements. You MUST respond with valid JSON i
   "enhancedTitleEn": "English translation/version of title ONLY if original is Persian (max 100 chars, null if already English)",
   "enhancedDescription": "Improved description in ORIGINAL language (Persian if input is Persian, 300-500 chars)",
   "enhancedDescriptionEn": "English translation/version ONLY if original is Persian (300-500 chars, null if already English)",
-  "suggestedTags": ["tag1", "tag2", ...] (max 10),
+  "suggestedTags": ["tag1", "tag2", ...] (max 10 tags in ORIGINAL language, use underscores for multi-word tags),
+  "suggestedTagsEn": ["tag1_english", "tag2_english", ...] (English translations of tags ONLY if original is Persian, use underscores for multi-word tags, null if already English, max 10),
   "imageEnhancementTips": ["specific improvement suggestions for seller"],
   "imageEditPrompt": "Brief prompt for realistic photo enhancement focusing ONLY on: better lighting, clean background, sharp focus, correct colors. DO NOT change the product itself",
   "improvements": ["list of improvements made"],
@@ -208,6 +212,11 @@ Focus on highlighting handmade qualities and improving marketability.`,
                 items: { type: 'string' },
                 maxItems: 10,
               },
+              suggestedTagsEn: {
+                type: ['array', 'null'],
+                items: { type: 'string' },
+                maxItems: 10,
+              },
               imageEnhancementTips: {
                 type: 'array',
                 items: { type: 'string' },
@@ -229,6 +238,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
               'enhancedDescription',
               'enhancedDescriptionEn',
               'suggestedTags',
+              'suggestedTagsEn',
               'imageEnhancementTips',
               'imageEditPrompt',
               'improvements',
@@ -253,6 +263,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
       enhancedDescription: string;
       enhancedDescriptionEn?: string | null;
       suggestedTags: string[];
+      suggestedTagsEn?: string[] | null;
       imageEnhancementTips?: string[];
       imageEditPrompt?: string;
       improvements: string[];
@@ -280,6 +291,9 @@ Focus on highlighting handmade qualities and improving marketability.`,
       enhancedDescription: result.enhancedDescription,
       enhancedDescriptionEn: result.enhancedDescriptionEn || undefined,
       suggestedTags: result.suggestedTags.slice(0, 10),
+      suggestedTagsEn: result.suggestedTagsEn
+        ? result.suggestedTagsEn.slice(0, 10)
+        : undefined,
       imageEnhancementTips: result.imageEnhancementTips,
       enhancedImageUrl,
       confidence: Math.max(0, Math.min(100, result.confidence)),
@@ -438,6 +452,7 @@ export async function enhanceProductBeforeApproval(product: {
   description?: string;
   descriptionEn?: string;
   tags?: string[];
+  tagsEn?: string[];
   imageUrl?: string;
 }> {
   try {
@@ -492,6 +507,7 @@ export async function enhanceProductBeforeApproval(product: {
         description: enhancement.enhancedDescription || product.description,
         descriptionEn: enhancement.enhancedDescriptionEn,
         tags: enhancement.suggestedTags || [],
+        tagsEn: enhancement.suggestedTagsEn || [],
         imageUrl: enhancement.enhancedImageUrl || product.imageUrl,
       };
     }
