@@ -176,84 +176,85 @@ export function ProductStatusBadge({
   ]);
 
   // Get localized reason text from bilingual JSON or fallback to plain text
-  const getLocalizedReasonText = (
-    reasons: string | null | undefined
-  ): string => {
-    if (!reasons) return '';
+  const getLocalizedReasonText = useCallback(
+    (reasons: string | null | undefined): string => {
+      if (!reasons) return '';
 
-    // For PENDING status, also try to parse JSON for bilingual progress messages
-    if (currentProduct.eligibilityStatus === 'PENDING') {
-      if (typeof reasons === 'string') {
-        const trimmed = reasons.trim();
-        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-          try {
-            const parsed = JSON.parse(trimmed);
-            if (parsed && typeof parsed === 'object') {
-              const localizedText =
-                locale === 'fa'
-                  ? parsed.fa || parsed.en
-                  : parsed.en || parsed.fa;
-              if (typeof localizedText === 'string' && localizedText.trim()) {
-                return localizedText.trim();
-              }
-            }
-          } catch {
-            // Not valid JSON, return as-is
-          }
-        }
-        return reasons;
-      }
-      return '';
-    }
-
-    // Only try to parse JSON for APPROVED/REJECTED statuses
-    if (typeof reasons === 'string') {
-      // Try to parse as JSON - check for JSON-like structure
-      const trimmedReasons = reasons.trim();
-      if (trimmedReasons.startsWith('{') && trimmedReasons.endsWith('}')) {
-        try {
-          const parsed = JSON.parse(trimmedReasons);
-          if (parsed && typeof parsed === 'object') {
-            // STRICT LANGUAGE SEPARATION
-            // Only return content for the current locale, nothing else
-            const localizedText = locale === 'fa' ? parsed.fa : parsed.en;
-
-            // Validate that we got the right language
-            if (typeof localizedText === 'string' && localizedText.trim()) {
-              // For Persian locale, prioritize Persian content
-              if (locale === 'fa') {
-                // Check if it's predominantly Persian (has Persian chars)
-                if (/[\u0600-\u06FF]/.test(localizedText)) {
-                  // Check for English contamination (basic Latin letters in words)
-                  const englishWords =
-                    localizedText.match(/\b[a-zA-Z]{2,}\b/g) || [];
-                  // Allow some English (like brand names), but not too much
-                  if (englishWords.length <= 2) {
-                    return localizedText.trim();
-                  }
-                }
-              } else {
-                // For English locale, ensure it's predominantly English
-                // Check if there are NO Persian characters (clean English)
-                if (!/[\u0600-\u06FF]/.test(localizedText)) {
+      // For PENDING status, also try to parse JSON for bilingual progress messages
+      if (currentProduct.eligibilityStatus === 'PENDING') {
+        if (typeof reasons === 'string') {
+          const trimmed = reasons.trim();
+          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (parsed && typeof parsed === 'object') {
+                const localizedText =
+                  locale === 'fa'
+                    ? parsed.fa || parsed.en
+                    : parsed.en || parsed.fa;
+                if (typeof localizedText === 'string' && localizedText.trim()) {
                   return localizedText.trim();
                 }
               }
+            } catch {
+              // Not valid JSON, return as-is
             }
-
-            // If validation fails, return empty to avoid mixed content
-            return '';
           }
-        } catch {
-          // Not valid JSON, silently fallback
-          // Don't use console.warn as it causes hydration issues
+          return reasons;
+        }
+        return '';
+      }
+
+      // Only try to parse JSON for APPROVED/REJECTED statuses
+      if (typeof reasons === 'string') {
+        // Try to parse as JSON - check for JSON-like structure
+        const trimmedReasons = reasons.trim();
+        if (trimmedReasons.startsWith('{') && trimmedReasons.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmedReasons);
+            if (parsed && typeof parsed === 'object') {
+              // STRICT LANGUAGE SEPARATION
+              // Only return content for the current locale, nothing else
+              const localizedText = locale === 'fa' ? parsed.fa : parsed.en;
+
+              // Validate that we got the right language
+              if (typeof localizedText === 'string' && localizedText.trim()) {
+                // For Persian locale, prioritize Persian content
+                if (locale === 'fa') {
+                  // Check if it's predominantly Persian (has Persian chars)
+                  if (/[\u0600-\u06FF]/.test(localizedText)) {
+                    // Check for English contamination (basic Latin letters in words)
+                    const englishWords =
+                      localizedText.match(/\b[a-zA-Z]{2,}\b/g) || [];
+                    // Allow some English (like brand names), but not too much
+                    if (englishWords.length <= 2) {
+                      return localizedText.trim();
+                    }
+                  }
+                } else {
+                  // For English locale, ensure it's predominantly English
+                  // Check if there are NO Persian characters (clean English)
+                  if (!/[\u0600-\u06FF]/.test(localizedText)) {
+                    return localizedText.trim();
+                  }
+                }
+              }
+
+              // If validation fails, return empty to avoid mixed content
+              return '';
+            }
+          } catch {
+            // Not valid JSON, silently fallback
+            // Don't use console.warn as it causes hydration issues
+          }
         }
       }
-    }
 
-    // Fallback: return empty to avoid mixed language display
-    return '';
-  };
+      // Fallback: return empty to avoid mixed language display
+      return '';
+    },
+    [currentProduct.eligibilityStatus, locale]
+  );
 
   // Parse rejection reasons - now handles bilingual JSON format
   const parseReasons = (reasons: string | null | undefined): string[] => {
@@ -366,12 +367,7 @@ export function ProductStatusBadge({
       return getProgress();
     }
     return null;
-  }, [
-    currentProduct.eligibilityStatus,
-    currentProduct.eligibilityReasons,
-    t,
-    getProgress,
-  ]);
+  }, [currentProduct.eligibilityStatus, getProgress]);
 
   // Prepare approval reason text for rendering
   const approvalReasonContent = useMemo(() => {
@@ -398,7 +394,6 @@ export function ProductStatusBadge({
   }, [
     currentProduct.eligibilityStatus,
     currentProduct.eligibilityReasons,
-    locale,
     getLocalizedReasonText,
   ]);
 

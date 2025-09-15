@@ -10,6 +10,8 @@ import {
 } from '@/lib/security-utils';
 
 type EnhancementResult = {
+  enhancedTitle?: string; // Enhanced title in original language
+  enhancedTitleEn?: string; // English translation of title if original is Persian
   enhancedDescription: string; // Persian/original language description
   enhancedDescriptionEn?: string; // English translation if original is Persian
   suggestedTags: string[];
@@ -125,6 +127,8 @@ ${input.imageUrl ? 'An image of the product is provided for analysis.' : 'No ima
 
 Analyze the product and provide enhancements. You MUST respond with valid JSON in the following format:
 {
+  "enhancedTitle": "Improved title in ORIGINAL language (Persian if input is Persian, max 100 chars)",
+  "enhancedTitleEn": "English translation/version of title ONLY if original is Persian (max 100 chars, null if already English)",
   "enhancedDescription": "Improved description in ORIGINAL language (Persian if input is Persian, 300-500 chars)",
   "enhancedDescriptionEn": "English translation/version ONLY if original is Persian (300-500 chars, null if already English)",
   "suggestedTags": ["tag1", "tag2", ...] (max 10),
@@ -195,6 +199,8 @@ Focus on highlighting handmade qualities and improving marketability.`,
           schema: {
             type: 'object',
             properties: {
+              enhancedTitle: { type: 'string' },
+              enhancedTitleEn: { type: ['string', 'null'] },
               enhancedDescription: { type: 'string' },
               enhancedDescriptionEn: { type: ['string', 'null'] },
               suggestedTags: {
@@ -218,6 +224,8 @@ Focus on highlighting handmade qualities and improving marketability.`,
               },
             },
             required: [
+              'enhancedTitle',
+              'enhancedTitleEn',
               'enhancedDescription',
               'enhancedDescriptionEn',
               'suggestedTags',
@@ -240,6 +248,8 @@ Focus on highlighting handmade qualities and improving marketability.`,
 
     // Parse the JSON response
     const result = JSON.parse(response) as {
+      enhancedTitle: string;
+      enhancedTitleEn?: string | null;
       enhancedDescription: string;
       enhancedDescriptionEn?: string | null;
       suggestedTags: string[];
@@ -265,6 +275,8 @@ Focus on highlighting handmade qualities and improving marketability.`,
     }
 
     return {
+      enhancedTitle: result.enhancedTitle,
+      enhancedTitleEn: result.enhancedTitleEn || undefined,
       enhancedDescription: result.enhancedDescription,
       enhancedDescriptionEn: result.enhancedDescriptionEn || undefined,
       suggestedTags: result.suggestedTags.slice(0, 10),
@@ -421,6 +433,8 @@ export async function enhanceProductBeforeApproval(product: {
   locale?: 'fa' | 'en';
 }): Promise<{
   enhanced: boolean;
+  title?: string;
+  titleEn?: string;
   description?: string;
   descriptionEn?: string;
   tags?: string[];
@@ -441,6 +455,8 @@ export async function enhanceProductBeforeApproval(product: {
 
     // Always apply all available enhancements
     // We've already paid for the API calls, so use everything we generated
+    const hasTitleEnhancement =
+      enhancement.enhancedTitle && enhancement.enhancedTitle !== product.title;
     const hasTextEnhancement =
       enhancement.enhancedDescription &&
       enhancement.enhancedDescription !== product.description;
@@ -450,8 +466,16 @@ export async function enhanceProductBeforeApproval(product: {
     const hasTags =
       enhancement.suggestedTags && enhancement.suggestedTags.length > 0;
 
-    if (hasTextEnhancement || hasImageEnhancement || hasTags) {
+    if (
+      hasTitleEnhancement ||
+      hasTextEnhancement ||
+      hasImageEnhancement ||
+      hasTags
+    ) {
       console.log(`✨ Enhanced with ${enhancement.confidence}% confidence`);
+      console.log(
+        `   Title enhancement: ${hasTitleEnhancement ? 'Yes' : 'No'}`
+      );
       console.log(`   Text enhancement: ${hasTextEnhancement ? 'Yes' : 'No'}`);
       console.log(
         `   Image enhancement: ${hasImageEnhancement ? 'Yes' : 'No'}`
@@ -463,6 +487,8 @@ export async function enhanceProductBeforeApproval(product: {
 
       return {
         enhanced: true,
+        title: enhancement.enhancedTitle || product.title,
+        titleEn: enhancement.enhancedTitleEn,
         description: enhancement.enhancedDescription || product.description,
         descriptionEn: enhancement.enhancedDescriptionEn,
         tags: enhancement.suggestedTags || [],

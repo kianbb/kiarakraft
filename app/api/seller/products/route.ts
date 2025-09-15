@@ -147,13 +147,15 @@ async function processProductEnhancementAndAssessment({
       }
 
       // Update product with enhanced content
-      if (enhancement.description || enhancement.tags) {
+      if (enhancement.description || enhancement.tags || enhancement.title) {
+        const enhancedTitle = enhancement.title || product.title;
         enhancedDescription = enhancement.description || product.description;
         enhancedTags = enhancement.tags;
 
         await prisma.product.update({
           where: { id: product.id },
           data: {
+            title: enhancedTitle,
             description: enhancedDescription,
             tags: enhancedTags,
           },
@@ -161,7 +163,7 @@ async function processProductEnhancementAndAssessment({
         console.log(`✅ Enhanced description and tags saved`);
 
         // Save English translation if provided
-        if (enhancement.descriptionEn) {
+        if (enhancement.descriptionEn || enhancement.titleEn) {
           try {
             // Check if translation already exists
             const existingTranslation =
@@ -184,21 +186,28 @@ async function processProductEnhancementAndAssessment({
                   },
                 },
                 data: {
-                  description: enhancement.descriptionEn,
+                  title: enhancement.titleEn || existingTranslation.title,
+                  description:
+                    enhancement.descriptionEn ||
+                    existingTranslation.description,
                 },
               });
-              console.log(`✅ Updated English translation`);
+              console.log(
+                `✅ Updated English translation (title: ${!!enhancement.titleEn}, desc: ${!!enhancement.descriptionEn})`
+              );
             } else {
               // Create new translation
               await prisma.productTranslation.create({
                 data: {
                   productId: product.id,
                   locale: 'en',
-                  title: product.title, // Will need proper translation later
-                  description: enhancement.descriptionEn,
+                  title: enhancement.titleEn || product.title,
+                  description: enhancement.descriptionEn || product.description,
                 },
               });
-              console.log(`✅ Created English translation`);
+              console.log(
+                `✅ Created English translation (title: ${!!enhancement.titleEn}, desc: ${!!enhancement.descriptionEn})`
+              );
             }
           } catch (translationError) {
             console.error(
