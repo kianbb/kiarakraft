@@ -54,6 +54,7 @@ export default function NewProductPage() {
     : (((k: string) => k) as (k: string) => string);
   const [creating, setCreating] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
+  const [useAI, setUseAI] = useState(true);
 
   const {
     register,
@@ -103,7 +104,7 @@ export default function NewProductPage() {
       const response = await fetch('/api/seller/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, useAI }),
       });
 
       if (response.ok) {
@@ -305,14 +306,40 @@ export default function NewProductPage() {
           </div>
 
           <div className="flex gap-4 pt-6 border-t">
-            <Link href="/seller/products" className="flex-1">
-              <Button variant="outline" className="w-full">
+            <Link href="/seller/products">
+              <Button variant="outline" type="button">
                 {t('cancel')}
               </Button>
             </Link>
-            <Button type="submit" disabled={creating} className="flex-1">
-              {creating ? t('creating') : t('createProduct')}
-            </Button>
+            <div className="flex-1 flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={creating}
+                onClick={() => {
+                  setUseAI(false);
+                  handleSubmit(onSubmit)();
+                }}
+                className="flex-1"
+              >
+                {creating
+                  ? t('creating')
+                  : t('createProductNoAI') || 'Submit without AI'}
+              </Button>
+              <Button
+                type="button"
+                disabled={creating}
+                onClick={() => {
+                  setUseAI(true);
+                  handleSubmit(onSubmit)();
+                }}
+                className="flex-1 bg-primary hover:bg-primary/90"
+              >
+                {creating
+                  ? t('creating')
+                  : t('createProductWithAI') || 'Submit with AI ✨'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>

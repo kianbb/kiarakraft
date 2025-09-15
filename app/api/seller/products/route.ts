@@ -495,6 +495,7 @@ export const POST = withRateLimit(
       }
 
       data = await request.json();
+      const useAI = (data.useAI as boolean) ?? true; // Default to true for backward compatibility
 
       // Comprehensive input validation and sanitization
       const titleValidation = sanitizeAndValidate((data.name as string) || '', {
@@ -704,29 +705,45 @@ export const POST = withRateLimit(
         );
       }
 
-      // Start async processing for enhancement and assessment
-      // Use Vercel's waitUntil to keep the function alive after response
-      waitUntil(
-        processProductEnhancementAndAssessment({
-          product,
-          firstUploadedImageUrl,
-          categorySlug: (data.category as string) || undefined,
-          userId: user.id,
-        }).catch((error: unknown) => {
-          console.error(
-            `Background processing failed for product ${product.id}:`,
-            error
-          );
-          Sentry.captureException(error);
-        })
-      );
+      // Start async processing for enhancement and assessment if useAI is true
+      if (useAI) {
+        // Use Vercel's waitUntil to keep the function alive after response
+        waitUntil(
+          processProductEnhancementAndAssessment({
+            product,
+            firstUploadedImageUrl,
+            categorySlug: (data.category as string) || undefined,
+            userId: user.id,
+          }).catch((error: unknown) => {
+            console.error(
+              `Background processing failed for product ${product.id}:`,
+              error
+            );
+            Sentry.captureException(error);
+          })
+        );
+      } else {
+        // If not using AI, directly approve the product
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            eligibilityStatus: 'APPROVED',
+            eligibilityReasons: JSON.stringify({
+              en: 'Product approved without AI enhancement',
+              fa: 'محصول بدون بهبود هوش مصنوعی تایید شد',
+            }),
+            eligibilityConfidence: 100,
+          },
+        });
+      }
 
-      // Return immediately with PENDING status
+      // Return immediately with appropriate status
       return NextResponse.json({
         ...productWithImages,
-        eligibilityStatus: 'PENDING',
-        message:
-          'Product is under review. You will be notified once the review is complete.',
+        eligibilityStatus: useAI ? 'PENDING' : 'APPROVED',
+        message: useAI
+          ? 'Product is under review. You will be notified once the review is complete.'
+          : 'Product has been approved.',
       });
     } catch (error) {
       Sentry.captureException(error);

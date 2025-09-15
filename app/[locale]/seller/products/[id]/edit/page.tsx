@@ -67,6 +67,7 @@ export default function EditProductPage() {
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<FormCompatibleProduct | null>(null);
+  const [useAI, setUseAI] = useState(true);
 
   const {
     register,
@@ -164,7 +165,7 @@ export default function EditProductPage() {
       const response = await fetch(`/api/seller/products/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(apiData),
+        body: JSON.stringify({ ...apiData, useAI }),
       });
 
       if (response.ok) {
@@ -350,14 +351,40 @@ export default function EditProductPage() {
           </div>
 
           <div className="flex gap-4 pt-6 border-t">
-            <Link href="/seller/products" className="flex-1">
-              <Button variant="outline" className="w-full">
+            <Link href="/seller/products">
+              <Button variant="outline" type="button">
                 {t('cancel')}
               </Button>
             </Link>
-            <Button type="submit" disabled={updating} className="flex-1">
-              {updating ? t('updating') : t('updateProduct')}
-            </Button>
+            <div className="flex-1 flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={updating}
+                onClick={() => {
+                  setUseAI(false);
+                  handleSubmit(onSubmit)();
+                }}
+                className="flex-1"
+              >
+                {updating
+                  ? t('updating')
+                  : t('updateProductNoAI') || 'Update without AI'}
+              </Button>
+              <Button
+                type="button"
+                disabled={updating}
+                onClick={() => {
+                  setUseAI(true);
+                  handleSubmit(onSubmit)();
+                }}
+                className="flex-1 bg-primary hover:bg-primary/90"
+              >
+                {updating
+                  ? t('updating')
+                  : t('updateProductWithAI') || 'Update with AI ✨'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>
