@@ -38,6 +38,12 @@ export async function GET(
         id: params.id,
         sellerId: user.sellerProfile.id,
       },
+      include: {
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        category: true,
+      },
     });
 
     if (!product) {

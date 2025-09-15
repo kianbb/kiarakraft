@@ -25,12 +25,14 @@ import ImageUploadManager from '@/components/seller/ImageUploadManager';
 interface FormCompatibleProduct {
   id: string;
   name: string;
+  title?: string;
   description: string;
   price: number;
+  priceToman?: number;
   stock: number;
-  category: string;
-  imageUrl: string;
-  tags?: string;
+  category?: string | { id: string; slug: string; name: string };
+  imageUrl?: string;
+  tags?: string | string[] | { fa?: string[]; en?: string[] };
   images?: Array<{
     id: string;
     url: string;
@@ -95,9 +97,19 @@ export default function EditProductPage() {
           category:
             productData.category?.slug || productData.category || 'textiles',
           imageUrl: productData.images?.[0]?.url || productData.imageUrl || '',
-          tags: Array.isArray(productData.tags)
-            ? productData.tags.join(', ')
-            : productData.tags || '',
+          tags: (() => {
+            if (Array.isArray(productData.tags)) {
+              return productData.tags.join(', ');
+            } else if (
+              typeof productData.tags === 'object' &&
+              productData.tags !== null
+            ) {
+              // Handle bilingual tags object {fa: [], en: []}
+              const fasiTags = productData.tags.fa || productData.tags.en || [];
+              return Array.isArray(fasiTags) ? fasiTags.join(', ') : '';
+            }
+            return typeof productData.tags === 'string' ? productData.tags : '';
+          })(),
         });
       } else {
         router.push('/seller/products');
@@ -205,7 +217,9 @@ export default function EditProductPage() {
             <Edit className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-3xl font-bold">{t('editProduct')}</h1>
-              <p className="text-muted-foreground">{product.name}</p>
+              <p className="text-muted-foreground">
+                {product.title || product.name}
+              </p>
             </div>
           </div>
         </div>
@@ -290,7 +304,11 @@ export default function EditProductPage() {
                       | 'painting'
                   )
                 }
-                defaultValue={product.category}
+                defaultValue={
+                  typeof product.category === 'object'
+                    ? product.category?.slug
+                    : product.category
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectCategory')} />
