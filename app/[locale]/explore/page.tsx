@@ -8,8 +8,9 @@ import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
 import { SearchStats } from '@/components/explore/SearchStats';
 
-// Disable caching temporarily to test search functionality
+// Force cache revalidation to ensure fresh data
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: {
