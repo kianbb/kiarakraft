@@ -77,6 +77,7 @@ export const PUT = withCSRF(async function (
     }
 
     const data = await request.json();
+    const useAI = (data.useAI as boolean) ?? true; // Default to true for backward compatibility
     if (
       (data.title?.length || 0) > 200 ||
       (data.description?.length || 0) > 5000
@@ -198,22 +199,49 @@ export const PUT = withCSRF(async function (
         .catch(e => console.error('Translation error (update)', e));
     }
 
-    // Process enhancement and assessment asynchronously in background
-    // Use Vercel's waitUntil to keep the function alive after response
-    waitUntil(
-      processProductEnhancementAndAssessment({
-        product: updatedProduct,
-        firstUploadedImageUrl: product.images?.[0]?.url,
-        categorySlug: undefined,
-        userId: user.id,
-      }).catch((error: unknown) => {
-        console.error(
-          `Background processing failed for product ${updatedProduct.id}:`,
-          error
-        );
-        Sentry.captureException(error);
-      })
-    );
+    // Process enhancement and assessment asynchronously in background if useAI is true
+    if (useAI) {
+      // Set status to PENDING for AI processing
+      await prisma.product.update({
+        where: { id: params.id },
+        data: {
+          eligibilityStatus: 'PENDING',
+          eligibilityReasons: getBilingualProgress('step1'),
+        },
+      });
+
+      // Use Vercel's waitUntil to keep the function alive after response
+      waitUntil(
+        processProductEnhancementAndAssessment({
+          product: updatedProduct,
+          firstUploadedImageUrl: product.images?.[0]?.url,
+          categorySlug: undefined,
+          userId: user.id,
+        }).catch((error: unknown) => {
+          console.error(
+            `Background processing failed for product ${updatedProduct.id}:`,
+            error
+          );
+          Sentry.captureException(error);
+        })
+      );
+    } else {
+      // If not using AI, keep the current approval status or approve if was pending
+      const currentStatus = updatedProduct.eligibilityStatus;
+      if (currentStatus === 'PENDING' || currentStatus === 'REJECTED') {
+        await prisma.product.update({
+          where: { id: params.id },
+          data: {
+            eligibilityStatus: 'APPROVED',
+            eligibilityReasons: JSON.stringify({
+              en: 'Product approved without AI enhancement',
+              fa: 'محصول بدون بهبود هوش مصنوعی تایید شد',
+            }),
+            eligibilityConfidence: 100,
+          },
+        });
+      }
+    }
 
     return NextResponse.json(updatedProduct);
   } catch (error) {
