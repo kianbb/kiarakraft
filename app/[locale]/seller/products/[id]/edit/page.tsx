@@ -69,7 +69,6 @@ export default function EditProductPage() {
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<FormCompatibleProduct | null>(null);
-  const [useAI, setUseAI] = useState(true);
 
   const {
     register,
@@ -155,7 +154,7 @@ export default function EditProductPage() {
     return null;
   }
 
-  const onSubmit = async (data: ProductForm) => {
+  const handleProductUpdate = async (data: ProductForm, withAI: boolean) => {
     setUpdating(true);
     try {
       // Map form fields to API fields
@@ -177,7 +176,7 @@ export default function EditProductPage() {
       const response = await fetch(`/api/seller/products/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...apiData, useAI }),
+        body: JSON.stringify({ ...apiData, useAI: withAI }),
       });
 
       if (response.ok) {
@@ -191,6 +190,11 @@ export default function EditProductPage() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  // Default form submission (for Enter key)
+  const onSubmit = (data: ProductForm) => {
+    handleProductUpdate(data, true); // Default to with AI
   };
 
   const categories = [
@@ -380,8 +384,7 @@ export default function EditProductPage() {
                 variant="secondary"
                 disabled={updating}
                 onClick={() => {
-                  setUseAI(false);
-                  handleSubmit(onSubmit)();
+                  handleSubmit(data => handleProductUpdate(data, false))();
                 }}
                 className="flex-1"
               >
@@ -393,8 +396,7 @@ export default function EditProductPage() {
                 type="button"
                 disabled={updating}
                 onClick={() => {
-                  setUseAI(true);
-                  handleSubmit(onSubmit)();
+                  handleSubmit(data => handleProductUpdate(data, true))();
                 }}
                 className="flex-1 bg-primary hover:bg-primary/90"
               >
