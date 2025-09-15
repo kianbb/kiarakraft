@@ -54,7 +54,6 @@ export default function NewProductPage() {
     : (((k: string) => k) as (k: string) => string);
   const [creating, setCreating] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
-  const [useAI, setUseAI] = useState(true);
 
   const {
     register,
@@ -98,13 +97,13 @@ export default function NewProductPage() {
     return null;
   }
 
-  const onSubmit = async (data: ProductForm) => {
+  const handleProductCreate = async (data: ProductForm, withAI: boolean) => {
     setCreating(true);
     try {
       const response = await fetch('/api/seller/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, useAI }),
+        body: JSON.stringify({ ...data, useAI: withAI }),
       });
 
       if (response.ok) {
@@ -145,6 +144,11 @@ export default function NewProductPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  // Default form submission (for Enter key)
+  const onSubmit = (data: ProductForm) => {
+    handleProductCreate(data, true); // Default to with AI
   };
 
   const categories = [
@@ -317,8 +321,7 @@ export default function NewProductPage() {
                 variant="secondary"
                 disabled={creating}
                 onClick={() => {
-                  setUseAI(false);
-                  handleSubmit(onSubmit)();
+                  handleSubmit(data => handleProductCreate(data, false))();
                 }}
                 className="flex-1"
               >
@@ -330,8 +333,7 @@ export default function NewProductPage() {
                 type="button"
                 disabled={creating}
                 onClick={() => {
-                  setUseAI(true);
-                  handleSubmit(onSubmit)();
+                  handleSubmit(data => handleProductCreate(data, true))();
                 }}
                 className="flex-1 bg-primary hover:bg-primary/90"
               >
