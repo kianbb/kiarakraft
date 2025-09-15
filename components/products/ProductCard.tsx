@@ -203,15 +203,41 @@ export const ProductCard = React.memo(function ProductCard({
                 className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
                 onClick={e => e.stopPropagation()}
               >
-                {locale === 'en'
-                  ? product.seller.shopName
-                  : product.seller.displayName}
+                {(() => {
+                  // For English: if displayName is Persian, use handle as fallback
+                  if (
+                    locale === 'en' &&
+                    isPersian(product.seller.displayName)
+                  ) {
+                    return product.seller.handle
+                      ? product.seller.handle
+                          .split('-')
+                          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(' ')
+                      : product.seller.shopName;
+                  }
+                  // Otherwise use displayName (Persian) or shopName (business name)
+                  return product.seller.shopName || product.seller.displayName;
+                })()}
               </Link>
             ) : (
               <span className="text-xs text-muted-foreground">
-                {locale === 'en'
-                  ? product.seller.shopName
-                  : product.seller.displayName}
+                {(() => {
+                  // For English: if displayName is Persian, use handle as fallback
+                  if (
+                    locale === 'en' &&
+                    isPersian(product.seller.displayName)
+                  ) {
+                    return product.seller.handle
+                      ? product.seller.handle
+                          .split('-')
+                          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(' ')
+                      : product.seller.shopName;
+                  }
+                  // Otherwise use displayName (Persian) or shopName (business name)
+                  return product.seller.shopName || product.seller.displayName;
+                })()}
               </span>
             )}
             <VerifiedBadge
