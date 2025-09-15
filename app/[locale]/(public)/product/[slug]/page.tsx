@@ -95,14 +95,9 @@ export async function generateMetadata({
       title = tHome('sampleProducts.silverNecklace.title');
       description = tHome('sampleProducts.silverNecklace.description');
     } else {
-      // Final guard: if text still appears Persian, provide safe EN fallbacks
+      // Final guard: if text still appears Persian, keep the original instead of generating generic names
       const hasFa = (s?: string) => /[\u0600-\u06FF]/.test(s || '');
-      if (hasFa(title)) {
-        title = params.slug
-          .split('-')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-      }
+      // Don't modify the title if it contains Persian - better to show Persian than "Product xyz"
       if (hasFa(description)) {
         description = tHome('hero.description');
       }
@@ -165,7 +160,14 @@ export default async function Page({ params }: { params: Params }) {
 
   const product = await db.product.findFirst({
     where: { slug: params.slug, isTest: false },
-    include: { images: true, seller: true, category: true, reviews: true },
+    include: {
+      images: {
+        orderBy: { sortOrder: 'asc' },
+      },
+      seller: true,
+      category: true,
+      reviews: true,
+    },
   });
 
   console.log(`[DEBUG] Product found: ${!!product}`);
@@ -243,6 +245,19 @@ export default async function Page({ params }: { params: Params }) {
     sellerRegion: product.seller.region ?? undefined,
     sellerBio: product.seller.bio ?? undefined,
   };
+
+  // For English locale, use handle as shop name if the shop name is in Persian
+  // This provides consistency across locales
+  if (params.locale === 'en' && localized.sellerDisplayName) {
+    const hasPersian = /[\u0600-\u06FF]/.test(localized.sellerDisplayName);
+    if (hasPersian && product.seller.handle) {
+      // Use the handle (e.g., 'kian-store') as a readable English alternative
+      localized.sellerDisplayName = product.seller.handle
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
+  }
   if (params.locale === 'en') {
     if (product.slug === 'handmade-ceramic-bowl') {
       localized.title = tHome('sampleProducts.ceramicBowl.title');
@@ -362,7 +377,7 @@ export default async function Page({ params }: { params: Params }) {
                 <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                   <Image
                     src={product.images?.[0]?.url || '/placeholder-product.jpg'}
-                    alt={product.images?.[0]?.alt || product.title}
+                    alt={product.images?.[0]?.alt || localized.title}
                     fill
                     className="object-cover"
                     priority
@@ -450,6 +465,28 @@ export default async function Page({ params }: { params: Params }) {
                     <Badge variant="outline">{localized.categoryName}</Badge>
                   </div>
                 </div>
+
+                {/* Tags */}
+                {product.tags &&
+                  Array.isArray(product.tags) &&
+                  product.tags.length > 0 && (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {t('tags')}:
+                        </span>
+                        {(product.tags as string[]).map((tag, index) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                 {/* Purchase Section */}
                 {product.stock > 0 && (

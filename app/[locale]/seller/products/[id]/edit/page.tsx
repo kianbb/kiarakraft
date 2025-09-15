@@ -87,13 +87,16 @@ export default function EditProductPage() {
 
         // Populate form with existing data
         reset({
-          name: productData.name,
-          description: productData.description,
-          price: productData.price,
-          stock: productData.stock,
-          category: productData.category,
-          imageUrl: productData.imageUrl,
-          tags: productData.tags || '',
+          name: productData.title || productData.name || '',
+          description: productData.description || '',
+          price: productData.priceToman || productData.price || 0,
+          stock: productData.stock || 0,
+          category:
+            productData.category?.slug || productData.category || 'textiles',
+          imageUrl: productData.images?.[0]?.url || productData.imageUrl || '',
+          tags: Array.isArray(productData.tags)
+            ? productData.tags.join(', ')
+            : productData.tags || '',
         });
       } else {
         router.push('/seller/products');
@@ -142,10 +145,26 @@ export default function EditProductPage() {
   const onSubmit = async (data: ProductForm) => {
     setUpdating(true);
     try {
+      // Map form fields to API fields
+      const apiData = {
+        title: data.name,
+        description: data.description,
+        priceToman: data.price,
+        stock: data.stock,
+        category: data.category,
+        imageUrl: data.imageUrl,
+        tags: data.tags
+          ? data.tags
+              .split(',')
+              .map(t => t.trim())
+              .filter(t => t)
+          : [],
+      };
+
       const response = await fetch(`/api/seller/products/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(apiData),
       });
 
       if (response.ok) {
