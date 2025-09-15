@@ -151,8 +151,10 @@ export async function searchProducts(
   if (searchQuery && searchQuery.length > 0) {
     // Use secure advanced search with Prisma.sql template literals
     const searchSql = Prisma.sql`
-      SELECT 
+      SELECT
         p.*,
+        COALESCE(pt.title, p.title) as title,
+        COALESCE(pt.description, p.description) as description,
         sp.id as seller_id,
         sp."handle" as seller_handle,
         sp."displayName" as seller_display_name,
@@ -272,22 +274,45 @@ export async function searchProducts(
         productId: true,
         url: true,
         alt: true,
+        sortOrder: true,
+      },
+      orderBy: {
+        sortOrder: 'asc',
       },
     });
 
     // Create a map of productId -> images for efficient lookup
+    // Prefer enhanced image (sortOrder 0) for display
     const imagesByProductId = new Map<
       string,
       Array<{ url: string; alt: string | null }>
     >();
+
+    // Group images by product
+    const groupedImages = new Map<string, (typeof images)[0][]>();
     images.forEach(img => {
-      if (!imagesByProductId.has(img.productId)) {
-        imagesByProductId.set(img.productId, []);
+      if (!groupedImages.has(img.productId)) {
+        groupedImages.set(img.productId, []);
       }
-      imagesByProductId.get(img.productId)!.push({
-        url: img.url,
-        alt: img.alt,
+      groupedImages.get(img.productId)!.push(img);
+    });
+
+    // For each product, sort images and put enhanced (sortOrder 0) first
+    groupedImages.forEach((productImages, productId) => {
+      const sortedImages = productImages.sort((a, b) => {
+        // Enhanced image (sortOrder 0) should be first
+        if (a.sortOrder === 0) return -1;
+        if (b.sortOrder === 0) return 1;
+        return a.sortOrder - b.sortOrder;
       });
+
+      imagesByProductId.set(
+        productId,
+        sortedImages.map(img => ({
+          url: img.url,
+          alt: img.alt,
+        }))
+      );
     });
 
     // Transform raw results to match expected format
@@ -365,6 +390,19 @@ export async function searchProducts(
             select: {
               url: true,
               alt: true,
+              sortOrder: true,
+            },
+            orderBy: {
+              sortOrder: 'asc',
+            },
+          },
+          translations: {
+            where: {
+              locale: validLocale,
+            },
+            select: {
+              title: true,
+              description: true,
             },
           },
           seller: {
@@ -391,7 +429,31 @@ export async function searchProducts(
       prisma.product.count({ where }),
     ]);
 
-    products = productsResult;
+    // Transform products to include translations and properly ordered images
+    products = productsResult.map(product => {
+      // Get translated title and description if available
+      const translation = product.translations[0];
+      const translatedTitle = translation?.title || product.title;
+      const translatedDescription =
+        translation?.description || product.description;
+
+      // Sort images with enhanced image (sortOrder 0) first
+      const sortedImages = [...product.images].sort((a, b) => {
+        if (a.sortOrder === 0) return -1;
+        if (b.sortOrder === 0) return 1;
+        return a.sortOrder - b.sortOrder;
+      });
+
+      return {
+        ...product,
+        title: translatedTitle,
+        description: translatedDescription,
+        images: sortedImages.map(img => ({
+          url: img.url,
+          alt: img.alt,
+        })),
+      };
+    });
     total = totalResult;
 
     // Generate facets for simple search

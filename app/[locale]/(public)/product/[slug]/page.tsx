@@ -286,8 +286,7 @@ export default async function Page({ params }: { params: Params }) {
         product.category.slug as unknown as string
       );
     }
-    // Seller fields: use English display name for demo, transliterate simple region, hide Persian bio
-    localized.sellerDisplayName = tHome('sampleProducts.shopName');
+    // Transliterate simple region names
     if (product.seller.region === 'تهران') localized.sellerRegion = 'Tehran';
     // If bio contains Persian characters, omit it on EN
     if (/[\u0600-\u06FF]/.test(product.seller.bio || '')) {
