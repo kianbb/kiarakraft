@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import * as Sentry from '@sentry/nextjs';
 import { withCSRF } from '@/lib/csrf';
 import { waitUntil } from '@vercel/functions';
+import { getBilingualProgress } from '@/lib/progress-messages';
 
 export async function GET(
   _request: NextRequest,
@@ -125,7 +126,7 @@ export const PUT = withCSRF(async function (
         // Set to PENDING while we process enhancement and assessment
         eligibilityStatus: 'PENDING',
         eligibilityConfidence: null,
-        eligibilityReasons: 'Product is being reviewed with AI enhancements',
+        eligibilityReasons: getBilingualProgress('step1'),
       },
     });
 
@@ -355,7 +356,7 @@ async function processProductEnhancementAndAssessment({
   await prisma.product.update({
     where: { id: product.id },
     data: {
-      eligibilityReasons: '🔄 Step 1/3: Validating product data...',
+      eligibilityReasons: getBilingualProgress('step1'),
     },
   });
 
@@ -388,8 +389,7 @@ async function processProductEnhancementAndAssessment({
     await prisma.product.update({
       where: { id: product.id },
       data: {
-        eligibilityReasons:
-          '🎨 Step 2/3: Enhancing product presentation with AI...',
+        eligibilityReasons: getBilingualProgress('step2'),
       },
     });
 
@@ -477,8 +477,7 @@ async function processProductEnhancementAndAssessment({
         await prisma.product.update({
           where: { id: product.id },
           data: {
-            eligibilityReasons:
-              '✨ Enhancement complete. Starting eligibility assessment...',
+            eligibilityReasons: getBilingualProgress('enhancementComplete'),
           },
         });
       }
@@ -489,8 +488,7 @@ async function processProductEnhancementAndAssessment({
       await prisma.product.update({
         where: { id: product.id },
         data: {
-          eligibilityReasons:
-            '⏭️ Enhancement skipped. Starting eligibility assessment...',
+          eligibilityReasons: getBilingualProgress('enhancementSkipped'),
         },
       });
     }
@@ -502,8 +500,7 @@ async function processProductEnhancementAndAssessment({
     await prisma.product.update({
       where: { id: product.id },
       data: {
-        eligibilityReasons:
-          '⚠️ Enhancement failed. Continuing with eligibility assessment...',
+        eligibilityReasons: getBilingualProgress('enhancementSkipped'),
       },
     });
     // Continue with original content if enhancement fails
@@ -515,8 +512,7 @@ async function processProductEnhancementAndAssessment({
     await prisma.product.update({
       where: { id: product.id },
       data: {
-        eligibilityReasons:
-          '🔍 Step 3/3: Assessing product for marketplace eligibility...',
+        eligibilityReasons: getBilingualProgress('step3'),
       },
     });
 

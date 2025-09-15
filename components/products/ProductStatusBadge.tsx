@@ -107,24 +107,54 @@ export function ProductStatusBadge({
   const getProgress = useCallback(() => {
     const reasons = currentProduct.eligibilityReasons || '';
 
-    // Convert reasons to string if it's not already (for safety)
-    const reasonsStr = typeof reasons === 'string' ? reasons : String(reasons);
+    // Parse bilingual JSON if present
+    let reasonsStr = '';
+    if (typeof reasons === 'string') {
+      const trimmed = reasons.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object') {
+            // Use the appropriate language based on locale
+            reasonsStr =
+              locale === 'fa'
+                ? parsed.fa || parsed.en || ''
+                : parsed.en || parsed.fa || '';
+          } else {
+            reasonsStr = reasons;
+          }
+        } catch {
+          reasonsStr = reasons;
+        }
+      } else {
+        reasonsStr = reasons;
+      }
+    } else {
+      reasonsStr = String(reasons);
+    }
 
+    // Check for step indicators in the localized text
     if (
-      reasonsStr.includes('Step 3/3') ||
-      reasonsStr.includes('Assessing product')
+      reasonsStr.includes('3/3') ||
+      reasonsStr.includes('۳/۳') ||
+      reasonsStr.includes('Assessing') ||
+      reasonsStr.includes('ارزیابی')
     ) {
       return { step: 3, label: t('aiProcessing.step3'), percent: 90 };
     }
     if (
-      reasonsStr.includes('Step 2/3') ||
-      reasonsStr.includes('Enhancing product')
+      reasonsStr.includes('2/3') ||
+      reasonsStr.includes('۲/۳') ||
+      reasonsStr.includes('Enhancing') ||
+      reasonsStr.includes('بهبود')
     ) {
       return { step: 2, label: t('aiProcessing.step2'), percent: 60 };
     }
     if (
-      reasonsStr.includes('Step 1/3') ||
-      reasonsStr.includes('Validating product')
+      reasonsStr.includes('1/3') ||
+      reasonsStr.includes('۱/۳') ||
+      reasonsStr.includes('Validating') ||
+      reasonsStr.includes('بررسی')
     ) {
       return { step: 1, label: t('aiProcessing.step1'), percent: 30 };
     }
@@ -138,7 +168,12 @@ export function ProductStatusBadge({
     }
 
     return { step: 0, label: t('aiProcessing.starting'), percent: 5 };
-  }, [currentProduct.eligibilityReasons, currentProduct.eligibilityStatus, t]);
+  }, [
+    currentProduct.eligibilityReasons,
+    currentProduct.eligibilityStatus,
+    locale,
+    t,
+  ]);
 
   // Get localized reason text from bilingual JSON or fallback to plain text
   const getLocalizedReasonText = (
@@ -146,9 +181,29 @@ export function ProductStatusBadge({
   ): string => {
     if (!reasons) return '';
 
-    // If it's a PENDING status with progress messages, return as is
+    // For PENDING status, also try to parse JSON for bilingual progress messages
     if (currentProduct.eligibilityStatus === 'PENDING') {
-      return typeof reasons === 'string' ? reasons : '';
+      if (typeof reasons === 'string') {
+        const trimmed = reasons.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === 'object') {
+              const localizedText =
+                locale === 'fa'
+                  ? parsed.fa || parsed.en
+                  : parsed.en || parsed.fa;
+              if (typeof localizedText === 'string' && localizedText.trim()) {
+                return localizedText.trim();
+              }
+            }
+          } catch {
+            // Not valid JSON, return as-is
+          }
+        }
+        return reasons;
+      }
+      return '';
     }
 
     // Only try to parse JSON for APPROVED/REJECTED statuses
