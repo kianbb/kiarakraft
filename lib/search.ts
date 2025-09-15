@@ -212,7 +212,7 @@ export async function searchProducts(
           LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
           LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery})) OR
           -- Search in tags (new bilingual format)
-          -- Replace spaces with underscores in search query to match tag format
+          -- Replace underscores with spaces to match natural language queries
           EXISTS (
             SELECT 1 FROM jsonb_array_elements_text(
               CASE
@@ -271,7 +271,7 @@ export async function searchProducts(
           LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
           LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery})) OR
           -- Search in tags (new bilingual format)
-          -- Replace spaces with underscores in search query to match tag format
+          -- Replace underscores with spaces to match natural language queries
           EXISTS (
             SELECT 1 FROM jsonb_array_elements_text(
               CASE
