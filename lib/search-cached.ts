@@ -6,14 +6,20 @@ import { CACHE_TAGS, CACHE_DURATIONS, createCachedFunction } from '@/lib/cache';
 
 /**
  * Cached version of searchProducts for better performance
+ * Note: Temporarily bypassing cache to ensure locale-specific content is fresh
  */
-export const searchProducts = createCachedFunction(
-  async (filters: SearchFilters) => {
-    return originalSearchProducts(filters);
-  },
-  [CACHE_TAGS.PRODUCTS, CACHE_TAGS.CATEGORIES],
-  CACHE_DURATIONS.MEDIUM // 30 minutes cache
-);
+export const searchProducts = async (filters: SearchFilters) => {
+  return originalSearchProducts(filters);
+};
+
+// Original cached version - restore after fixing locale-specific caching
+// export const searchProducts = createCachedFunction(
+//   async (filters: SearchFilters) => {
+//     return originalSearchProducts(filters);
+//   },
+//   [CACHE_TAGS.PRODUCTS, CACHE_TAGS.CATEGORIES],
+//   CACHE_DURATIONS.MEDIUM // 30 minutes cache
+// );
 
 /**
  * Cached featured products for homepage
