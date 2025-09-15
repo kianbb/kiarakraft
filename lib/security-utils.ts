@@ -10,9 +10,9 @@ const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
 // AI API Cost estimates (in USD)
 export const AI_COSTS = {
-  GPT5_MINI_INPUT: 0.00015, // per 1K tokens
-  GPT5_MINI_OUTPUT: 0.0006, // per 1K tokens
-  GPT_IMAGE_1_EDIT: 0.02, // per image
+  GPT5_MINI_INPUT: 0.00025, // per 1K tokens ($0.25 per 1M tokens)
+  GPT5_MINI_OUTPUT: 0.002, // per 1K tokens ($2.00 per 1M tokens)
+  GPT_IMAGE_1_EDIT: 0.167, // per image (high quality 1024x1024)
   AVERAGE_TOKENS_PER_REQUEST: 2000, // Conservative estimate
 };
 

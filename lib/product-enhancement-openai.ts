@@ -365,11 +365,13 @@ async function enhanceImageWithGPTImage1(params: {
     let response;
     try {
       // Primary path: GPT Image 1 edit
+      // Explicitly set quality to high (default) - costs $0.167 per 1024x1024 image
       response = await openai.images.edit({
         model: 'gpt-image-1',
         image: imageFile,
         prompt: realisticPrompt,
         size: '1024x1024',
+        quality: 'high', // Explicit quality setting: high=$0.167, medium=$0.042, low=$0.011
         n: 1,
       });
     } catch (err) {
