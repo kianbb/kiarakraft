@@ -66,7 +66,6 @@ async function processProductEnhancementAndAssessment({
   }
 
   let enhancedDescription = product.description;
-  let enhancedTags: string[] | undefined;
   let enhancedImageUrl = firstUploadedImageUrl;
   let enhancementSuccessful = false;
 
@@ -150,14 +149,19 @@ async function processProductEnhancementAndAssessment({
       if (enhancement.description || enhancement.tags || enhancement.title) {
         const enhancedTitle = enhancement.title || product.title;
         enhancedDescription = enhancement.description || product.description;
-        enhancedTags = enhancement.tags;
+
+        // Store tags as an object with language keys if we have English tags
+        const tagsToStore =
+          enhancement.tagsEn && enhancement.tagsEn.length > 0
+            ? { fa: enhancement.tags || [], en: enhancement.tagsEn }
+            : enhancement.tags; // Keep as simple array if no English tags
 
         await prisma.product.update({
           where: { id: product.id },
           data: {
             title: enhancedTitle,
             description: enhancedDescription,
-            tags: enhancedTags,
+            tags: tagsToStore,
           },
         });
         console.log(`✅ Enhanced description and tags saved`);
