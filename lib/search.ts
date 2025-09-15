@@ -212,6 +212,7 @@ export async function searchProducts(
           LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
           LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery})) OR
           -- Search in tags (new bilingual format)
+          -- Replace underscores with spaces to match natural language queries
           EXISTS (
             SELECT 1 FROM jsonb_array_elements_text(
               CASE
@@ -221,7 +222,7 @@ export async function searchProducts(
                 ELSE '[]'::jsonb
               END
             ) AS tag
-            WHERE LOWER(unaccent(tag)) ILIKE '%' || LOWER(unaccent(${searchQuery})) || '%'
+            WHERE LOWER(unaccent(REPLACE(tag, '_', ' '))) ILIKE '%' || LOWER(unaccent(${searchQuery})) || '%'
           )
         )
       ${
@@ -270,6 +271,7 @@ export async function searchProducts(
           LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
           LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery})) OR
           -- Search in tags (new bilingual format)
+          -- Replace underscores with spaces to match natural language queries
           EXISTS (
             SELECT 1 FROM jsonb_array_elements_text(
               CASE
@@ -279,7 +281,7 @@ export async function searchProducts(
                 ELSE '[]'::jsonb
               END
             ) AS tag
-            WHERE LOWER(unaccent(tag)) ILIKE '%' || LOWER(unaccent(${searchQuery})) || '%'
+            WHERE LOWER(unaccent(REPLACE(tag, '_', ' '))) ILIKE '%' || LOWER(unaccent(${searchQuery})) || '%'
           )
         )
     `;
