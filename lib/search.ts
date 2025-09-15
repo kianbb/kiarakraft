@@ -12,6 +12,7 @@ interface RawSearchResult {
   eligibilityStatus: string;
   createdAt: Date;
   updatedAt: Date;
+  tags: unknown; // JSON field
   seller_id: string;
   seller_handle: string | null;
   seller_display_name: string;
@@ -48,6 +49,7 @@ export interface SearchResult {
     eligibilityStatus: string;
     createdAt: Date;
     updatedAt: Date;
+    tags?: unknown; // JSON field for product tags
     images: Array<{
       url: string;
       alt: string | null;
@@ -208,7 +210,19 @@ export async function searchProducts(
           unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQuery}) || '%' OR
           LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQuery})) OR
           LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
-          LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery}))
+          LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery})) OR
+          -- Search in tags (new bilingual format)
+          EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(
+              CASE
+                WHEN ${validLocale} = 'en' AND p.tags::jsonb ? 'en' THEN (p.tags::jsonb->'en')
+                WHEN ${validLocale} = 'fa' AND p.tags::jsonb ? 'fa' THEN (p.tags::jsonb->'fa')
+                WHEN jsonb_typeof(p.tags::jsonb) = 'array' THEN p.tags::jsonb
+                ELSE '[]'::jsonb
+              END
+            ) AS tag
+            WHERE LOWER(unaccent(tag)) ILIKE '%' || LOWER(unaccent(${searchQuery})) || '%'
+          )
         )
       ${
         sortBy === 'price_asc'
@@ -254,7 +268,19 @@ export async function searchProducts(
           unaccent(COALESCE(pt.title, p.title)) ILIKE unaccent(${searchQuery}) || '%' OR
           LOWER(unaccent(COALESCE(pt.title, p.title))) = LOWER(unaccent(${searchQuery})) OR
           LOWER(unaccent(sp."shopName")) = LOWER(unaccent(${searchQuery})) OR
-          LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery}))
+          LOWER(unaccent(sp."displayName")) = LOWER(unaccent(${searchQuery})) OR
+          -- Search in tags (new bilingual format)
+          EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(
+              CASE
+                WHEN ${validLocale} = 'en' AND p.tags::jsonb ? 'en' THEN (p.tags::jsonb->'en')
+                WHEN ${validLocale} = 'fa' AND p.tags::jsonb ? 'fa' THEN (p.tags::jsonb->'fa')
+                WHEN jsonb_typeof(p.tags::jsonb) = 'array' THEN p.tags::jsonb
+                ELSE '[]'::jsonb
+              END
+            ) AS tag
+            WHERE LOWER(unaccent(tag)) ILIKE '%' || LOWER(unaccent(${searchQuery})) || '%'
+          )
         )
     `;
 
@@ -327,6 +353,7 @@ export async function searchProducts(
       eligibilityStatus: row.eligibilityStatus,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      tags: row.tags,
       images: imagesByProductId.get(row.id) || [],
       seller: {
         id: row.seller_id,
@@ -448,6 +475,7 @@ export async function searchProducts(
         ...product,
         title: translatedTitle,
         description: translatedDescription,
+        tags: product.tags,
         images: sortedImages.map(img => ({
           url: img.url,
           alt: img.alt,
