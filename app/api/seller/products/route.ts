@@ -292,14 +292,33 @@ async function processProductEnhancementAndAssessment({
         '',
     };
 
-    // Ensure JSON string fits in database field (1000 chars)
-    // If too long, truncate individual reasons before JSON encoding
+    // Store bilingual reasons as JSON (PostgreSQL TEXT field can handle large content)
+    // Increased limit to 10000 chars to preserve complete assessment feedback
     let jsonString = JSON.stringify(bilingualReasons);
-    if (jsonString.length > 1000) {
-      // Truncate individual reasons to fit
-      const maxReasonLength = 400; // Leave room for JSON structure
-      bilingualReasons.en = bilingualReasons.en.slice(0, maxReasonLength);
-      bilingualReasons.fa = bilingualReasons.fa.slice(0, maxReasonLength);
+    if (jsonString.length > 10000) {
+      // If still too long, truncate at sentence boundaries to preserve JSON structure
+      const maxReasonLength = 4500; // Leave room for JSON structure
+
+      // Truncate English reason at sentence boundary
+      if (bilingualReasons.en.length > maxReasonLength) {
+        const truncated = bilingualReasons.en.slice(0, maxReasonLength);
+        const lastPeriod = truncated.lastIndexOf('.');
+        bilingualReasons.en =
+          lastPeriod > 0
+            ? truncated.slice(0, lastPeriod + 1)
+            : truncated + '...';
+      }
+
+      // Truncate Persian reason at sentence boundary
+      if (bilingualReasons.fa.length > maxReasonLength) {
+        const truncated = bilingualReasons.fa.slice(0, maxReasonLength);
+        const lastPeriod = truncated.lastIndexOf('.');
+        bilingualReasons.fa =
+          lastPeriod > 0
+            ? truncated.slice(0, lastPeriod + 1)
+            : truncated + '...';
+      }
+
       jsonString = JSON.stringify(bilingualReasons);
     }
 
