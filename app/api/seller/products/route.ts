@@ -23,6 +23,7 @@ async function processProductEnhancementAndAssessment({
   firstUploadedImageUrl,
   categorySlug,
   userId,
+  skipEnhancement = false,
 }: {
   product: {
     id: string;
@@ -33,11 +34,15 @@ async function processProductEnhancementAndAssessment({
   firstUploadedImageUrl?: string;
   categorySlug?: string;
   userId: string;
+  skipEnhancement?: boolean;
 }) {
   const startTime = Date.now();
   console.log(`🚀 Starting background processing for product ${product.id}...`);
   console.log(`   User ID: ${userId}`);
   console.log(`   Has image: ${!!firstUploadedImageUrl}`);
+  console.log(
+    `   Mode: ${skipEnhancement ? 'Assessment only' : 'Enhancement + Assessment'}`
+  );
 
   // Update status to show processing has started
   await prisma.product.update({
@@ -69,203 +74,217 @@ async function processProductEnhancementAndAssessment({
   let enhancedImageUrl = firstUploadedImageUrl;
   let enhancementSuccessful = false;
 
-  // STEP 1: Enhance product presentation with AI
-  try {
-    // Update status to show enhancement is starting
-    await prisma.product.update({
-      where: { id: product.id },
-      data: {
-        eligibilityReasons: getBilingualProgress('step2'),
-      },
-    });
-
-    console.log(`🎨 Starting AI enhancement for product ${product.id}...`);
-    const enhancement = await enhanceProductBeforeApproval({
-      id: product.id,
-      title: product.title,
-      description: product.description,
-      imageUrl: firstUploadedImageUrl,
-      categorySlug,
-      price: product.priceToman,
-      userId,
-      locale: 'fa', // Default to Persian for Iranian marketplace
-    });
-
-    if (enhancement.enhanced) {
-      enhancementSuccessful = true;
-      console.log(`✅ Enhancement successful for product ${product.id}`);
-
-      // Handle enhanced image if available
-      if (
-        enhancement.imageUrl &&
-        typeof enhancement.imageUrl === 'string' &&
-        enhancement.imageUrl.startsWith('data:image/')
-      ) {
-        try {
-          const base64 = enhancement.imageUrl.split(',')[1];
-          if (base64) {
-            console.log(`📸 Uploading enhanced image to Cloudinary...`);
-            const buffer = Buffer.from(base64, 'base64');
-            const upload = await uploadImageToCloudinary(buffer, {
-              folder: `kiarakraft/products/${product.id}`,
-              public_id: `enhanced-${Date.now()}`,
-            });
-
-            enhancedImageUrl = upload.secure_url;
-
-            // Insert enhanced image as the first image
-            const existingImages = await prisma.listingImage.findMany({
-              where: { productId: product.id },
-              orderBy: { sortOrder: 'asc' },
-              select: { id: true },
-            });
-
-            await prisma.$transaction(async tx => {
-              await tx.listingImage.create({
-                data: {
-                  productId: product.id,
-                  url: enhancedImageUrl!,
-                  alt: `${product.title} (enhanced)`,
-                  sortOrder: 0,
-                },
-              });
-              // Push existing images down
-              for (let i = 0; i < existingImages.length; i++) {
-                await tx.listingImage.update({
-                  where: { id: existingImages[i].id },
-                  data: { sortOrder: i + 1 },
-                });
-              }
-            });
-            console.log(`✅ Enhanced image saved`);
-          }
-        } catch (e) {
-          console.warn('Enhanced image upload failed:', e);
-          Sentry.captureException(e);
-        }
-      }
-
-      // Update product with enhanced content
-      if (enhancement.description || enhancement.tags || enhancement.title) {
-        const enhancedTitle = enhancement.title || product.title;
-        enhancedDescription = enhancement.description || product.description;
-
-        // Store tags as an object with language keys if we have English tags
-        const tagsToStore =
-          enhancement.tagsEn && enhancement.tagsEn.length > 0
-            ? { fa: enhancement.tags || [], en: enhancement.tagsEn }
-            : enhancement.tags; // Keep as simple array if no English tags
-
-        await prisma.product.update({
-          where: { id: product.id },
-          data: {
-            title: enhancedTitle,
-            description: enhancedDescription,
-            tags: tagsToStore,
-          },
-        });
-        console.log(`✅ Enhanced description and tags saved`);
-
-        // Save English translation if provided
-        if (enhancement.descriptionEn || enhancement.titleEn) {
-          try {
-            // Check if translation already exists
-            const existingTranslation =
-              await prisma.productTranslation.findUnique({
-                where: {
-                  productId_locale: {
-                    productId: product.id,
-                    locale: 'en',
-                  },
-                },
-              });
-
-            if (existingTranslation) {
-              // Update existing translation
-              await prisma.productTranslation.update({
-                where: {
-                  productId_locale: {
-                    productId: product.id,
-                    locale: 'en',
-                  },
-                },
-                data: {
-                  title: enhancement.titleEn || existingTranslation.title,
-                  description:
-                    enhancement.descriptionEn ||
-                    existingTranslation.description,
-                },
-              });
-              console.log(
-                `✅ Updated English translation (title: ${!!enhancement.titleEn}, desc: ${!!enhancement.descriptionEn})`
-              );
-            } else {
-              // Create new translation
-              await prisma.productTranslation.create({
-                data: {
-                  productId: product.id,
-                  locale: 'en',
-                  title: enhancement.titleEn || product.title,
-                  description: enhancement.descriptionEn || product.description,
-                },
-              });
-              console.log(
-                `✅ Created English translation (title: ${!!enhancement.titleEn}, desc: ${!!enhancement.descriptionEn})`
-              );
-            }
-          } catch (translationError) {
-            console.error(
-              'Failed to save English translation:',
-              translationError
-            );
-            // Don't fail the whole process if translation save fails
-          }
-        }
-
-        // Update progress
-        await prisma.product.update({
-          where: { id: product.id },
-          data: {
-            eligibilityReasons: getBilingualProgress('enhancementComplete'),
-          },
-        });
-      }
-    } else {
-      console.log(`⚠️ Enhancement returned false for product ${product.id}`);
-
-      // Update progress even if enhancement didn't make changes
+  // STEP 1: Enhance product presentation with AI (skip if requested)
+  if (!skipEnhancement) {
+    try {
+      // Update status to show enhancement is starting
       await prisma.product.update({
         where: { id: product.id },
         data: {
-          eligibilityReasons: getBilingualProgress('enhancementSkipped'),
+          eligibilityReasons: getBilingualProgress('step2'),
         },
       });
-    }
-  } catch (enhancementError) {
-    // Log detailed enhancement error
-    const enhancementErrorDetails = {
-      message:
-        enhancementError instanceof Error
-          ? enhancementError.message
-          : String(enhancementError),
-      stack:
-        enhancementError instanceof Error
-          ? enhancementError.stack?.split('\n').slice(0, 3)
-          : undefined,
-      productId: product.id,
-      hasImage: !!firstUploadedImageUrl,
-      imageUrl: firstUploadedImageUrl?.substring(0, 100),
-      userId,
-    };
 
-    console.error(
-      '❌ Enhancement failed with details:',
-      enhancementErrorDetails
+      console.log(`🎨 Starting AI enhancement for product ${product.id}...`);
+      const enhancement = await enhanceProductBeforeApproval({
+        id: product.id,
+        title: product.title,
+        description: product.description,
+        imageUrl: firstUploadedImageUrl,
+        categorySlug,
+        price: product.priceToman,
+        userId,
+        locale: 'fa', // Default to Persian for Iranian marketplace
+      });
+
+      if (enhancement.enhanced) {
+        enhancementSuccessful = true;
+        console.log(`✅ Enhancement successful for product ${product.id}`);
+
+        // Handle enhanced image if available
+        if (
+          enhancement.imageUrl &&
+          typeof enhancement.imageUrl === 'string' &&
+          enhancement.imageUrl.startsWith('data:image/')
+        ) {
+          try {
+            const base64 = enhancement.imageUrl.split(',')[1];
+            if (base64) {
+              console.log(`📸 Uploading enhanced image to Cloudinary...`);
+              const buffer = Buffer.from(base64, 'base64');
+              const upload = await uploadImageToCloudinary(buffer, {
+                folder: `kiarakraft/products/${product.id}`,
+                public_id: `enhanced-${Date.now()}`,
+              });
+
+              enhancedImageUrl = upload.secure_url;
+
+              // Insert enhanced image as the first image
+              const existingImages = await prisma.listingImage.findMany({
+                where: { productId: product.id },
+                orderBy: { sortOrder: 'asc' },
+                select: { id: true },
+              });
+
+              await prisma.$transaction(async tx => {
+                await tx.listingImage.create({
+                  data: {
+                    productId: product.id,
+                    url: enhancedImageUrl!,
+                    alt: `${product.title} (enhanced)`,
+                    sortOrder: 0,
+                  },
+                });
+                // Push existing images down
+                for (let i = 0; i < existingImages.length; i++) {
+                  await tx.listingImage.update({
+                    where: { id: existingImages[i].id },
+                    data: { sortOrder: i + 1 },
+                  });
+                }
+              });
+              console.log(`✅ Enhanced image saved`);
+            }
+          } catch (e) {
+            console.warn('Enhanced image upload failed:', e);
+            Sentry.captureException(e);
+          }
+        }
+
+        // Update product with enhanced content
+        if (enhancement.description || enhancement.tags || enhancement.title) {
+          const enhancedTitle = enhancement.title || product.title;
+          enhancedDescription = enhancement.description || product.description;
+
+          // Store tags as an object with language keys if we have English tags
+          const tagsToStore =
+            enhancement.tagsEn && enhancement.tagsEn.length > 0
+              ? { fa: enhancement.tags || [], en: enhancement.tagsEn }
+              : enhancement.tags; // Keep as simple array if no English tags
+
+          await prisma.product.update({
+            where: { id: product.id },
+            data: {
+              title: enhancedTitle,
+              description: enhancedDescription,
+              tags: tagsToStore,
+            },
+          });
+          console.log(`✅ Enhanced description and tags saved`);
+
+          // Save English translation if provided
+          if (enhancement.descriptionEn || enhancement.titleEn) {
+            try {
+              // Check if translation already exists
+              const existingTranslation =
+                await prisma.productTranslation.findUnique({
+                  where: {
+                    productId_locale: {
+                      productId: product.id,
+                      locale: 'en',
+                    },
+                  },
+                });
+
+              if (existingTranslation) {
+                // Update existing translation
+                await prisma.productTranslation.update({
+                  where: {
+                    productId_locale: {
+                      productId: product.id,
+                      locale: 'en',
+                    },
+                  },
+                  data: {
+                    title: enhancement.titleEn || existingTranslation.title,
+                    description:
+                      enhancement.descriptionEn ||
+                      existingTranslation.description,
+                  },
+                });
+                console.log(
+                  `✅ Updated English translation (title: ${!!enhancement.titleEn}, desc: ${!!enhancement.descriptionEn})`
+                );
+              } else {
+                // Create new translation
+                await prisma.productTranslation.create({
+                  data: {
+                    productId: product.id,
+                    locale: 'en',
+                    title: enhancement.titleEn || product.title,
+                    description:
+                      enhancement.descriptionEn || product.description,
+                  },
+                });
+                console.log(
+                  `✅ Created English translation (title: ${!!enhancement.titleEn}, desc: ${!!enhancement.descriptionEn})`
+                );
+              }
+            } catch (translationError) {
+              console.error(
+                'Failed to save English translation:',
+                translationError
+              );
+              // Don't fail the whole process if translation save fails
+            }
+          }
+
+          // Update progress
+          await prisma.product.update({
+            where: { id: product.id },
+            data: {
+              eligibilityReasons: getBilingualProgress('enhancementComplete'),
+            },
+          });
+        }
+      } else {
+        console.log(`⚠️ Enhancement returned false for product ${product.id}`);
+
+        // Update progress even if enhancement didn't make changes
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            eligibilityReasons: getBilingualProgress('enhancementSkipped'),
+          },
+        });
+      }
+    } catch (enhancementError) {
+      // Log detailed enhancement error
+      const enhancementErrorDetails = {
+        message:
+          enhancementError instanceof Error
+            ? enhancementError.message
+            : String(enhancementError),
+        stack:
+          enhancementError instanceof Error
+            ? enhancementError.stack?.split('\n').slice(0, 3)
+            : undefined,
+        productId: product.id,
+        hasImage: !!firstUploadedImageUrl,
+        imageUrl: firstUploadedImageUrl?.substring(0, 100),
+        userId,
+      };
+
+      console.error(
+        '❌ Enhancement failed with details:',
+        enhancementErrorDetails
+      );
+      Sentry.captureException(enhancementError, {
+        extra: enhancementErrorDetails,
+      });
+      // Continue with original content if enhancement fails
+    }
+  } else {
+    // When skipping enhancement, go directly to assessment (step 3)
+    console.log(
+      `⏩ Skipping enhancement for product ${product.id} (useAI=false)`
     );
-    Sentry.captureException(enhancementError, {
-      extra: enhancementErrorDetails,
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        eligibilityReasons: getBilingualProgress('step3'),
+      },
     });
-    // Continue with original content if enhancement fails
   }
 
   // STEP 2: Assess the (potentially enhanced) product for eligibility
@@ -705,45 +724,40 @@ export const POST = withRateLimit(
         );
       }
 
-      // Start async processing for enhancement and assessment if useAI is true
-      if (useAI) {
-        // Use Vercel's waitUntil to keep the function alive after response
-        waitUntil(
-          processProductEnhancementAndAssessment({
-            product,
-            firstUploadedImageUrl,
-            categorySlug: (data.category as string) || undefined,
-            userId: user.id,
-          }).catch((error: unknown) => {
-            console.error(
-              `Background processing failed for product ${product.id}:`,
-              error
-            );
-            Sentry.captureException(error);
-          })
-        );
-      } else {
-        // If not using AI, directly approve the product
-        await prisma.product.update({
-          where: { id: product.id },
-          data: {
-            eligibilityStatus: 'APPROVED',
-            eligibilityReasons: JSON.stringify({
-              en: 'Product approved without AI enhancement',
-              fa: 'محصول بدون بهبود هوش مصنوعی تایید شد',
-            }),
-            eligibilityConfidence: 100,
-          },
-        });
-      }
+      // Set product to PENDING for assessment (with or without enhancement)
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          eligibilityStatus: 'PENDING',
+          eligibilityReasons: getBilingualProgress('step1'),
+        },
+      });
 
-      // Return immediately with appropriate status
+      // Always process assessment in background (with or without enhancement)
+      // Use Vercel's waitUntil to keep the function alive after response
+      waitUntil(
+        processProductEnhancementAndAssessment({
+          product,
+          firstUploadedImageUrl,
+          categorySlug: (data.category as string) || undefined,
+          userId: user.id,
+          skipEnhancement: !useAI, // Skip enhancement when useAI is false
+        }).catch((error: unknown) => {
+          console.error(
+            `Background processing failed for product ${product.id}:`,
+            error
+          );
+          Sentry.captureException(error);
+        })
+      );
+
+      // Return immediately with PENDING status (assessment happening in background)
       return NextResponse.json({
         ...productWithImages,
-        eligibilityStatus: useAI ? 'PENDING' : 'APPROVED',
-        message: useAI
-          ? 'Product is under review. You will be notified once the review is complete.'
-          : 'Product has been approved.',
+        eligibilityStatus: 'PENDING',
+        eligibilityReasons: getBilingualProgress('step1'),
+        message:
+          'Product is under review. You will be notified once the review is complete.',
       });
     } catch (error) {
       Sentry.captureException(error);
