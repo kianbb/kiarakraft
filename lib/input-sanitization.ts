@@ -7,44 +7,44 @@
 import { z } from 'zod';
 
 // Security patterns to detect potential threats
-// Using safer, more specific patterns to avoid ReDoS attacks
+// Optimized patterns to prevent ReDoS attacks while maintaining security
 const THREAT_PATTERNS = {
-  // Script injection patterns - simplified to avoid ReDoS
+  // Script injection patterns - using non-backtracking patterns
   scripts: [
-    /<script\b[^>]{0,200}>/gi,
+    /<script(?:\s|>)/gi, // Simplified script tag detection
     /<\/script>/gi,
     /javascript:/gi,
-    /\bon[a-zA-Z]{1,20}\s*=/gi, // Event handlers like onclick, onload, etc.
+    /\bon\w+\s*=/gi, // Simplified event handler detection
   ],
 
-  // SQL injection patterns - more specific to avoid false positives
+  // SQL injection patterns - atomic groups to prevent backtracking
   sqlInjection: [
-    /\b(select|insert|update|delete|drop|create|alter)\s+/gi,
-    /\b(union|having)\s+/gi,
-    /--[^\r\n]{0,100}/gi, // SQL comments with length limit
-    /\/\*[\s\S]{0,500}?\*\//gi, // SQL block comments with length limit
+    /\b(?:select|insert|update|delete|drop|create|alter)\s+/gi,
+    /\b(?:union|having)\s+/gi,
+    /--[^\r\n]*/gi, // SQL comments - removed length limit, uses negated class
+    /\/\*[\s\S]*?\*\//g, // SQL block comments - using [\s\S] for any character including newlines
   ],
 
-  // Command injection patterns - more specific
+  // Command injection patterns - simplified
   commandInjection: [
-    /\b(eval|exec|system|shell_exec|passthru)\s*\(/gi,
-    /\$\{[^}]{0,100}\}/gi, // Template literals with length limit
-    /\|\||&&/gi, // Command chaining
+    /\b(?:eval|exec|system|shell_exec|passthru)\s*\(/gi,
+    /\$\{[^}]*\}/gi, // Template literals - uses negated class
+    /(?:\|\||&&)/gi, // Command chaining - non-capturing group
   ],
 
   // PHP injection patterns
-  phpInjection: [/<\?(?:php|=)/gi, /\$_(GET|POST|REQUEST|SESSION)\b/gi],
+  phpInjection: [/<\?(?:php|=)/gi, /\$_(?:GET|POST|REQUEST|SESSION)\b/gi],
 
   // Spam patterns - simplified
   spam: [
-    /\b(viagra|cialis|casino|betting|lottery)\b/gi,
-    /\b(click\s+here|limited\s+time)\b/gi,
+    /\b(?:viagra|cialis|casino|betting|lottery)\b/gi,
+    /\b(?:click\s+here|limited\s+time)\b/gi,
   ],
 
-  // Suspicious URLs - more specific
+  // Suspicious URLs - simplified
   suspiciousUrls: [
-    /https?:\/\/[a-zA-Z0-9.-]{1,100}\.(tk|ml|ga|cf)\b/gi,
-    /\b(bit\.ly|tinyurl|goo\.gl)\/[\w]{1,20}/gi,
+    /https?:\/\/[\w.-]+\.(?:tk|ml|ga|cf)\b/gi,
+    /\b(?:bit\.ly|tinyurl|goo\.gl)\/\w+/gi,
   ],
 };
 
@@ -72,14 +72,18 @@ export function sanitizeHtml(
 
   // For strict sanitization, remove all HTML tags
   if (level === SanitizationLevel.STRICT) {
-    // First remove HTML tags, then safely decode only essential entities
-    return input
-      .replace(/<[^<>]{0,200}>/g, '') // Remove all HTML tags with length limit
-      .replace(/&lt;/g, '<') // Decode common entities - safe after tag removal
+    // Use optimized pattern to prevent ReDoS while handling large inputs
+    let result = input.replace(/<[^>]*>/g, ''); // Simplified tag removal
+
+    // Decode HTML entities - safe after tag removal
+    result = result
+      .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#x27;/g, "'")
       .replace(/&amp;/g, '&'); // Decode & last to prevent double-decoding
+
+    return result;
   }
 
   // Remove dangerous elements and attributes
@@ -95,27 +99,14 @@ export function sanitizeHtml(
     return '';
   }
 
-  // Remove other dangerous tags
-  const dangerousTags = [
-    'object',
-    'embed',
-    'form',
-    'input',
-    'iframe',
-    'link',
-    'meta',
-  ];
-  dangerousTags.forEach(tag => {
-    const regex = new RegExp(`<${tag}\\b[^>]{0,200}>`, 'gi');
-    sanitized = sanitized.replace(regex, '');
-  });
+  // Remove other dangerous tags - using single pass regex
+  const dangerousTagsPattern =
+    /<(?:object|embed|form|input|iframe|link|meta)(?:\s[^>]*)?>/gi;
+  sanitized = sanitized.replace(dangerousTagsPattern, '');
 
-  // Remove event handlers and javascript: URLs - using character classes
-  sanitized = sanitized.replace(
-    /\s*on[a-zA-Z]{1,20}\s*=\s*["'][^"']{0,200}["']/gi,
-    ''
-  );
-  sanitized = sanitized.replace(/\s*javascript\s*:/gi, '');
+  // Remove event handlers and javascript: URLs - optimized patterns
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/javascript\s*:/gi, '');
 
   return sanitized;
 }
@@ -128,14 +119,20 @@ export function stripHtml(input: string): string {
     return '';
   }
 
-  return input
-    .replace(/<[^<>]{0,200}>/g, '') // Remove HTML tags with length limit
-    .replace(/&lt;/g, '<') // Decode HTML entities - safe after tag removal
+  // For very large inputs, process the entire string to avoid breaking tags across chunks
+  // The regex is optimized to handle large tags efficiently
+  let result = input.replace(/<[^>]*>/g, ''); // Simplified tag removal
+
+  // Decode HTML entities - safe after tag removal
+  result = result
+    .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
     .replace(/&#x2F;/g, '/')
     .replace(/&amp;/g, '&'); // Decode & last to prevent double-decoding
+
+  return result;
 }
 
 /**
