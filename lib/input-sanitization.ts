@@ -93,12 +93,10 @@ export function stripHtml(input: string): string {
     return '';
   }
 
-  // Simply remove all HTML tags
-  // Then escape any remaining special characters for safety
-  const withoutTags = input.replace(/<[^>]*>/g, '');
-
-  // Escape any remaining HTML special characters
-  return withoutTags.replace(/[&<>"']/g, char => {
+  // The ONLY safe approach: escape ALL HTML special characters
+  // Do not attempt to remove tags first as that can be incomplete
+  // This makes any HTML completely inert and safe to display
+  return input.replace(/[&<>"']/g, char => {
     const map: Record<string, string> = {
       '&': '&amp;',
       '<': '&lt;',

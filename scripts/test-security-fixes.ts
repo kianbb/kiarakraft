@@ -57,9 +57,11 @@ const testReDoS = () => {
     `   Large input processed in ${timeTaken}ms: ${timeTaken < 100 ? '✅ PASS' : '❌ FAIL (too slow)'}`
   );
 
-  // The input has one big tag <aaa...aaa> which should be removed
-  // The remaining < characters are escaped to &lt; for safety
-  const expectedOutput = '&lt;'.repeat(1000);
+  // ALL < and > characters are now escaped to &lt; and &gt; for safety
+  // The tag content is also escaped
+  const expectedEscapedTag = '&lt;' + 'a'.repeat(10000) + '&gt;';
+  const expectedRemainingChars = '&lt;'.repeat(1000);
+  const expectedOutput = expectedEscapedTag + expectedRemainingChars;
   const hasCorrectOutput = result === expectedOutput;
   console.log(
     `   HTML stripped correctly: ${hasCorrectOutput ? '✅ PASS' : `❌ FAIL (expected ${expectedOutput.length / 4} escaped '<' chars, got: ${result.substring(0, 50)}...)`}`
