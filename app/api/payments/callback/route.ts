@@ -376,9 +376,21 @@ export const POST = withRateLimit(
 
       const payload = validation.payload;
 
+      if (!payload) {
+        return NextResponse.json(
+          { error: 'Invalid webhook payload' },
+          { status: 400 }
+        );
+      }
+
       // Process the webhook based on provider
       if (provider === 'zarinpal') {
-        const { Authority, Status } = payload;
+        // Type assertion for ZarinPal payload
+        const zarinPalPayload = payload as {
+          Authority?: string;
+          Status?: string;
+        };
+        const { Authority, Status } = zarinPalPayload;
 
         // Find payment by authority
         const payment = await prisma.payment.findFirst({
@@ -399,14 +411,19 @@ export const POST = withRateLimit(
             where: { id: payment.id },
             data: {
               status: Status === 'OK' ? 'PAID' : 'FAILED',
-              raw: { ...(payment.raw as object), webhookPayload: payload },
+              raw: {
+                ...((payment.raw as Prisma.JsonObject) || {}),
+                webhookPayload: JSON.parse(JSON.stringify(payload)),
+              } as Prisma.InputJsonObject,
             },
           });
         }
 
         return NextResponse.json({ received: true });
       } else if (provider === 'idpay') {
-        const { order_id, status } = payload;
+        // Type assertion for IDPay payload
+        const idPayPayload = payload as { order_id?: string; status?: string };
+        const { order_id, status } = idPayPayload;
 
         // Find payment by order ID
         const payment = await prisma.payment.findUnique({
@@ -427,7 +444,10 @@ export const POST = withRateLimit(
           where: { id: payment.id },
           data: {
             status: isPaid ? 'PAID' : 'FAILED',
-            raw: { ...(payment.raw as object), webhookPayload: payload },
+            raw: {
+              ...((payment.raw as Prisma.JsonObject) || {}),
+              webhookPayload: JSON.parse(JSON.stringify(payload)),
+            } as Prisma.InputJsonObject,
           },
         });
 

@@ -153,7 +153,7 @@ console.log('\n2️⃣  PROFANITY FILTER\n');
   );
   testResult(
     'Quick check blocks adult content',
-    !productCheck.pass && productCheck.reason?.includes('Adult')
+    !productCheck.pass && (productCheck.reason?.includes('Adult') ?? false)
   );
 })();
 
