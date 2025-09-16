@@ -1,5 +1,21 @@
 import fetch from 'node-fetch';
 
+// Security limits
+const MAX_TEXT_LENGTH = 5000; // Maximum characters per translation
+const MAX_TEXTS_PER_REQUEST = 25; // Maximum texts in batch translation
+const MAX_DAILY_TRANSLATIONS = 1000; // Per IP address
+const translationCounts = new Map<string, { count: number; resetAt: Date }>();
+
+// Clean up expired entries periodically (every hour)
+setInterval(() => {
+  const now = new Date();
+  for (const [ip, entry] of translationCounts.entries()) {
+    if (entry.resetAt <= now) {
+      translationCounts.delete(ip);
+    }
+  }
+}, 3600000);
+
 // Azure Translator configuration - load dynamically to support env changes
 function getAzureConfig() {
   return {
@@ -23,13 +39,29 @@ export interface TranslationResult {
  * @param text - Text to translate
  * @param targetLanguage - Target language code (e.g., 'en', 'fa')
  * @param sourceLanguage - Source language code (optional, will auto-detect if not provided)
+ * @param ipAddress - IP address for rate limiting (optional)
  * @returns Translated text
  */
 export async function translateText(
   text: string,
   targetLanguage: string,
-  sourceLanguage?: string
+  sourceLanguage?: string,
+  ipAddress?: string
 ): Promise<string> {
+  // Security: Enforce text length limit
+  if (text && text.length > MAX_TEXT_LENGTH) {
+    console.error(
+      `Text too long for translation: ${text.length} chars (max: ${MAX_TEXT_LENGTH})`
+    );
+    return text; // Return original text instead of null for compatibility
+  }
+
+  // Security: Check daily quota per IP (if IP provided)
+  if (ipAddress && !checkAndUpdateQuota(ipAddress)) {
+    console.warn(`Daily translation limit reached for IP: ${ipAddress}`);
+    return text; // Return original text when quota exceeded
+  }
+
   const config = getAzureConfig();
 
   if (!config.key) {
@@ -97,13 +129,42 @@ export async function translateText(
  * @param texts - Array of texts to translate
  * @param targetLanguage - Target language code
  * @param sourceLanguage - Source language code (optional)
+ * @param ipAddress - IP address for rate limiting (optional)
  * @returns Array of translated texts
  */
 export async function translateTexts(
   texts: string[],
   targetLanguage: string,
-  sourceLanguage?: string
+  sourceLanguage?: string,
+  ipAddress?: string
 ): Promise<string[]> {
+  // Security: Enforce batch size limit
+  if (texts && texts.length > MAX_TEXTS_PER_REQUEST) {
+    console.error(
+      `Too many texts for batch translation: ${texts.length} (max: ${MAX_TEXTS_PER_REQUEST})`
+    );
+    return texts; // Return original texts
+  }
+
+  // Security: Check text length limits
+  const totalLength = texts.reduce(
+    (sum, text) => sum + (text ? text.length : 0),
+    0
+  );
+  if (totalLength > MAX_TEXT_LENGTH * 3) {
+    // Allow 3x for batch, but still reasonable
+    console.error(
+      `Total text too long for batch translation: ${totalLength} chars`
+    );
+    return texts;
+  }
+
+  // Security: Check daily quota per IP (count as multiple translations)
+  if (ipAddress && !checkAndUpdateQuota(ipAddress, texts.length)) {
+    console.warn(`Daily translation limit reached for IP: ${ipAddress}`);
+    return texts;
+  }
+
   const config = getAzureConfig();
 
   if (!config.key) {
@@ -160,6 +221,40 @@ export async function translateTexts(
     console.error('Translation failed:', error);
     return texts;
   }
+}
+
+/**
+ * Check and update translation quota for an IP address
+ * @param ipAddress - IP address to check
+ * @param count - Number of translations to count (default: 1)
+ * @returns true if within quota, false if exceeded
+ */
+function checkAndUpdateQuota(ipAddress: string, count: number = 1): boolean {
+  const now = new Date();
+  const entry = translationCounts.get(ipAddress);
+
+  if (entry) {
+    if (entry.resetAt > now) {
+      if (entry.count + count > MAX_DAILY_TRANSLATIONS) {
+        return false; // Quota exceeded
+      }
+      entry.count += count;
+    } else {
+      // Reset expired entry
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      translationCounts.set(ipAddress, { count, resetAt: tomorrow });
+    }
+  } else {
+    // Create new entry
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    translationCounts.set(ipAddress, { count, resetAt: tomorrow });
+  }
+
+  return true;
 }
 
 /**

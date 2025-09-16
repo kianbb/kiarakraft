@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import fetch from 'node-fetch';
+import { validateURL } from './url-validator';
 
 /**
  * Resize image to 1024x1024 maintaining aspect ratio with padding if needed
@@ -12,15 +13,53 @@ export async function resizeImageTo1024(
   try {
     console.log('📐 Resizing image to 1024x1024...');
 
-    // Fetch the image
-    const response = await fetch(imageUrl);
+    // SECURITY: Validate URL to prevent SSRF attacks
+    const validation = await validateURL(imageUrl);
+    if (!validation.isValid) {
+      console.error('Image URL validation failed:', validation.reason);
+      return null;
+    }
+
+    // Use sanitized URL to prevent credential/fragment leaks
+    const safeUrl = validation.sanitizedURL || imageUrl;
+
+    // SECURITY: Re-validate DNS before fetch to prevent TOCTOU attacks
+    // This prevents DNS rebinding where DNS changes between validation and fetch
+    const preValidation = await validateURL(safeUrl);
+    if (!preValidation.isValid) {
+      console.error('Pre-fetch validation failed:', preValidation.reason);
+      return null;
+    }
+
+    // Fetch the image with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const response = await fetch(safeUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'KiaraKraft/1.0', // Identify our service
+      },
+      redirect: 'manual', // Don't follow redirects automatically
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       console.error('Failed to fetch image:', response.status);
       return null;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const arrayBuffer = await response.arrayBuffer();
+
+    // SECURITY: Check size before creating buffer to prevent memory exhaustion
+    const MAX_IMAGE_SIZE = 50 * 1024 * 1024; // 50MB max
+    if (arrayBuffer.byteLength > MAX_IMAGE_SIZE) {
+      console.error(
+        `Image too large: ${arrayBuffer.byteLength} bytes (max: ${MAX_IMAGE_SIZE})`
+      );
+      return null;
+    }
+
+    const buffer = Buffer.from(arrayBuffer);
 
     // Resize image to 1024x1024 with white background padding
     const resizedBuffer = await sharp(buffer)
@@ -78,13 +117,47 @@ export async function resizeImageBufferTo1024(
  */
 export async function getImageMetadata(imageUrl: string) {
   try {
-    const response = await fetch(imageUrl);
+    // SECURITY: Validate URL to prevent SSRF attacks
+    const validation = await validateURL(imageUrl);
+    if (!validation.isValid) {
+      throw new Error(`Image URL validation failed: ${validation.reason}`);
+    }
+
+    const safeUrl = validation.sanitizedURL || imageUrl;
+
+    // SECURITY: Re-validate before fetch (DNS rebinding protection)
+    const preFetchValidation = await validateURL(safeUrl);
+    if (!preFetchValidation.isValid) {
+      throw new Error(
+        `Pre-fetch validation failed: ${preFetchValidation.reason}`
+      );
+    }
+
+    // Fetch with timeout and security headers
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(safeUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'KiaraKraft/1.0',
+      },
+      redirect: 'manual',
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.status}`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const arrayBuffer = await response.arrayBuffer();
+
+    // SECURITY: Validate size before creating buffer
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (arrayBuffer.byteLength > MAX_SIZE) {
+      throw new Error(`Image too large: ${arrayBuffer.byteLength} bytes`);
+    }
+
+    const buffer = Buffer.from(arrayBuffer);
     const metadata = await sharp(buffer).metadata();
 
     return {

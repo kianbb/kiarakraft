@@ -199,12 +199,13 @@ export async function trackAIUsage(
       limit: MAX_MONTHLY_AI_COST,
     };
   } catch (error) {
-    // If tracking fails, allow the operation but log the error
+    // SECURITY: Fail closed - deny expensive AI operations if tracking fails
+    // This prevents attackers from bypassing cost limits by disrupting the database
     console.error('Failed to track AI usage:', error);
     Sentry.captureException(error);
 
     return {
-      allowed: true,
+      allowed: false,
       monthlyTotal: 0,
       limit: MAX_MONTHLY_AI_COST,
     };
