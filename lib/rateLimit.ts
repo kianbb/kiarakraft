@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server';
 import { prisma } from './prisma';
+import { auth } from '@/lib/auth';
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
   maxRequests: number; // Maximum requests per window
   skipSuccessfulRequests?: boolean; // Don't count successful requests
+  useUserRateLimit?: boolean; // Use user-based rate limiting for authenticated users
+  userMaxRequests?: number; // Different limit for authenticated users (optional)
 }
 
 // Cleanup old entries periodically
@@ -32,15 +35,35 @@ export function createRateLimiter(config: RateLimitConfig) {
     remainingRequests: number;
     resetTime: number;
   }> {
+    // Get IP address
     const ip =
       request.headers.get('x-forwarded-for') ||
       request.headers.get('x-real-ip') ||
       request.headers.get('cf-connecting-ip') ||
       'unknown';
 
-    // Create a unique key for this IP and endpoint
+    // Get user session if configured for user-based rate limiting
+    let userId: string | null = null;
+    if (config.useUserRateLimit) {
+      try {
+        const session = await auth();
+        userId = session?.user?.id || null;
+      } catch (error) {
+        console.error('Failed to get user session for rate limiting:', error);
+      }
+    }
+
+    // Create a unique identifier
     const endpoint = new URL(request.url).pathname;
-    const identifier = `${ip}:${endpoint}`;
+    const identifier = userId
+      ? `user:${userId}:${endpoint}` // User-based identifier
+      : `ip:${ip}:${endpoint}`; // IP-based identifier
+
+    // Use different limits for authenticated vs anonymous users
+    const maxRequests =
+      userId && config.userMaxRequests
+        ? config.userMaxRequests
+        : config.maxRequests;
 
     const now = new Date();
     const windowEnd = new Date(now.getTime() + config.windowMs);
@@ -75,12 +98,12 @@ export function createRateLimiter(config: RateLimitConfig) {
 
           return {
             allowed: true,
-            remainingRequests: config.maxRequests - 1,
+            remainingRequests: maxRequests - 1,
             resetTime: windowEnd.getTime(),
           };
         }
 
-        if (existingEntry.count >= config.maxRequests) {
+        if (existingEntry.count >= maxRequests) {
           return {
             allowed: false,
             remainingRequests: 0,
@@ -100,7 +123,7 @@ export function createRateLimiter(config: RateLimitConfig) {
 
         return {
           allowed: true,
-          remainingRequests: config.maxRequests - updatedEntry.count,
+          remainingRequests: maxRequests - updatedEntry.count,
           resetTime: existingEntry.resetTime.getTime(),
         };
       });
@@ -108,10 +131,11 @@ export function createRateLimiter(config: RateLimitConfig) {
       return result;
     } catch (error) {
       console.error('Rate limiting database error:', error);
-      // Fallback to allow request if database fails
+      // SECURITY: Fail closed - deny requests if database fails to prevent bypass attacks
+      // This prevents attackers from DoS'ing the database to disable rate limiting
       return {
-        allowed: true,
-        remainingRequests: config.maxRequests - 1,
+        allowed: false,
+        remainingRequests: 0,
         resetTime: windowEnd.getTime(),
       };
     }
@@ -131,7 +155,8 @@ export const adminRateLimit = createRateLimiter({
 
 export const authRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 10, // 10 auth attempts per 15 minutes
+  maxRequests: 10, // 10 auth attempts per 15 minutes per IP
+  useUserRateLimit: false, // Auth endpoints use IP-based only (no user session yet)
 });
 
 export const orderRateLimit = createRateLimiter({
@@ -141,12 +166,16 @@ export const orderRateLimit = createRateLimiter({
 
 export const uploadRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 10, // 10 uploads per minute
+  maxRequests: 10, // 10 uploads per minute for IP
+  useUserRateLimit: true, // Use user-based rate limiting for authenticated users
+  userMaxRequests: 20, // Authenticated users can upload more
 });
 
 export const sellerProductRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 5, // 5 product operations per minute (reduced to prevent AI cost abuse)
+  maxRequests: 5, // 5 product operations per minute for IP (reduced to prevent AI cost abuse)
+  useUserRateLimit: true, // Use user-based rate limiting for authenticated sellers
+  userMaxRequests: 10, // Authenticated sellers get slightly higher limit
 });
 
 /**

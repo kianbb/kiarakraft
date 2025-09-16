@@ -9,6 +9,7 @@
 - **Bilingual marketplace**: Persian (default) + English with full RTL/LTR support
 - **User roles**: Buyers, Sellers, Admins with role-based access
 - **Product management**: CRUD operations, image galleries, categories
+- **Dual submission options**: Products can be submitted with AI enhancement or without
 - **Commerce**: Shopping cart, checkout, payment processing (offline/ZarinPal/IDPay)
 - **Seller system**: Verification workflow, seller dashboard, order management
 - **Admin tools**: Order management, payment tracking, seller verification
@@ -20,6 +21,9 @@
 - **Auth**: NextAuth.js with credentials provider
 - **i18n**: next-intl with RTL/LTR support
 - **Images**: Cloudinary integration with optimization
+- **AI Services**: OpenAI GPT-5 mini for product enhancement
+- **Translation**: Azure Translator for Persian ↔ English translations
+- **Image Processing**: Sharp for image resizing and optimization
 - **Deployment**: Vercel with custom domain (www.kiarakraft.com)
 
 ---
@@ -193,8 +197,12 @@ kiarakraft/
 - Strong CSP headers configured
 - NextAuth.js for authentication
 - Password hashing with bcrypt
-- Rate limiting on sensitive endpoints
-- CSRF protection enabled
+- Rate limiting on sensitive endpoints (fail-closed on DB errors)
+- CSRF protection with URL validation
+- Input sanitization with ReDoS-resistant patterns
+- AI cost tracking with monthly limits (fail-closed)
+- SSRF protection for image URLs
+- XSS prevention via DOMPurify and custom sanitizers
 
 ---
 
@@ -236,6 +244,65 @@ Products undergo AI assessment for marketplace eligibility using GPT-5 mini with
 
 ---
 
+## Non-AI Product Processing Flow
+
+### Overview
+
+Products can be submitted without AI enhancement, using Azure Translator for bilingual support and automatic image optimization.
+
+### Process Flow
+
+1. **Product Creation/Update**: Seller chooses "Submit without AI" option
+2. **Immediate Processing**:
+   - Step 1: Azure Translator translates title/description between Persian and English
+   - Step 2: Image resizing to 1024x1024 for consistency
+   - Step 3: Direct approval (bypasses AI assessment)
+
+### Features
+
+- **Bilingual Translation**: Automatic Persian ↔ English translation using Azure Translator
+- **Image Standardization**: All images resized to 1024x1024 with white background
+- **Instant Approval**: Products go directly to APPROVED status
+- **Cost Efficient**: No AI API costs, only Azure Translator usage
+
+### Key Files
+
+- `/lib/azure-translator.ts` - Azure Translator service integration
+- `/lib/image-resizer.ts` - Sharp-based image resizing to 1024x1024
+- `/lib/product-enhancement-noai.ts` - Non-AI processing orchestration
+- Product API routes support `useAI=false` parameter
+
+### Configuration
+
+Azure Translator requires:
+
+- Global endpoint: `https://api.cognitive.microsofttranslator.com`
+- Region: `global`
+- API key from Azure Cognitive Services
+
+---
+
+## Recent Security Improvements
+
+### Critical Fixes (Implemented)
+
+1. **Rate Limiter**: Now fails closed - denies requests when database is unavailable
+2. **AI Cost Tracking**: Fails closed - denies expensive operations on tracking failure
+3. **CSRF Protection**: Enhanced with URL validation to prevent bypass attacks
+4. **Input Sanitization**: Optimized patterns to prevent ReDoS attacks
+
+### Remaining Security Tasks
+
+See `/SECURITY-ANALYSIS.md` for comprehensive analysis and remaining risks:
+
+- API key rotation mechanism needed
+- Enhanced SSRF protection with DNS validation
+- File upload magic number validation
+- User-based rate limiting (currently IP-based only)
+- Session invalidation on password change
+
+---
+
 ## Important Notes
 
 ### Demo Accounts (after seeding)
@@ -247,10 +314,28 @@ Products undergo AI assessment for marketplace eligibility using GPT-5 mini with
 
 Key environment variables needed:
 
+**Database:**
+
 - `DATABASE_URL` - Neon pooled connection
 - `DIRECT_URL` - Neon direct connection
+
+**Authentication:**
+
 - `NEXTAUTH_SECRET` - Authentication secret
 - `NEXTAUTH_URL` - App URL for auth callbacks
+
+**AI & Translation Services:**
+
+- `OPENAI_API_KEY` - OpenAI API key for GPT-5 mini
+- `AZURE_TRANSLATOR_KEY` - Azure Translator API key
+- `AZURE_TRANSLATOR_ENDPOINT` - `https://api.cognitive.microsofttranslator.com`
+- `AZURE_TRANSLATOR_REGION` - `global`
+
+**Image Services:**
+
+- `CLOUDINARY_CLOUD_NAME` - Cloudinary cloud name
+- `CLOUDINARY_API_KEY` - Cloudinary API key
+- `CLOUDINARY_API_SECRET` - Cloudinary API secret
 
 ### Troubleshooting
 
