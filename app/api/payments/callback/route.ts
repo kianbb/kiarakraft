@@ -8,6 +8,10 @@ import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 import OrderReceiptEmail from '@/lib/email-templates/OrderReceiptEmail';
 import { sendNotification } from '@/lib/notifications';
+import {
+  validatePaymentWebhook,
+  logWebhookValidation,
+} from '@/lib/payment-signature';
 
 function validateCallbackParams(searchParams: URLSearchParams) {
   const orderId = searchParams.get('orderId');
@@ -37,6 +41,34 @@ export const GET = withRateLimit(
       const { searchParams } = new URL(request.url);
       const { orderId, authority, status } =
         validateCallbackParams(searchParams);
+
+      // SECURITY: Validate webhook signature if this is a webhook callback
+      // For GET callbacks (user redirects), we rely on authority/orderId validation
+      // For production, payment gateways should use POST webhooks with signatures
+      if (request.method === 'POST') {
+        const provider = searchParams.get('provider') as
+          | 'zarinpal'
+          | 'idpay'
+          | null;
+        if (provider) {
+          const validation = await validatePaymentWebhook(request, provider);
+          logWebhookValidation(provider, validation.valid, {
+            orderId,
+            authority,
+            error: validation.error,
+          });
+
+          if (!validation.valid) {
+            console.error(
+              `Payment webhook validation failed: ${validation.error}`
+            );
+            return NextResponse.json(
+              { error: 'Invalid webhook signature' },
+              { status: 401 }
+            );
+          }
+        }
+      }
 
       // Determine preferred locale from referer path or NEXT_LOCALE cookie; default to 'fa'
       const resolveLocale = async (): Promise<'fa' | 'en'> => {
@@ -296,6 +328,139 @@ export const GET = withRateLimit(
       const locale = 'fa'; // Fallback on unexpected errors
       return NextResponse.redirect(
         new URL(`/${locale}/order/failed?reason=${safeReason}`, request.url)
+      );
+    }
+  }
+);
+
+/**
+ * POST endpoint for secure webhook callbacks from payment providers
+ * Uses signature validation to prevent forgery
+ */
+export const POST = withRateLimit(
+  paymentRateLimit,
+  async function (request: NextRequest) {
+    try {
+      // Determine provider from headers or query params
+      const provider =
+        request.headers.get('x-provider') ||
+        new URL(request.url).searchParams.get('provider');
+
+      if (!provider || (provider !== 'zarinpal' && provider !== 'idpay')) {
+        return NextResponse.json(
+          { error: 'Invalid payment provider' },
+          { status: 400 }
+        );
+      }
+
+      // Validate webhook signature
+      const validation = await validatePaymentWebhook(
+        request as unknown as Request,
+        provider as 'zarinpal' | 'idpay'
+      );
+
+      logWebhookValidation(provider, validation.valid, {
+        error: validation.error,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+      });
+
+      if (!validation.valid) {
+        console.error(
+          `Webhook signature validation failed: ${validation.error}`
+        );
+        return NextResponse.json(
+          { error: validation.error || 'Invalid webhook signature' },
+          { status: 401 }
+        );
+      }
+
+      const payload = validation.payload;
+
+      if (!payload) {
+        return NextResponse.json(
+          { error: 'Invalid webhook payload' },
+          { status: 400 }
+        );
+      }
+
+      // Process the webhook based on provider
+      if (provider === 'zarinpal') {
+        // Type assertion for ZarinPal payload
+        const zarinPalPayload = payload as {
+          Authority?: string;
+          Status?: string;
+        };
+        const { Authority, Status } = zarinPalPayload;
+
+        // Find payment by authority
+        const payment = await prisma.payment.findFirst({
+          where: { authority: Authority },
+          include: { order: true },
+        });
+
+        if (!payment) {
+          return NextResponse.json(
+            { error: 'Payment not found' },
+            { status: 404 }
+          );
+        }
+
+        // Update payment status
+        if (Status === 'OK' || Status === 'NOK') {
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: Status === 'OK' ? 'PAID' : 'FAILED',
+              raw: {
+                ...((payment.raw as Prisma.JsonObject) || {}),
+                webhookPayload: JSON.parse(JSON.stringify(payload)),
+              } as Prisma.InputJsonObject,
+            },
+          });
+        }
+
+        return NextResponse.json({ received: true });
+      } else if (provider === 'idpay') {
+        // Type assertion for IDPay payload
+        const idPayPayload = payload as { order_id?: string; status?: string };
+        const { order_id, status } = idPayPayload;
+
+        // Find payment by order ID
+        const payment = await prisma.payment.findUnique({
+          where: { orderId: order_id },
+          include: { order: true },
+        });
+
+        if (!payment) {
+          return NextResponse.json(
+            { error: 'Payment not found' },
+            { status: 404 }
+          );
+        }
+
+        // Update payment status based on IDPay status codes
+        const isPaid = status === '100' || status === '101';
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: isPaid ? 'PAID' : 'FAILED',
+            raw: {
+              ...((payment.raw as Prisma.JsonObject) || {}),
+              webhookPayload: JSON.parse(JSON.stringify(payload)),
+            } as Prisma.InputJsonObject,
+          },
+        });
+
+        return NextResponse.json({ received: true });
+      }
+
+      return NextResponse.json({ received: true });
+    } catch (error) {
+      Sentry.captureException(error);
+      console.error('Webhook processing error:', error);
+      return NextResponse.json(
+        { error: 'Webhook processing failed' },
+        { status: 500 }
       );
     }
   }

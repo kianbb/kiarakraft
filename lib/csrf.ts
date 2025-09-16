@@ -52,8 +52,28 @@ export function validateCSRF(request: NextRequest): boolean {
   const referer = request.headers.get('referer');
   const host = request.headers.get('host');
 
-  const originHost = origin ? normalizeHost(new URL(origin).host) : null;
-  const refererHost = referer ? normalizeHost(new URL(referer).host) : null;
+  // SECURITY: Validate URL parsing to prevent bypass attacks
+  let originHost: string | null = null;
+  let refererHost: string | null = null;
+
+  if (origin) {
+    try {
+      originHost = normalizeHost(new URL(origin).host);
+    } catch {
+      console.warn('CSRF: Invalid origin URL format:', origin);
+      return false; // Reject invalid URLs immediately
+    }
+  }
+
+  if (referer) {
+    try {
+      refererHost = normalizeHost(new URL(referer).host);
+    } catch {
+      console.warn('CSRF: Invalid referer URL format:', referer);
+      return false; // Reject invalid URLs immediately
+    }
+  }
+
   const hostNorm = normalizeHost(host);
   const allowed = buildAllowedHosts(hostNorm);
 
