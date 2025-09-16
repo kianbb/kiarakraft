@@ -57,12 +57,12 @@ const testReDoS = () => {
     `   Large input processed in ${timeTaken}ms: ${timeTaken < 100 ? '✅ PASS' : '❌ FAIL (too slow)'}`
   );
 
-  // The input has one big tag <aaa...aaa> which should be removed, leaving only the < characters
-  // The remaining < characters are not tags (no closing >) so they remain
-  const expectedOutput = '<'.repeat(1000);
+  // The input has one big tag <aaa...aaa> which should be removed
+  // The remaining < characters are escaped to &lt; for safety
+  const expectedOutput = '&lt;'.repeat(1000);
   const hasCorrectOutput = result === expectedOutput;
   console.log(
-    `   HTML stripped correctly: ${hasCorrectOutput ? '✅ PASS' : `❌ FAIL (expected ${expectedOutput.length} '<' chars, got: ${result.substring(0, 50)}...)`}`
+    `   HTML stripped correctly: ${hasCorrectOutput ? '✅ PASS' : `❌ FAIL (expected ${expectedOutput.length / 4} escaped '<' chars, got: ${result.substring(0, 50)}...)`}`
   );
 
   // Test nested tags that could cause polynomial time complexity

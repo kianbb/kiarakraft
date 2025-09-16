@@ -60,7 +60,7 @@ export enum SanitizationLevel {
 
 /**
  * Simple HTML sanitization for server-side use
- * Removes dangerous tags and attributes without external dependencies
+ * Escapes HTML to prevent XSS attacks
  */
 export function sanitizeHtml(
   input: string,
@@ -70,56 +70,19 @@ export function sanitizeHtml(
     return '';
   }
 
-  // For strict sanitization, remove all HTML tags then escape
-  if (level === SanitizationLevel.STRICT) {
-    // First remove all HTML tags
-    let result = input.replace(/<[^>]*>/g, '');
-
-    // Then escape special characters in a single pass using a function
-    // This prevents double-encoding issues
-    result = result.replace(/[&<>"']/g, char => {
-      const escapeMap: Record<string, string> = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#x27;',
-      };
-      return escapeMap[char] || char;
-    });
-
-    return result;
-  }
-
-  // Remove dangerous elements and attributes
-  let sanitized = input;
-
-  // Complete rejection approach for script content - more secure than removal
-  // Check for any script-related content and reject the entire input if found
-  const scriptPattern = /<\s*\/?script[\s>]/i;
-  const scriptProtocolPattern = /script\s*:/i;
-
-  if (scriptPattern.test(sanitized) || scriptProtocolPattern.test(sanitized)) {
-    // Reject entire input if any script content is detected
-    return '';
-  }
-
-  // Remove other dangerous tags - using single pass regex
-  const dangerousTagsPattern =
-    /<(?:object|embed|form|input|iframe|link|meta)(?:\s[^>]*)?>/gi;
-  sanitized = sanitized.replace(dangerousTagsPattern, '');
-
-  // Remove event handlers and javascript: URLs in a single pass
-  sanitized = sanitized
-    .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/javascript\s*:/gi, '');
-
-  // Final safety: Escape < and > in a single operation to prevent injection
-  sanitized = sanitized.replace(/[<>]/g, char => {
-    return char === '<' ? '&lt;' : '&gt;';
+  // ALWAYS escape HTML special characters to prevent injection
+  // No conditional logic, no pattern checking - just escape everything
+  // This prevents any possibility of incomplete sanitization
+  return input.replace(/[&<>"']/g, char => {
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+    };
+    return map[char] || char;
   });
-
-  return sanitized;
 }
 
 /**
@@ -130,15 +93,21 @@ export function stripHtml(input: string): string {
     return '';
   }
 
-  // Remove HTML tags in a single pass without decoding entities
-  // This prevents double-decoding vulnerabilities
-  const result = input.replace(/<[^>]*>/g, '');
+  // Simply remove all HTML tags
+  // Then escape any remaining special characters for safety
+  const withoutTags = input.replace(/<[^>]*>/g, '');
 
-  // Do not decode HTML entities to prevent reintroducing dangerous characters
-  // The text is safe as-is after tag removal
-  // If entities like &lt; are present in the input, they stay as &lt;
-
-  return result;
+  // Escape any remaining HTML special characters
+  return withoutTags.replace(/[&<>"']/g, char => {
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+    };
+    return map[char] || char;
+  });
 }
 
 /**
@@ -322,7 +291,7 @@ export function sanitizeAndValidate(
     errors.push(`Input must not exceed ${maxLength} characters`);
   }
 
-  // Sanitize the input first
+  // Always fully sanitize the input - no conditional logic
   try {
     sanitized = sanitizeHtml(input, sanitizationLevel);
   } catch (error) {
@@ -331,29 +300,15 @@ export function sanitizeAndValidate(
     return { isValid: false, sanitized: '', errors };
   }
 
-  // Threat detection (check original input for logging, but don't block after sanitization)
+  // Threat detection is only for reporting, not for conditional sanitization
   let threatResults;
   if (shouldDetectThreats) {
+    // Only detect threats in original input for logging/reporting
+    // Do NOT use this to conditionally change sanitization behavior
     threatResults = detectThreats(input);
 
-    // Check if sanitization removed all critical threats
-    const postSanitizationThreats = detectThreats(sanitized);
-
-    // Only block if critical threats remain after sanitization
-    const remainingCriticalThreats = postSanitizationThreats.threats.filter(
-      t => t.severity === 'critical'
-    );
-    if (remainingCriticalThreats.length > 0) {
-      errors.push('Critical security threat persists after sanitization');
-    }
-
-    // Also block if high severity threats remain after sanitization
-    const remainingHighThreats = postSanitizationThreats.threats.filter(
-      t => t.severity === 'high'
-    );
-    if (remainingHighThreats.length > 0) {
-      errors.push('High severity security threat persists after sanitization');
-    }
+    // We already fully escaped everything, so no need to check post-sanitization
+    // This removes the incomplete sanitization pattern CodeQL is detecting
   }
 
   const result = {
