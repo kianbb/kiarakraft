@@ -75,13 +75,21 @@ export function sanitizeHtml(
     // Use optimized pattern to prevent ReDoS while handling large inputs
     let result = input.replace(/<[^>]*>/g, ''); // Simplified tag removal
 
-    // Decode HTML entities - safe after tag removal
-    result = result
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'")
-      .replace(/&amp;/g, '&'); // Decode & last to prevent double-decoding
+    // Decode HTML entities using a map to prevent double-decoding vulnerabilities
+    // This approach decodes all entities in a single pass
+    const htmlEntities: Record<string, string> = {
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#x27;': "'",
+      '&#39;': "'",
+      '&amp;': '&',
+    };
+
+    // Single-pass replacement to prevent double-decoding
+    result = result.replace(/&(?:lt|gt|quot|amp|#x27|#39);/gi, match => {
+      return htmlEntities[match.toLowerCase()] || match;
+    });
 
     return result;
   }
@@ -123,14 +131,21 @@ export function stripHtml(input: string): string {
   // The regex is optimized to handle large tags efficiently
   let result = input.replace(/<[^>]*>/g, ''); // Simplified tag removal
 
-  // Decode HTML entities - safe after tag removal
-  result = result
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/')
-    .replace(/&amp;/g, '&'); // Decode & last to prevent double-decoding
+  // Decode HTML entities using a map to prevent double-decoding vulnerabilities
+  const htmlEntities: Record<string, string> = {
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#x27;': "'",
+    '&#39;': "'",
+    '&#x2F;': '/',
+    '&amp;': '&',
+  };
+
+  // Single-pass replacement to prevent double-decoding
+  result = result.replace(/&(?:lt|gt|quot|amp|#x27|#39|#x2F);/gi, match => {
+    return htmlEntities[match.toLowerCase()] || match;
+  });
 
   return result;
 }
