@@ -39,6 +39,7 @@ export interface TranslationResult {
  * @param text - Text to translate
  * @param targetLanguage - Target language code (e.g., 'en', 'fa')
  * @param sourceLanguage - Source language code (optional, will auto-detect if not provided)
+ * @param ipAddress - IP address for rate limiting (optional)
  * @returns Translated text
  */
 export async function translateText(
@@ -128,6 +129,7 @@ export async function translateText(
  * @param texts - Array of texts to translate
  * @param targetLanguage - Target language code
  * @param sourceLanguage - Source language code (optional)
+ * @param ipAddress - IP address for rate limiting (optional)
  * @returns Array of translated texts
  */
 export async function translateTexts(
@@ -222,11 +224,6 @@ export async function translateTexts(
 }
 
 /**
- * Detect the language of a text
- * @param text - Text to analyze
- * @returns Detected language code
- */
-/**
  * Check and update translation quota for an IP address
  * @param ipAddress - IP address to check
  * @param count - Number of translations to count (default: 1)
@@ -260,6 +257,11 @@ function checkAndUpdateQuota(ipAddress: string, count: number = 1): boolean {
   return true;
 }
 
+/**
+ * Detect the language of a text
+ * @param text - Text to analyze
+ * @returns Detected language code
+ */
 export async function detectLanguage(text: string): Promise<string> {
   const config = getAzureConfig();
 
