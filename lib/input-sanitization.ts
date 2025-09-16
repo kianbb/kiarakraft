@@ -70,25 +70,22 @@ export function sanitizeHtml(
     return '';
   }
 
-  // For strict sanitization, remove all HTML tags
+  // For strict sanitization, remove all HTML tags then escape
   if (level === SanitizationLevel.STRICT) {
-    // Use optimized pattern to prevent ReDoS while handling large inputs
-    let result = input.replace(/<[^>]*>/g, ''); // Simplified tag removal
+    // First remove all HTML tags
+    let result = input.replace(/<[^>]*>/g, '');
 
-    // Decode HTML entities using a map to prevent double-decoding vulnerabilities
-    // This approach decodes all entities in a single pass
-    const htmlEntities: Record<string, string> = {
-      '&lt;': '<',
-      '&gt;': '>',
-      '&quot;': '"',
-      '&#x27;': "'",
-      '&#39;': "'",
-      '&amp;': '&',
-    };
-
-    // Single-pass replacement to prevent double-decoding
-    result = result.replace(/&(?:lt|gt|quot|amp|#x27|#39);/gi, match => {
-      return htmlEntities[match.toLowerCase()] || match;
+    // Then escape special characters in a single pass using a function
+    // This prevents double-encoding issues
+    result = result.replace(/[&<>"']/g, char => {
+      const escapeMap: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;',
+      };
+      return escapeMap[char] || char;
     });
 
     return result;
@@ -112,9 +109,15 @@ export function sanitizeHtml(
     /<(?:object|embed|form|input|iframe|link|meta)(?:\s[^>]*)?>/gi;
   sanitized = sanitized.replace(dangerousTagsPattern, '');
 
-  // Remove event handlers and javascript: URLs - optimized patterns
-  sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
-  sanitized = sanitized.replace(/javascript\s*:/gi, '');
+  // Remove event handlers and javascript: URLs in a single pass
+  sanitized = sanitized
+    .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript\s*:/gi, '');
+
+  // Final safety: Escape < and > in a single operation to prevent injection
+  sanitized = sanitized.replace(/[<>]/g, char => {
+    return char === '<' ? '&lt;' : '&gt;';
+  });
 
   return sanitized;
 }
@@ -127,25 +130,13 @@ export function stripHtml(input: string): string {
     return '';
   }
 
-  // For very large inputs, process the entire string to avoid breaking tags across chunks
-  // The regex is optimized to handle large tags efficiently
-  let result = input.replace(/<[^>]*>/g, ''); // Simplified tag removal
+  // Remove HTML tags in a single pass without decoding entities
+  // This prevents double-decoding vulnerabilities
+  const result = input.replace(/<[^>]*>/g, '');
 
-  // Decode HTML entities using a map to prevent double-decoding vulnerabilities
-  const htmlEntities: Record<string, string> = {
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#x27;': "'",
-    '&#39;': "'",
-    '&#x2F;': '/',
-    '&amp;': '&',
-  };
-
-  // Single-pass replacement to prevent double-decoding
-  result = result.replace(/&(?:lt|gt|quot|amp|#x27|#39|#x2F);/gi, match => {
-    return htmlEntities[match.toLowerCase()] || match;
-  });
+  // Do not decode HTML entities to prevent reintroducing dangerous characters
+  // The text is safe as-is after tag removal
+  // If entities like &lt; are present in the input, they stay as &lt;
 
   return result;
 }
@@ -158,13 +149,18 @@ export function escapeHtml(input: string): string {
     return '';
   }
 
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+  // Single-pass replacement to prevent double-encoding vulnerabilities
+  return input.replace(/[&<>"'\/]/g, char => {
+    const escapeMap: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;',
+    };
+    return escapeMap[char] || char;
+  });
 }
 
 /**
