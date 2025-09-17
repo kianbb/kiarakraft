@@ -652,6 +652,23 @@ export const GET = withRateLimit(
         take: limit,
       });
 
+      // Debug logging for troubleshooting
+      console.log(
+        '[seller/products] returning',
+        products.length,
+        'items for seller:',
+        user.sellerProfile.id
+      );
+      console.log('[seller/products] seller email:', session.user.email);
+      if (products.length > 0) {
+        console.log('[seller/products] first product:', {
+          id: products[0].id,
+          title: products[0].title,
+          active: products[0].active,
+          eligibilityStatus: products[0].eligibilityStatus,
+        });
+      }
+
       return NextResponse.json(products);
     } catch (error) {
       Sentry.captureException(error);
