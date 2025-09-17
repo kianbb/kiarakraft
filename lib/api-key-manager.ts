@@ -37,9 +37,28 @@ export enum KeyStatus {
 //   metadata?: Record<string, unknown>;
 // }
 
-// Encryption key from environment (should be 32 bytes for AES-256)
-const ENCRYPTION_KEY =
-  process.env.API_KEY_ENCRYPTION_SECRET || 'default-insecure-key-change-this!';
+// Encryption key from environment (must be 32 bytes for AES-256)
+// Fail fast if not configured properly
+const ENCRYPTION_KEY = (() => {
+  const key = process.env.API_KEY_ENCRYPTION_SECRET;
+
+  // Don't enforce in development to avoid breaking local dev
+  if (process.env.NODE_ENV === 'development' && !key) {
+    console.warn(
+      '⚠️ WARNING: API_KEY_ENCRYPTION_SECRET not set. Using development-only key.'
+    );
+    return 'dev-only-key-do-not-use-in-prod!';
+  }
+
+  if (!key || key.length < 32) {
+    throw new Error(
+      'CRITICAL: API_KEY_ENCRYPTION_SECRET must be set to a 32+ character string in production. ' +
+        'Generate one with: openssl rand -hex 32'
+    );
+  }
+
+  return key;
+})();
 
 /**
  * Encrypt an API key for storage
