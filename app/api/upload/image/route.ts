@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { cloudinary, UPLOAD_FOLDER, type UploadResult } from '@/lib/cloudinary';
 import { validateCSRF } from '@/lib/csrf';
-import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
+import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
 import { validateFile, performSecurityChecks } from '@/lib/file-validation';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -151,4 +151,4 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
 }
 
 // Apply rate limiting to upload endpoint
-export const POST = withRateLimit(orderRateLimit, uploadHandler);
+export const POST = withRateLimit(uploadRateLimit, uploadHandler);

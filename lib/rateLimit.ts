@@ -10,6 +10,20 @@ interface RateLimitConfig {
   userMaxRequests?: number; // Different limit for authenticated users (optional)
 }
 
+// In-memory fallback storage for when database is unavailable
+// This provides basic protection during DB outages
+const memoryFallback = new Map<string, { count: number; resetTime: Date }>();
+
+// Clean up expired entries from memory fallback
+setInterval(() => {
+  const now = new Date();
+  for (const [key, value] of memoryFallback.entries()) {
+    if (value.resetTime < now) {
+      memoryFallback.delete(key);
+    }
+  }
+}, 60 * 1000); // Cleanup every minute
+
 // Cleanup old entries periodically
 setInterval(
   async () => {
@@ -147,17 +161,66 @@ export function createRateLimiter(config: RateLimitConfig) {
 
       return result;
     } catch (error) {
-      console.error('[RateLimit DB ERROR]', {
+      console.error('[RateLimit DB ERROR - Using memory fallback]', {
         identifier,
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
       });
-      // SECURITY: Fail closed - deny requests if database fails to prevent bypass attacks
-      // This prevents attackers from DoS'ing the database to disable rate limiting
+
+      // Use in-memory fallback when database is unavailable
+      // This provides basic protection without completely denying service
+      const fallbackEntry = memoryFallback.get(identifier);
+
+      if (!fallbackEntry || fallbackEntry.resetTime < now) {
+        // First request or expired entry
+        memoryFallback.set(identifier, {
+          count: 1,
+          resetTime: windowEnd,
+        });
+
+        console.warn(
+          '[RateLimit] Using memory fallback - allowing request (1/' +
+            maxRequests +
+            ')'
+        );
+
+        return {
+          allowed: true,
+          remainingRequests: maxRequests - 1,
+          resetTime: windowEnd.getTime(),
+        };
+      }
+
+      if (fallbackEntry.count >= maxRequests) {
+        console.warn('[RateLimit] Memory fallback - request blocked', {
+          identifier,
+          count: fallbackEntry.count,
+          maxRequests,
+        });
+
+        return {
+          allowed: false,
+          remainingRequests: 0,
+          resetTime: fallbackEntry.resetTime.getTime(),
+        };
+      }
+
+      // Increment count in memory
+      fallbackEntry.count++;
+      memoryFallback.set(identifier, fallbackEntry);
+
+      console.warn(
+        '[RateLimit] Using memory fallback - allowing request (' +
+          fallbackEntry.count +
+          '/' +
+          maxRequests +
+          ')'
+      );
+
       return {
-        allowed: false,
-        remainingRequests: 0,
-        resetTime: windowEnd.getTime(),
+        allowed: true,
+        remainingRequests: maxRequests - fallbackEntry.count,
+        resetTime: fallbackEntry.resetTime.getTime(),
       };
     }
   };
@@ -182,7 +245,7 @@ export const authRateLimit = createRateLimiter({
 
 export const orderRateLimit = createRateLimiter({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  maxRequests: 3, // 3 orders per 5 minutes
+  maxRequests: 10, // 10 orders per 5 minutes (increased from 3 to prevent blocking normal usage)
 });
 
 export const uploadRateLimit = createRateLimiter({

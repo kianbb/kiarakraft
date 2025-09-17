@@ -15,6 +15,7 @@ export interface SecurityConfig {
 
 /**
  * Generate a cryptographically secure random secret
+ * Note: Only works in Node.js environment
  */
 export function generateSecureSecret(length: number = 32): string {
   return crypto.randomBytes(length).toString('base64url');
