@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,6 +54,7 @@ const productSchema = z.object({
 type ProductForm = z.infer<typeof productSchema>;
 
 export default function EditProductPage() {
+  const locale = useLocale();
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
@@ -111,11 +112,11 @@ export default function EditProductPage() {
           })(),
         });
       } else {
-        router.push('/seller/products');
+        router.push(`/${locale}/seller/products`);
       }
     } catch (error) {
       console.error('Error fetching product:', error);
-      router.push('/seller/products');
+      router.push(`/${locale}/seller/products`);
     } finally {
       setLoading(false);
     }
@@ -125,12 +126,12 @@ export default function EditProductPage() {
     if (status === 'loading') return;
 
     if (!session) {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
       return;
     }
 
     if (session.user?.role !== 'SELLER') {
-      router.push('/');
+      router.push(`/${locale}/`);
       return;
     }
 
@@ -180,7 +181,7 @@ export default function EditProductPage() {
       });
 
       if (response.ok) {
-        router.push('/seller/products');
+        router.push(`/${locale}/seller/products`);
       } else {
         alert(t('errorUpdatingProduct'));
       }
@@ -210,7 +211,7 @@ export default function EditProductPage() {
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="mb-8">
           <Link
-            href="/seller/products"
+            href={`/${locale}/seller/products`}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -373,7 +374,7 @@ export default function EditProductPage() {
           </div>
 
           <div className="flex gap-4 pt-6 border-t">
-            <Link href="/seller/products">
+            <Link href={`/${locale}/seller/products`}>
               <Button variant="outline" type="button">
                 {t('cancel')}
               </Button>
