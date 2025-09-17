@@ -36,11 +36,8 @@ async function diagnoseSellerProducts(sellerEmail?: string) {
       console.log('✅ Seller Profile Found:');
       console.log('   Profile ID:', user.sellerProfile.id);
       console.log('   Verified:', user.sellerProfile.verified);
-      // @ts-expect-error - businessName might not be in type definition but exists in DB
-      console.log(
-        '   Business Name:',
-        user.sellerProfile.businessName || 'N/A'
-      );
+      console.log('   Shop Name:', user.sellerProfile.shopName);
+      console.log('   Display Name:', user.sellerProfile.displayName);
       console.log('');
 
       // Get products for this seller
@@ -130,8 +127,9 @@ async function diagnoseSellerProducts(sellerEmail?: string) {
       console.log(`Found ${sellers.length} seller profiles:\n`);
 
       sellers.forEach((seller, i) => {
-        // @ts-expect-error - businessName might not be in type definition but exists in DB
-        console.log(`${i + 1}. ${seller.businessName || 'Unnamed'}`);
+        console.log(
+          `${i + 1}. ${seller.shopName || seller.displayName || 'Unnamed'}`
+        );
         console.log(`   Email: ${seller.user.email}`);
         console.log(`   Seller ID: ${seller.id}`);
         console.log(`   Verified: ${seller.verified}`);
