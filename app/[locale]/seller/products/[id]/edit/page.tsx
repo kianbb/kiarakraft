@@ -58,6 +58,8 @@ export default function EditProductPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
+  const rawId = params?.id;
+  const productId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => setIsHydrated(true), []);
@@ -83,7 +85,11 @@ export default function EditProductPage() {
 
   const fetchProduct = useCallback(async () => {
     try {
-      const response = await fetch(`/api/seller/products/${params.id}`);
+      if (!productId || typeof productId !== 'string') {
+        return;
+      }
+
+      const response = await fetch(`/api/seller/products/${productId}`);
       if (response.ok) {
         const productData = await response.json();
         setProduct(productData);
@@ -120,7 +126,7 @@ export default function EditProductPage() {
     } finally {
       setLoading(false);
     }
-  }, [params.id, router, reset]);
+  }, [productId, router, reset, locale]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -136,7 +142,7 @@ export default function EditProductPage() {
     }
 
     fetchProduct();
-  }, [session, status, router, params.id, fetchProduct]);
+  }, [session, status, router, fetchProduct]);
 
   if (status === 'loading' || loading) {
     return (
@@ -151,7 +157,13 @@ export default function EditProductPage() {
     );
   }
 
-  if (!session || session.user?.role !== 'SELLER' || !product) {
+  if (
+    !session ||
+    session.user?.role !== 'SELLER' ||
+    !product ||
+    !productId ||
+    typeof productId !== 'string'
+  ) {
     return null;
   }
 
@@ -174,7 +186,11 @@ export default function EditProductPage() {
           : [],
       };
 
-      const response = await fetch(`/api/seller/products/${params.id}`, {
+      if (!productId || typeof productId !== 'string') {
+        return;
+      }
+
+      const response = await fetch(`/api/seller/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...apiData, useAI: withAI }),
