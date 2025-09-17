@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductWithAI } from '@/lib/moderation-ai';
 import { enhanceProductBeforeApproval } from '@/lib/product-enhancement-openai';
-import { enhanceProductWithoutAI } from '@/lib/product-enhancement-noai';
+// Dynamic import to avoid Sharp loading issue on GET requests
+// import { enhanceProductWithoutAI } from '@/lib/product-enhancement-noai';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { withRateLimit, sellerProductRateLimit } from '@/lib/rateLimit';
 import { revalidateProduct } from '@/lib/cache';
@@ -295,6 +296,10 @@ async function processProductEnhancementAndAssessment({
         select: { tags: true },
       });
 
+      // Dynamic import to avoid loading Sharp on GET requests
+      const { enhanceProductWithoutAI } = await import(
+        '@/lib/product-enhancement-noai'
+      );
       const enhancement = await enhanceProductWithoutAI({
         id: product.id,
         title: product.title,
