@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ import { OrderWithItems } from '@/types/database';
 import { Search, Package, ArrowLeft, Calendar, User } from 'lucide-react';
 
 export default function SellerOrdersPage() {
+  const locale = useLocale();
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -29,12 +30,12 @@ export default function SellerOrdersPage() {
     if (status === 'loading') return;
 
     if (!session) {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
       return;
     }
 
     if (session.user?.role !== 'SELLER') {
-      router.push('/');
+      router.push(`/${locale}/`);
       return;
     }
 
@@ -140,7 +141,7 @@ export default function SellerOrdersPage() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/seller"
+            href={`/${locale}/seller`}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="h-4 w-4" />

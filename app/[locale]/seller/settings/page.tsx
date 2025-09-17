@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -68,6 +68,7 @@ const settingsSchema = z.object({
 type SettingsForm = z.infer<typeof settingsSchema>;
 
 export default function SellerSettingsPage() {
+  const locale = useLocale();
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -119,12 +120,12 @@ export default function SellerSettingsPage() {
     if (status === 'loading') return;
 
     if (!session) {
-      router.push('/auth/login');
+      router.push(`/${locale}/auth/login`);
       return;
     }
 
     if (session.user?.role !== 'SELLER') {
-      router.push('/');
+      router.push(`/${locale}/`);
       return;
     }
 
@@ -177,7 +178,7 @@ export default function SellerSettingsPage() {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="mb-8">
           <Link
-            href="/seller"
+            href={`/${locale}/seller`}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -430,7 +431,7 @@ export default function SellerSettingsPage() {
 
           {/* Form Actions */}
           <div className="flex gap-4 pt-6 border-t">
-            <Link href="/seller" className="flex-1">
+            <Link href={`/${locale}/seller`} className="flex-1">
               <Button variant="outline" className="w-full">
                 {t('cancel')}
               </Button>

@@ -349,7 +349,9 @@ export default function SellerDashboard() {
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link href={`/seller/products/${product.id}/edit`}>
+                      <Link
+                        href={`/${locale}/seller/products/${product.id}/edit`}
+                      >
                         <Button variant="ghost" size="sm">
                           <Edit className="h-4 w-4" />
                         </Button>

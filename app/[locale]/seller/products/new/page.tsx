@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,6 +42,7 @@ const productSchema = z.object({
 type ProductForm = z.infer<typeof productSchema>;
 
 export default function NewProductPage() {
+  const locale = useLocale();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
@@ -93,7 +94,7 @@ export default function NewProductPage() {
   }
 
   if (!session || session.user?.role !== 'SELLER') {
-    router.push('/auth/login');
+    router.push(`/${locale}/auth/login`);
     return null;
   }
 
@@ -107,7 +108,7 @@ export default function NewProductPage() {
       });
 
       if (response.ok) {
-        router.push('/seller/products');
+        router.push(`/${locale}/seller/products`);
       } else {
         const errorData = await response.json();
         console.error('Product creation error:', errorData);
@@ -164,7 +165,7 @@ export default function NewProductPage() {
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="mb-8">
           <Link
-            href="/seller/products"
+            href={`/${locale}/seller/products`}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -310,7 +311,7 @@ export default function NewProductPage() {
           </div>
 
           <div className="flex gap-4 pt-6 border-t">
-            <Link href="/seller/products">
+            <Link href={`/${locale}/seller/products`}>
               <Button variant="outline" type="button">
                 {t('cancel')}
               </Button>
