@@ -65,6 +65,17 @@ export function createRateLimiter(config: RateLimitConfig) {
         ? config.userMaxRequests
         : config.maxRequests;
 
+    // Debug logging
+    console.log('[RateLimit Debug]', {
+      endpoint,
+      identifier,
+      userId,
+      ip,
+      maxRequests,
+      windowMs: config.windowMs,
+      useUserRateLimit: config.useUserRateLimit,
+    });
+
     const now = new Date();
     const windowEnd = new Date(now.getTime() + config.windowMs);
 
@@ -104,6 +115,12 @@ export function createRateLimiter(config: RateLimitConfig) {
         }
 
         if (existingEntry.count >= maxRequests) {
+          console.log('[RateLimit BLOCKED]', {
+            identifier,
+            count: existingEntry.count,
+            maxRequests,
+            resetTime: existingEntry.resetTime,
+          });
           return {
             allowed: false,
             remainingRequests: 0,
@@ -130,7 +147,11 @@ export function createRateLimiter(config: RateLimitConfig) {
 
       return result;
     } catch (error) {
-      console.error('Rate limiting database error:', error);
+      console.error('[RateLimit DB ERROR]', {
+        identifier,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       // SECURITY: Fail closed - deny requests if database fails to prevent bypass attacks
       // This prevents attackers from DoS'ing the database to disable rate limiting
       return {
@@ -173,9 +194,9 @@ export const uploadRateLimit = createRateLimiter({
 
 export const sellerProductRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 5, // 5 product operations per minute for IP (reduced to prevent AI cost abuse)
+  maxRequests: 30, // Increased: 30 product operations per minute for IP
   useUserRateLimit: true, // Use user-based rate limiting for authenticated sellers
-  userMaxRequests: 10, // Authenticated sellers get slightly higher limit
+  userMaxRequests: 60, // Increased: 60 for authenticated sellers (1 per second)
 });
 
 /**
@@ -228,7 +249,9 @@ export function withRateLimit<T extends unknown[]>(
 
 export const sellerRateLimit = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 20, // 20 seller actions per minute
+  maxRequests: 60, // Increased: 60 seller actions per minute
+  useUserRateLimit: true, // Use user-based rate limiting
+  userMaxRequests: 120, // Increased: 120 for authenticated sellers
 });
 
 export const cartRateLimit = createRateLimiter({
