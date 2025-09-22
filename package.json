@@ -73,7 +73,7 @@
     "dompurify": "^3.2.6",
     "isomorphic-dompurify": "^2.26.0",
     "lucide-react": "^0.544.0",
-    "next": "15.5.2",
+    "next": "15.5.3",
     "next-auth": "5.0.0-beta.29",
     "next-intl": "^4.3.9",
     "node-fetch": "^3.3.2",
