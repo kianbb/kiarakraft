@@ -16,9 +16,13 @@ export const POST = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> | { id: string } }
   ) {
     try {
+      // Handle params as Promise (Next.js 15 change)
+      const resolvedParams = await params;
+      const productId = resolvedParams.id;
+
       const session = await auth();
       if (!session?.user?.email) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -34,8 +38,6 @@ export const POST = withRateLimit(
           { status: 403 }
         );
       }
-
-      const productId = params.id;
       const product = await prisma.product.findUnique({
         where: { id: productId },
         select: { id: true, sellerId: true },
