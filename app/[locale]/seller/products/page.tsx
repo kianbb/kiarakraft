@@ -239,6 +239,16 @@ export default function SellerProductsPage() {
                         buttonVariants({ variant: 'outline', size: 'sm' }),
                         'flex-1'
                       )}
+                      onClick={() => {
+                        console.log('🔍 Edit button clicked');
+                        console.log('Locale:', locale);
+                        console.log('Product ID:', product.id);
+                        console.log('Product title:', product.title);
+                        console.log(
+                          'Generated href:',
+                          `/${locale}/seller/products/${product.id}/edit`
+                        );
+                      }}
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       {t('edit')}
