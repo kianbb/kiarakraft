@@ -222,24 +222,30 @@ export default function SellerProductsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Link
-                      href={`/${locale}/product/${product.slug}`}
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="flex-1"
+                      asChild
                     >
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Link href={`/${locale}/product/${product.slug}`}>
                         <Eye className="h-4 w-4 mr-1" />
                         {t('view')}
-                      </Button>
-                    </Link>
-                    <Link
-                      href={`/${locale}/seller/products/${product.id}/edit`}
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="flex-1"
+                      asChild
                     >
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Link
+                        href={`/${locale}/seller/products/${product.id}/edit`}
+                      >
                         <Edit className="h-4 w-4 mr-1" />
                         {t('edit')}
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
