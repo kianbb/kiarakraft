@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
@@ -222,30 +223,26 @@ export default function SellerProductsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      asChild
+                    <Link
+                      href={`/${locale}/product/${product.slug}`}
+                      className={cn(
+                        buttonVariants({ variant: 'outline', size: 'sm' }),
+                        'flex-1'
+                      )}
                     >
-                      <Link href={`/${locale}/product/${product.slug}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        {t('view')}
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      asChild
+                      <Eye className="h-4 w-4 mr-1" />
+                      {t('view')}
+                    </Link>
+                    <Link
+                      href={`/${locale}/seller/products/${product.id}/edit`}
+                      className={cn(
+                        buttonVariants({ variant: 'outline', size: 'sm' }),
+                        'flex-1'
+                      )}
                     >
-                      <Link
-                        href={`/${locale}/seller/products/${product.id}/edit`}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        {t('edit')}
-                      </Link>
-                    </Button>
+                      <Edit className="h-4 w-4 mr-1" />
+                      {t('edit')}
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"
