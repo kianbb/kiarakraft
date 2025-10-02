@@ -15,12 +15,19 @@ import { getBilingualProgress } from '@/lib/progress-messages';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Handle params as Promise (Next.js 15 change)
+    const resolvedParams = await params;
+    const productId = resolvedParams.id;
+
+    console.log('🔍 [API GET] Fetching product:', productId);
+
     const session = await auth();
 
     if (!session?.user?.email || session.user.role !== 'SELLER') {
+      console.log('❌ [API GET] Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     Sentry.setUser({ email: session.user.email });
@@ -31,12 +38,18 @@ export async function GET(
     });
 
     if (!user || !user.sellerProfile) {
+      console.log('❌ [API GET] User or seller profile not found');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    console.log(
+      '✅ [API GET] User authenticated, seller ID:',
+      user.sellerProfile.id
+    );
+
     const product = await prisma.product.findFirst({
       where: {
-        id: params.id,
+        id: productId,
         sellerId: user.sellerProfile.id,
       },
       include: {
@@ -48,15 +61,24 @@ export async function GET(
     });
 
     if (!product) {
+      console.log('❌ [API GET] Product not found or not owned by seller');
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    console.log('✅ [API GET] Product found:', product.title);
     return NextResponse.json(product);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    console.error('❌ [API GET] Error fetching product:', error);
+    console.error(
+      'Error stack:',
+      error instanceof Error ? error.stack : 'No stack trace'
+    );
     Sentry.captureException(error);
     return NextResponse.json(
-      { error: 'Failed to fetch product' },
+      {
+        error: 'Failed to fetch product',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }
@@ -64,9 +86,15 @@ export async function GET(
 
 export const PUT = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Handle params as Promise (Next.js 15 change)
+    const resolvedParams = await params;
+    const productId = resolvedParams.id;
+
+    console.log('🔍 [API PUT] Updating product:', productId);
+
     const session = await auth();
 
     if (!session?.user?.email || session.user.role !== 'SELLER') {
@@ -103,7 +131,7 @@ export const PUT = withCSRF(async function (
 
     const product = await prisma.product.findFirst({
       where: {
-        id: params.id,
+        id: productId,
         sellerId: user.sellerProfile.id,
       },
       include: {
@@ -125,7 +153,7 @@ export const PUT = withCSRF(async function (
 
     // Always set to PENDING for assessment (with or without enhancement)
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: productId },
       data: {
         title: data.title,
         description: data.description,
@@ -140,7 +168,7 @@ export const PUT = withCSRF(async function (
 
     // Revalidate product-related caches
     try {
-      await revalidateProduct(params.id);
+      await revalidateProduct(productId);
     } catch (e) {
       console.warn('Cache revalidation (product update) failed:', e);
     }
@@ -237,9 +265,15 @@ export const PUT = withCSRF(async function (
 
 export const DELETE = withCSRF(async function (
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // Handle params as Promise (Next.js 15 change)
+    const resolvedParams = await params;
+    const productId = resolvedParams.id;
+
+    console.log('🔍 [API DELETE] Deleting product:', productId);
+
     const session = await auth();
 
     if (!session?.user?.email || session.user.role !== 'SELLER') {
@@ -257,14 +291,14 @@ export const DELETE = withCSRF(async function (
     }
 
     console.log('Delete request for product:', {
-      productId: params.id,
+      productId: productId,
       sellerId: user.sellerProfile.id,
       userEmail: session.user.email,
     });
 
     const product = await prisma.product.findFirst({
       where: {
-        id: params.id,
+        id: productId,
         sellerId: user.sellerProfile.id,
       },
     });
@@ -272,7 +306,7 @@ export const DELETE = withCSRF(async function (
     if (!product) {
       // Check if product exists but belongs to different seller
       const productExists = await prisma.product.findUnique({
-        where: { id: params.id },
+        where: { id: productId },
         select: { id: true, sellerId: true },
       });
 
@@ -296,34 +330,34 @@ export const DELETE = withCSRF(async function (
     await prisma.$transaction(async tx => {
       // Delete related records
       await tx.cartItem.deleteMany({
-        where: { productId: params.id },
+        where: { productId: productId },
       });
 
       await tx.wishlistItem.deleteMany({
-        where: { productId: params.id },
+        where: { productId: productId },
       });
 
       await tx.review.deleteMany({
-        where: { productId: params.id },
+        where: { productId: productId },
       });
 
       await tx.productTranslation.deleteMany({
-        where: { productId: params.id },
+        where: { productId: productId },
       });
 
       await tx.listingImage.deleteMany({
-        where: { productId: params.id },
+        where: { productId: productId },
       });
 
       // Finally delete the product
       await tx.product.delete({
-        where: { id: params.id },
+        where: { id: productId },
       });
     });
 
     // Revalidate product-related caches post-delete
     try {
-      await revalidateProduct(params.id);
+      await revalidateProduct(productId);
     } catch (e) {
       console.warn('Cache revalidation (product delete) failed:', e);
     }
