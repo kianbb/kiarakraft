@@ -85,13 +85,25 @@ export default function EditProductPage() {
 
   const fetchProduct = useCallback(async () => {
     try {
+      console.log('🔍 [Edit Page] fetchProduct called');
+      console.log('Product ID from params:', productId);
+      console.log('Product ID type:', typeof productId);
+
       if (!productId || typeof productId !== 'string') {
+        console.log('❌ [Edit Page] Invalid product ID, returning');
         return;
       }
 
+      console.log(
+        '🌐 [Edit Page] Fetching product from API:',
+        `/api/seller/products/${productId}`
+      );
       const response = await fetch(`/api/seller/products/${productId}`);
+      console.log('📡 [Edit Page] API response status:', response.status);
+
       if (response.ok) {
         const productData = await response.json();
+        console.log('✅ [Edit Page] Product data received:', productData);
         setProduct(productData);
 
         // Populate form with existing data
@@ -118,10 +130,18 @@ export default function EditProductPage() {
           })(),
         });
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.log('❌ [Edit Page] API error response:', errorData);
+        console.log(
+          '🔄 [Edit Page] Redirecting to products list due to API error'
+        );
         router.push(`/${locale}/seller/products`);
       }
     } catch (error) {
-      console.error('Error fetching product:', error);
+      console.error('❌ [Edit Page] Error fetching product:', error);
+      console.log(
+        '🔄 [Edit Page] Redirecting to products list due to exception'
+      );
       router.push(`/${locale}/seller/products`);
     } finally {
       setLoading(false);
@@ -129,20 +149,32 @@ export default function EditProductPage() {
   }, [productId, router, reset, locale]);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    console.log('🔄 [Edit Page] useEffect running');
+    console.log('Session status:', status);
+    console.log('Session user:', session?.user);
+    console.log('Current locale:', locale);
+    console.log('Product ID:', productId);
+
+    if (status === 'loading') {
+      console.log('⏳ [Edit Page] Session loading, waiting...');
+      return;
+    }
 
     if (!session) {
+      console.log('❌ [Edit Page] No session, redirecting to login');
       router.push(`/${locale}/auth/login`);
       return;
     }
 
     if (session.user?.role !== 'SELLER') {
+      console.log('❌ [Edit Page] User is not a seller, redirecting to home');
       router.push(`/${locale}/`);
       return;
     }
 
+    console.log('✅ [Edit Page] Auth checks passed, fetching product');
     fetchProduct();
-  }, [session, status, router, fetchProduct]);
+  }, [session, status, router, fetchProduct, locale, productId]);
 
   if (status === 'loading' || loading) {
     return (
