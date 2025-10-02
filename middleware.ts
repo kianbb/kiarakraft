@@ -11,14 +11,16 @@ const intlMiddleware = createMiddleware({
 
 export default async function middleware(req: NextRequest) {
   // Apply auth check only to protected routes
-  const pathname = req.nextUrl.pathname.toLowerCase();
+  const pathname = req.nextUrl.pathname;
   const normalizedPath = pathname.replace(/\/+/g, '/').replace(/\.\./g, '');
   const pathSegments = normalizedPath.split('/').filter(Boolean);
 
   const isProtectedPath =
     pathSegments.length >= 2 &&
-    (pathSegments[0] === 'fa' || pathSegments[0] === 'en') &&
-    (pathSegments[1] === 'seller' || pathSegments[1] === 'admin');
+    (pathSegments[0].toLowerCase() === 'fa' ||
+      pathSegments[0].toLowerCase() === 'en') &&
+    (pathSegments[1].toLowerCase() === 'seller' ||
+      pathSegments[1].toLowerCase() === 'admin');
 
   // If the URL contains an explicit locale prefix
   const isLocalePrefixed =
@@ -40,8 +42,8 @@ export default async function middleware(req: NextRequest) {
     }
 
     // Check role-based access
-    const isSellerPath = pathSegments[1] === 'seller';
-    const isAdminPath = pathSegments[1] === 'admin';
+    const isSellerPath = pathSegments[1].toLowerCase() === 'seller';
+    const isAdminPath = pathSegments[1].toLowerCase() === 'admin';
 
     if (isSellerPath && session.user.role !== 'SELLER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
