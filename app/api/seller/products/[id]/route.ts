@@ -13,6 +13,8 @@ import { withCSRF } from '@/lib/csrf';
 import { waitUntil } from '@vercel/functions';
 import { getBilingualProgress } from '@/lib/progress-messages';
 
+export const runtime = 'nodejs';
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> | { id: string } }

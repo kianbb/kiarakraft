@@ -19,6 +19,8 @@ import { withCSRF } from '@/lib/csrf';
 import { waitUntil } from '@vercel/functions';
 import { getBilingualProgress } from '@/lib/progress-messages';
 
+export const runtime = 'nodejs';
+
 // Async function to process enhancement and assessment in background
 async function processProductEnhancementAndAssessment({
   product,
