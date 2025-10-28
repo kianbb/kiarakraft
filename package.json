@@ -12,8 +12,8 @@
     "build": "prisma generate && next build",
     "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix && prettier --write .",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint app components lib middleware.ts types --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint --fix . && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
@@ -73,13 +73,13 @@
     "dompurify": "^3.2.6",
     "isomorphic-dompurify": "^2.30.1",
     "lucide-react": "^0.548.0",
-    "next": "15.5.2",
+    "next": "16.0.0",
     "next-auth": "5.0.0-beta.29",
     "next-intl": "^4.3.9",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
     "openai": "^6.7.0",
-    "react": "^19.1.1",
+    "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.65.0",
     "resend": "^6.1.0",
@@ -120,7 +120,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "next lint --fix --file",
+      "eslint --fix",
       "prettier --write"
     ],
     "*.{json,css,md}": [

@@ -42,29 +42,29 @@ export function createCachedFunction<T extends unknown[], R>(
  * Revalidate cache for specific entities
  */
 export async function revalidateProduct(productId: string) {
-  revalidateTag(CACHE_TAGS.PRODUCTS);
-  revalidateTag(`${CACHE_TAGS.PRODUCT}:${productId}`);
+  revalidateTag(CACHE_TAGS.PRODUCTS, {});
+  revalidateTag(`${CACHE_TAGS.PRODUCT}:${productId}`, {});
 }
 
 export async function revalidateSeller(sellerId: string) {
-  revalidateTag(CACHE_TAGS.SELLERS);
-  revalidateTag(`${CACHE_TAGS.SELLER}:${sellerId}`);
+  revalidateTag(CACHE_TAGS.SELLERS, {});
+  revalidateTag(`${CACHE_TAGS.SELLER}:${sellerId}`, {});
 }
 
 export async function revalidateProductsForSeller(sellerId: string) {
-  revalidateTag(CACHE_TAGS.PRODUCTS);
-  revalidateTag(`${CACHE_TAGS.SELLER}:${sellerId}`);
+  revalidateTag(CACHE_TAGS.PRODUCTS, {});
+  revalidateTag(`${CACHE_TAGS.SELLER}:${sellerId}`, {});
 }
 
 export async function revalidateReviews(productId?: string) {
-  revalidateTag(CACHE_TAGS.REVIEWS);
+  revalidateTag(CACHE_TAGS.REVIEWS, {});
   if (productId) {
-    revalidateTag(`${CACHE_TAGS.PRODUCT}:${productId}`);
+    revalidateTag(`${CACHE_TAGS.PRODUCT}:${productId}`, {});
   }
 }
 
 export async function revalidateCategories() {
-  revalidateTag(CACHE_TAGS.CATEGORIES);
+  revalidateTag(CACHE_TAGS.CATEGORIES, {});
 }
 
 /**

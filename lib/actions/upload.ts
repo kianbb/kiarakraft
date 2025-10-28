@@ -82,8 +82,8 @@ export async function uploadProductImage(formData: FormData) {
     });
 
     // Revalidate product cache
-    revalidateTag(`product-${productId}`);
-    revalidateTag('products');
+    revalidateTag(`product-${productId}`, {});
+    revalidateTag('products', {});
 
     return {
       success: true,
@@ -142,8 +142,8 @@ export async function deleteProductImage(imageId: string, productId: string) {
     const cloudDeleted = await deleteImageFromCloudinary(image.url);
 
     // Revalidate cache
-    revalidateTag(`product-${productId}`);
-    revalidateTag('products');
+    revalidateTag(`product-${productId}`, {});
+    revalidateTag('products', {});
 
     return { success: true, cloudDeleted };
   } catch (error) {
@@ -201,8 +201,8 @@ export async function reorderProductImages(
     });
 
     // Revalidate cache
-    revalidateTag(`product-${productId}`);
-    revalidateTag('products');
+    revalidateTag(`product-${productId}`, {});
+    revalidateTag('products', {});
 
     return { success: true };
   } catch (error) {
@@ -250,8 +250,8 @@ export async function updateProductImageAlt(
       where: { id: imageId },
       data: { alt: trimmed || null },
     });
-    revalidateTag(`product-${productId}`);
-    revalidateTag('products');
+    revalidateTag(`product-${productId}`, {});
+    revalidateTag('products', {});
     return { success: true, alt: trimmed };
   } catch (error) {
     console.error('Error updating image alt:', error);
