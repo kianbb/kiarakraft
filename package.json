@@ -12,7 +12,7 @@
     "build": "prisma generate && next build",
     "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint app components lib middleware.ts types --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint --fix . && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
