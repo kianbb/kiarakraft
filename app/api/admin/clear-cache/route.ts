@@ -11,9 +11,9 @@ export async function POST() {
     }
 
     // Revalidate all product-related caches
-    revalidateTag('products');
-    revalidateTag('categories');
-    revalidateTag('sellers');
+    revalidateTag('products', {});
+    revalidateTag('categories', {});
+    revalidateTag('sellers', {});
 
     // Revalidate the explore page paths
     revalidatePath('/fa/explore');

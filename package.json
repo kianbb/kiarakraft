@@ -79,7 +79,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
     "openai": "^5.20.1",
-    "react": "^19.1.1",
+    "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.65.0",
     "resend": "^6.1.0",
@@ -120,7 +120,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "next lint --fix --file",
+      "eslint --fix",
       "prettier --write"
     ],
     "*.{json,css,md}": [
