@@ -307,7 +307,7 @@ See `/SECURITY-ANALYSIS.md` for comprehensive analysis and remaining risks:
 
 ### Demo Accounts (after seeding)
 
-- **Seller**: seller@example.com / password123
+- **Seller**: seller@example.com / seller123
 - **Buyer**: buyer@example.com / password123
 
 ### Environment Setup
