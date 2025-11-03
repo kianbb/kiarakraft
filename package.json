@@ -67,7 +67,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "bcryptjs": "3.0.2",
     "class-variance-authority": "^0.7.1",
-    "cloudinary": "^2.7.0",
+    "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.6",
