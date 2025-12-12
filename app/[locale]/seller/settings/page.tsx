@@ -130,7 +130,7 @@ export default function SellerSettingsPage() {
     }
 
     fetchProfile();
-  }, [session, status, router, fetchProfile]);
+  }, [session, status, router, fetchProfile, locale]);
 
   if (status === 'loading' || loading) {
     return (

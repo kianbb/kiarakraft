@@ -64,7 +64,7 @@ export enum SanitizationLevel {
  */
 export function sanitizeHtml(
   input: string,
-  level: SanitizationLevel = SanitizationLevel.STRICT
+  _level: SanitizationLevel = SanitizationLevel.STRICT
 ): string {
   if (!input || typeof input !== 'string') {
     return '';

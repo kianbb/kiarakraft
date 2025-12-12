@@ -57,7 +57,7 @@
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@react-email/render": "^1.2.3",
-    "@sentry/nextjs": "^10.22.0",
+    "@sentry/nextjs": "^10.27.0",
     "@tailwindcss/postcss": "^4.1.16",
     "@types/node-fetch": "^2.6.13",
     "@types/nodemailer": "^7.0.0",
@@ -73,11 +73,11 @@
     "dompurify": "^3.2.6",
     "isomorphic-dompurify": "^2.30.1",
     "lucide-react": "^0.548.0",
-    "next": "16.0.0",
-    "next-auth": "5.0.0-beta.29",
-    "next-intl": "^4.3.9",
+    "next": "^16.0.10",
+    "next-auth": "^5.0.0-beta.30",
+    "next-intl": "^4.5.8",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^7.0.11",
     "openai": "^6.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -88,7 +88,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "undici": "7.16.0",
-    "validator": "^13.15.15",
+    "validator": "^13.15.22",
     "web-push": "^3.6.7",
     "zod": "^4.1.12"
   },
@@ -120,7 +120,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+      "bash -c 'ESLINT_USE_FLAT_CONFIG=false eslint --fix \"$@\"' _",
       "prettier --write"
     ],
     "*.{json,css,md}": [
