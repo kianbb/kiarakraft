@@ -15,12 +15,18 @@ import { WishlistButton } from '@/components/wishlist/WishlistButton';
 import { ProductViewTracker } from '@/components/analytics/ProductViewTracker';
 import type { Metadata } from 'next';
 
-// Disable caching temporarily to ensure locale fixes take effect immediately
-export const revalidate = 0;
-export const dynamicParams = false;
+// Revalidate pages periodically to pick up product changes
+export const revalidate = 60;
+// Allow dynamic params so new products work without rebuilding
+export const dynamicParams = true;
 
 export async function generateStaticParams() {
-  // Prebuild known product slugs for both locales so unknown slugs return 404 at the router level
+  // Skip static generation if DATABASE_URL is not available (e.g., CI without secrets)
+  if (!process.env.DATABASE_URL) {
+    console.warn('DATABASE_URL not set, skipping static params generation');
+    return [];
+  }
+
   try {
     const products = await db.product.findMany({
       where: { active: true, isTest: false },
@@ -32,21 +38,7 @@ export async function generateStaticParams() {
     );
   } catch (error) {
     console.warn('Database unavailable during static generation:', error);
-    // In production, if DB fails, return a hardcoded list of known products to maintain 404 behavior
-    // This ensures dynamicParams=false still works correctly
-    if (process.env.NODE_ENV === 'production') {
-      const knownSlugs = [
-        'handmade-ceramic-bowl',
-        'silver-turquoise-necklace',
-        'persian-kilim-rug',
-        'copper-engraved-plate',
-      ];
-      const locales: Array<'fa' | 'en'> = ['fa', 'en'];
-      return knownSlugs.flatMap(slug =>
-        locales.map(locale => ({ slug, locale }))
-      );
-    }
-    // In development/CI, return empty array to allow dynamic rendering
+    // Return empty array - pages will be generated dynamically at request time
     return [];
   }
 }
