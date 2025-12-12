@@ -120,7 +120,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+      "bash -c 'ESLINT_USE_FLAT_CONFIG=false eslint --fix \"$@\"' _",
       "prettier --write"
     ],
     "*.{json,css,md}": [

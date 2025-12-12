@@ -149,7 +149,7 @@ export default function SellerOnboardingPage() {
       router.push(`/${locale}/`);
       return;
     }
-  }, [session, status, router]);
+  }, [session, status, router, locale]);
 
   const handleDocumentUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -573,7 +573,7 @@ export default function SellerOnboardingPage() {
                       {t('uploadedDocuments')}:
                     </p>
                     <ul className="space-y-1">
-                      {uploadedDocs.map((doc, index) => (
+                      {uploadedDocs.map((_doc, index) => (
                         <li
                           key={index}
                           className="text-sm text-green-600 flex items-center"

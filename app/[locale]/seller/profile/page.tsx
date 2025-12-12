@@ -101,7 +101,7 @@ export default function SellerProfilePage() {
     }
 
     fetchProfile();
-  }, [session, status, router, fetchProfile]);
+  }, [session, status, router, fetchProfile, locale]);
 
   if (status === 'loading' || loading) {
     return (

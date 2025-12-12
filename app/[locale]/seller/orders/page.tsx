@@ -40,7 +40,7 @@ export default function SellerOrdersPage() {
     }
 
     fetchOrders();
-  }, [session, status, router]);
+  }, [session, status, router, locale]);
 
   const fetchOrders = async () => {
     try {

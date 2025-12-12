@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Secrets detection
 echo "🔍 Checking for secrets..."
 git diff --cached --name-only -z | while IFS= read -r -d '' file; do
