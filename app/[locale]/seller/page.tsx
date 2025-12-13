@@ -44,10 +44,14 @@ export default function SellerDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
+      const fetchOptions = {
+        credentials: 'include' as RequestCredentials,
+        cache: 'no-store' as RequestCache,
+      };
       const [statsRes, ordersRes, productsRes] = await Promise.all([
-        fetch('/api/seller/stats'),
-        fetch('/api/seller/orders?limit=5'),
-        fetch('/api/seller/products?limit=5'),
+        fetch('/api/seller/stats', fetchOptions),
+        fetch('/api/seller/orders?limit=5', fetchOptions),
+        fetch('/api/seller/products?limit=5', fetchOptions),
       ]);
 
       if (statsRes.ok) {
@@ -62,7 +66,24 @@ export default function SellerDashboard() {
 
       if (productsRes.ok) {
         const productsData = await productsRes.json();
+        console.log('[Dashboard] Products API response:', {
+          count: Array.isArray(productsData)
+            ? productsData.length
+            : 'not array',
+          data: productsData,
+        });
         setRecentProducts(productsData);
+      } else {
+        console.error('[Dashboard] Products API failed:', {
+          status: productsRes.status,
+          statusText: productsRes.statusText,
+        });
+        try {
+          const errorData = await productsRes.json();
+          console.error('[Dashboard] Products API error body:', errorData);
+        } catch {
+          console.error('[Dashboard] Could not parse error response');
+        }
       }
 
       // Fetch seller profile for verification state

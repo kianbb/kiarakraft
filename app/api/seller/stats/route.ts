@@ -4,9 +4,18 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
+    console.log('[seller/stats GET] Starting request...');
     const session = await auth();
+    console.log('[seller/stats GET] Session:', {
+      hasSession: !!session,
+      email: session?.user?.email,
+      role: session?.user?.role,
+    });
 
     if (!session?.user?.email || session.user.role !== 'SELLER') {
+      console.log(
+        '[seller/stats GET] Unauthorized - missing session or wrong role'
+      );
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
