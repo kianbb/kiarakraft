@@ -1,7 +1,7 @@
 // Kiara Kraft Service Worker
 // Provides offline functionality and caching for better performance
 
-const CACHE_NAME = 'kiarakraft-v1';
+const CACHE_NAME = 'kiarakraft-v2';
 const RUNTIME = 'runtime';
 
 // Assets to pre-cache
