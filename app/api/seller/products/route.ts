@@ -617,90 +617,83 @@ async function processProductEnhancementAndAssessment({
   }
 }
 
-export const GET = withRateLimit(
-  sellerProductRateLimit,
-  async function (request: NextRequest) {
-    try {
-      console.log('[seller/products GET] Starting request...');
-      const session = await auth();
-      console.log('[seller/products GET] Session:', {
-        hasSession: !!session,
-        email: session?.user?.email,
-        role: session?.user?.role,
-      });
+// Note: Rate limiter removed from GET - it was calling auth() twice which breaks
+// in Next.js 16 due to async cookies() changes. The Stats API (without rate limiter) works fine.
+export async function GET(request: NextRequest) {
+  try {
+    console.log('[seller/products GET] Starting request...');
+    const session = await auth();
+    console.log('[seller/products GET] Session:', {
+      hasSession: !!session,
+      email: session?.user?.email,
+      role: session?.user?.role,
+    });
 
-      if (!session?.user?.email || session.user.role !== 'SELLER') {
-        console.log(
-          '[seller/products GET] Unauthorized - missing session or wrong role'
-        );
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        include: { sellerProfile: true },
-      });
-
-      if (!user || !user.sellerProfile) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
-
-      // Optionally gate: allow viewing their products regardless, but note verification
-      // If stricter policy desired, uncomment next block to require verification for listing
-      // if (!user.sellerProfile.verified) {
-      //   return NextResponse.json({ error: 'Seller verification required' }, { status: 403 });
-      // }
-
-      const { searchParams } = new URL(request.url);
-      const limitParam = searchParams.get('limit');
-      const limit = limitParam
-        ? Math.min(Math.max(1, parseInt(limitParam)), 100)
-        : 50;
-
-      const products = await prisma.product.findMany({
-        where: { sellerId: user.sellerProfile.id },
-        include: {
-          images: {
-            orderBy: { sortOrder: 'asc' },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      });
-
-      // Debug logging for troubleshooting
+    if (!session?.user?.email || session.user.role !== 'SELLER') {
       console.log(
-        '[seller/products] returning',
-        products.length,
-        'items for seller:',
-        user.sellerProfile.id
+        '[seller/products GET] Unauthorized - missing session or wrong role'
       );
-      console.log('[seller/products] seller email:', session.user.email);
-      if (products.length > 0) {
-        console.log('[seller/products] first product:', {
-          id: products[0].id,
-          title: products[0].title,
-          active: products[0].active,
-          eligibilityStatus: products[0].eligibilityStatus,
-        });
-      }
-
-      // Disable caching for this dynamic endpoint
-      return NextResponse.json(products, {
-        headers: {
-          'Cache-Control': 'no-store, must-revalidate',
-        },
-      });
-    } catch (error) {
-      Sentry.captureException(error);
-      console.error('Error fetching seller products:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch products' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: { sellerProfile: true },
+    });
+
+    if (!user || !user.sellerProfile) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam
+      ? Math.min(Math.max(1, parseInt(limitParam)), 100)
+      : 50;
+
+    const products = await prisma.product.findMany({
+      where: { sellerId: user.sellerProfile.id },
+      include: {
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    // Debug logging for troubleshooting
+    console.log(
+      '[seller/products] returning',
+      products.length,
+      'items for seller:',
+      user.sellerProfile.id
+    );
+    console.log('[seller/products] seller email:', session.user.email);
+    if (products.length > 0) {
+      console.log('[seller/products] first product:', {
+        id: products[0].id,
+        title: products[0].title,
+        active: products[0].active,
+        eligibilityStatus: products[0].eligibilityStatus,
+      });
+    }
+
+    // Disable caching for this dynamic endpoint
+    return NextResponse.json(products, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error);
+    console.error('Error fetching seller products:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch products' },
+      { status: 500 }
+    );
   }
-);
+}
 
 export const POST = withRateLimit(
   sellerProductRateLimit,
