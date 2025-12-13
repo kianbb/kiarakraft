@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { prisma } from '@/lib/prisma';
 import { searchProducts } from '@/lib/search';
 
+// Track created resources for cleanup
+const createdProductIds: string[] = [];
+const createdSellerIds: string[] = [];
+const createdUserIds: string[] = [];
+
 async function seedProduct() {
   const seller = await prisma.sellerProfile.create({
     data: {
@@ -15,6 +20,10 @@ async function seedProduct() {
     },
     include: { user: true },
   });
+
+  // Track for cleanup
+  createdSellerIds.push(seller.id);
+  createdUserIds.push(seller.userId);
 
   const category = await prisma.category.upsert({
     where: { slug: 'ceramics' },
@@ -42,7 +51,33 @@ async function seedProduct() {
       },
     },
   });
+
+  // Track for cleanup
+  createdProductIds.push(product.id);
+
   return product;
+}
+
+async function cleanup() {
+  // Delete in order: translations -> products -> sellers -> users
+  if (createdProductIds.length > 0) {
+    await prisma.productTranslation.deleteMany({
+      where: { productId: { in: createdProductIds } },
+    });
+    await prisma.product.deleteMany({
+      where: { id: { in: createdProductIds } },
+    });
+  }
+  if (createdSellerIds.length > 0) {
+    await prisma.sellerProfile.deleteMany({
+      where: { id: { in: createdSellerIds } },
+    });
+  }
+  if (createdUserIds.length > 0) {
+    await prisma.user.deleteMany({
+      where: { id: { in: createdUserIds } },
+    });
+  }
 }
 
 async function run() {
@@ -87,6 +122,7 @@ async function run() {
     console.error('❌ Search partial match tests failed:', err);
     process.exit(1);
   } finally {
+    await cleanup();
     await prisma.$disconnect();
   }
 }
