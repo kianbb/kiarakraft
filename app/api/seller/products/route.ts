@@ -621,9 +621,18 @@ export const GET = withRateLimit(
   sellerProductRateLimit,
   async function (request: NextRequest) {
     try {
+      console.log('[seller/products GET] Starting request...');
       const session = await auth();
+      console.log('[seller/products GET] Session:', {
+        hasSession: !!session,
+        email: session?.user?.email,
+        role: session?.user?.role,
+      });
 
       if (!session?.user?.email || session.user.role !== 'SELLER') {
+        console.log(
+          '[seller/products GET] Unauthorized - missing session or wrong role'
+        );
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
@@ -676,7 +685,12 @@ export const GET = withRateLimit(
         });
       }
 
-      return NextResponse.json(products);
+      // Disable caching for this dynamic endpoint
+      return NextResponse.json(products, {
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+        },
+      });
     } catch (error) {
       Sentry.captureException(error);
       console.error('Error fetching seller products:', error);
