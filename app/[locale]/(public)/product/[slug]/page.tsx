@@ -43,27 +43,28 @@ export async function generateStaticParams() {
   }
 }
 
-type Params = { locale: 'fa' | 'en'; slug: string };
+type Params = Promise<{ locale: 'fa' | 'en'; slug: string }>;
 
 export async function generateMetadata({
   params,
 }: {
   params: Params;
 }): Promise<Metadata> {
-  setRequestLocale(params.locale);
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
 
   const [p, tProduct, tHome] = await Promise.all([
     db.product.findFirst({
-      where: { slug: params.slug, isTest: false },
+      where: { slug, isTest: false },
       select: {
         title: true,
         description: true,
         images: { select: { url: true } },
       },
     }),
-    getTranslations({ locale: params.locale, namespace: 'product' }),
+    getTranslations({ locale, namespace: 'product' }),
     // For demo products, use homepage translations to localize name/description in EN
-    getTranslations({ locale: params.locale, namespace: 'home' }),
+    getTranslations({ locale, namespace: 'home' }),
   ]);
 
   // If product does not exist, avoid throwing notFound() here to prevent potential soft 404s.
@@ -79,11 +80,11 @@ export async function generateMetadata({
   // Localize demo products that were seeded in Persian-only
   let title = p?.title ?? tProduct('notFound');
   let description = p?.description ?? tProduct('notFoundDescription');
-  if (params.locale === 'en') {
-    if (params.slug === 'handmade-ceramic-bowl') {
+  if (locale === 'en') {
+    if (slug === 'handmade-ceramic-bowl') {
       title = tHome('sampleProducts.ceramicBowl.title');
       description = tHome('sampleProducts.ceramicBowl.description');
-    } else if (params.slug === 'silver-turquoise-necklace') {
+    } else if (slug === 'silver-turquoise-necklace') {
       title = tHome('sampleProducts.silverNecklace.title');
       description = tHome('sampleProducts.silverNecklace.description');
     } else {
@@ -96,15 +97,15 @@ export async function generateMetadata({
     }
   }
   const base = 'https://www.kiarakraft.com';
-  const path = `/${params.locale}/product/${params.slug}`;
+  const path = `/${locale}/product/${slug}`;
   return {
     title,
     description,
     alternates: {
       canonical: `${base}${path}`,
       languages: {
-        'fa-IR': `${base}/fa/product/${params.slug}`,
-        'en-US': `${base}/en/product/${params.slug}`,
+        'fa-IR': `${base}/fa/product/${slug}`,
+        'en-US': `${base}/en/product/${slug}`,
       },
     },
     openGraph: {
@@ -117,41 +118,12 @@ export async function generateMetadata({
 }
 
 export default async function Page({ params }: { params: Params }) {
-  setRequestLocale(params.locale);
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
 
-  console.log(`[DEBUG] Product page: ${params.locale}/${params.slug}`);
-
-  // BULLETPROOF 404 HANDLING: First check if slug is in our known products list
-  // This ensures unknown products NEVER render, even if dynamicParams fails
-  let knownSlugs: string[] = [];
-  try {
-    const products = await db.product.findMany({
-      where: { active: true, isTest: false },
-      select: { slug: true },
-    });
-    knownSlugs = products.map(p => p.slug);
-  } catch (error) {
-    console.warn('Database error during slug validation:', error);
-    // Fallback to hardcoded known slugs to maintain 404 behavior
-    knownSlugs = [
-      'handmade-ceramic-bowl',
-      'silver-turquoise-necklace',
-      'persian-kilim-rug',
-      'copper-engraved-plate',
-    ];
-  }
-
-  // FAIL FAST: If slug is not in known products, immediately return 404
-  if (!knownSlugs.includes(params.slug)) {
-    console.log(
-      `[DEBUG] Unknown slug detected: ${params.slug}, known slugs:`,
-      knownSlugs.slice(0, 5)
-    );
-    notFound();
-  }
-
+  // Fetch the product directly - let the actual query determine if it exists
   const product = await db.product.findFirst({
-    where: { slug: params.slug, isTest: false },
+    where: { slug, isTest: false },
     include: {
       images: {
         orderBy: { sortOrder: 'asc' },
@@ -162,33 +134,22 @@ export default async function Page({ params }: { params: Params }) {
     },
   });
 
-  console.log(`[DEBUG] Product found: ${!!product}`);
-
-  // Double-check: Even if slug was "known", if product doesn't exist, 404
-  if (!product) {
-    console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
-    notFound();
-  }
-
-  // Additional safety check - if product is not active or is a test product, also return 404
-  if (!product.active || product.isTest) {
-    console.log(
-      `[DEBUG] Product not active or is test for slug: ${params.slug}`
-    );
+  // Return 404 if product doesn't exist, is inactive, or is a test product
+  if (!product || !product.active || product.isTest) {
     notFound();
   }
 
   const [t, tCategories, tHome] = await Promise.all([
-    getTranslations({ locale: params.locale, namespace: 'product' }),
-    getTranslations({ locale: params.locale, namespace: 'categories' }),
-    getTranslations({ locale: params.locale, namespace: 'home' }),
+    getTranslations({ locale: locale, namespace: 'product' }),
+    getTranslations({ locale: locale, namespace: 'categories' }),
+    getTranslations({ locale: locale, namespace: 'home' }),
   ]);
 
   // Localized fields for demo products (DB currently Persian).
   // Try to load persisted EN translation if available (works after migration)
   let translatedTitle: string | undefined;
   let translatedDescription: string | undefined;
-  if (params.locale === 'en') {
+  if (locale === 'en') {
     try {
       type ProductTranslationClient = {
         productTranslation: {
@@ -240,7 +201,7 @@ export default async function Page({ params }: { params: Params }) {
 
   // For English locale, use handle as shop name if the shop name is in Persian
   // This provides consistency across locales
-  if (params.locale === 'en' && localized.sellerDisplayName) {
+  if (locale === 'en' && localized.sellerDisplayName) {
     const hasPersian = /[\u0600-\u06FF]/.test(localized.sellerDisplayName);
     if (hasPersian && product.seller.handle) {
       // Use the handle (e.g., 'kian-store') as a readable English alternative
@@ -250,7 +211,7 @@ export default async function Page({ params }: { params: Params }) {
         .join(' ');
     }
   }
-  if (params.locale === 'en') {
+  if (locale === 'en') {
     if (product.slug === 'handmade-ceramic-bowl') {
       localized.title = tHome('sampleProducts.ceramicBowl.title');
       localized.description = tHome('sampleProducts.ceramicBowl.description');
@@ -295,7 +256,7 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <>
-      <ProductViewTracker slug={params.slug} locale={params.locale} />
+      <ProductViewTracker slug={slug} locale={locale} />
       <ProductJsonLd
         product={{
           title: localized.title,
@@ -313,36 +274,36 @@ export default async function Page({ params }: { params: Params }) {
           ratingCount: product.ratingCount,
           slug: product.slug,
         }}
-        locale={params.locale}
+        locale={locale}
       />
       <BreadcrumbJsonLd
         items={(() => {
           const base = 'https://www.kiarakraft.com';
           const items = [
             {
-              name: params.locale === 'fa' ? 'خانه' : 'Home',
-              url: `${base}/${params.locale}`,
+              name: locale === 'fa' ? 'خانه' : 'Home',
+              url: `${base}/${locale}`,
               position: 1,
             },
           ];
           if (product.category?.slug) {
             items.push({
               name:
-                params.locale === 'fa'
+                locale === 'fa'
                   ? localized.categoryName || 'دسته بندی'
                   : localized.categoryName || 'Category',
-              url: `${base}/${params.locale}/explore?category=${product.category.slug}`,
+              url: `${base}/${locale}/explore?category=${product.category.slug}`,
               position: 2,
             });
             items.push({
               name: localized.title,
-              url: `${base}/${params.locale}/product/${product.slug}`,
+              url: `${base}/${locale}/product/${product.slug}`,
               position: 3,
             });
           } else {
             items.push({
               name: localized.title,
-              url: `${base}/${params.locale}/product/${product.slug}`,
+              url: `${base}/${locale}/product/${product.slug}`,
               position: 2,
             });
           }
@@ -355,7 +316,7 @@ export default async function Page({ params }: { params: Params }) {
           <div className="container mx-auto px-4">
             {/* Back Button */}
             <Link
-              href={`/${params.locale}/explore`}
+              href={`/${locale}/explore`}
               className="inline-flex items-center gap-2 mb-6 text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -413,7 +374,7 @@ export default async function Page({ params }: { params: Params }) {
                       <div className="font-semibold">
                         {product.seller.handle ? (
                           <Link
-                            href={`/${params.locale}/shop/${product.seller.handle}`}
+                            href={`/${locale}/shop/${product.seller.handle}`}
                             className="hover:text-primary transition-colors cursor-pointer"
                           >
                             {localized.sellerDisplayName}
@@ -476,7 +437,7 @@ export default async function Page({ params }: { params: Params }) {
                         en?: string[];
                       };
                       if (
-                        params.locale === 'en' &&
+                        locale === 'en' &&
                         tagsObj.en &&
                         tagsObj.en.length > 0
                       ) {
@@ -495,7 +456,7 @@ export default async function Page({ params }: { params: Params }) {
                           {tagsToDisplay.map((tag, index) => (
                             <Link
                               key={index}
-                              href={`/${params.locale}/explore?q=${encodeURIComponent(tag)}`}
+                              href={`/${locale}/explore?q=${encodeURIComponent(tag)}`}
                               className="inline-block"
                             >
                               <Badge
