@@ -119,37 +119,7 @@ export async function generateMetadata({
 export default async function Page({ params }: { params: Params }) {
   setRequestLocale(params.locale);
 
-  console.log(`[DEBUG] Product page: ${params.locale}/${params.slug}`);
-
-  // BULLETPROOF 404 HANDLING: First check if slug is in our known products list
-  // This ensures unknown products NEVER render, even if dynamicParams fails
-  let knownSlugs: string[] = [];
-  try {
-    const products = await db.product.findMany({
-      where: { active: true, isTest: false },
-      select: { slug: true },
-    });
-    knownSlugs = products.map(p => p.slug);
-  } catch (error) {
-    console.warn('Database error during slug validation:', error);
-    // Fallback to hardcoded known slugs to maintain 404 behavior
-    knownSlugs = [
-      'handmade-ceramic-bowl',
-      'silver-turquoise-necklace',
-      'persian-kilim-rug',
-      'copper-engraved-plate',
-    ];
-  }
-
-  // FAIL FAST: If slug is not in known products, immediately return 404
-  if (!knownSlugs.includes(params.slug)) {
-    console.log(
-      `[DEBUG] Unknown slug detected: ${params.slug}, known slugs:`,
-      knownSlugs.slice(0, 5)
-    );
-    notFound();
-  }
-
+  // Fetch the product directly - let the actual query determine if it exists
   const product = await db.product.findFirst({
     where: { slug: params.slug, isTest: false },
     include: {
@@ -162,19 +132,8 @@ export default async function Page({ params }: { params: Params }) {
     },
   });
 
-  console.log(`[DEBUG] Product found: ${!!product}`);
-
-  // Double-check: Even if slug was "known", if product doesn't exist, 404
-  if (!product) {
-    console.log(`[DEBUG] Product not found for slug: ${params.slug}`);
-    notFound();
-  }
-
-  // Additional safety check - if product is not active or is a test product, also return 404
-  if (!product.active || product.isTest) {
-    console.log(
-      `[DEBUG] Product not active or is test for slug: ${params.slug}`
-    );
+  // Return 404 if product doesn't exist, is inactive, or is a test product
+  if (!product || !product.active || product.isTest) {
     notFound();
   }
 
