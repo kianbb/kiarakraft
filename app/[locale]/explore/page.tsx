@@ -12,27 +12,27 @@ import { SearchStats } from '@/components/explore/SearchStats';
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
+interface SearchParams {
+  q?: string;
+  category?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  verified?: string;
+  sort?: string;
+  page?: string;
+  [key: string]: string | undefined;
+}
+
 interface PageProps {
-  params: {
+  params: Promise<{
     locale: string;
-  };
-  searchParams: {
-    q?: string;
-    category?: string;
-    minPrice?: string;
-    maxPrice?: string;
-    verified?: string;
-    sort?: string;
-    page?: string;
-  };
+  }>;
+  searchParams: Promise<SearchParams>;
 }
 
 const PRODUCTS_PER_PAGE = 12;
 
-async function getSearchResults(
-  locale: string,
-  searchParams: PageProps['searchParams']
-) {
+async function getSearchResults(locale: string, searchParams: SearchParams) {
   try {
     // Translate category slug (from URL) to the actual Category ID used in DB
     let categoryIdFromSlug: string | undefined;
@@ -94,26 +94,32 @@ async function getSearchResults(
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
   const t = await getTranslations({
-    locale: params.locale,
+    locale: resolvedParams.locale,
     namespace: 'explore',
   });
 
   let title = t('title');
   let description = t('subtitle');
 
-  if (searchParams.q) {
-    title = `${searchParams.q} - ${title}`;
-    description = `Search results for "${searchParams.q}" - ${description}`;
+  if (resolvedSearchParams.q) {
+    title = `${resolvedSearchParams.q} - ${title}`;
+    description = `Search results for "${resolvedSearchParams.q}" - ${description}`;
   }
 
-  if (searchParams.category && searchParams.category !== 'all') {
-    const categoryName = searchParams.category;
+  if (
+    resolvedSearchParams.category &&
+    resolvedSearchParams.category !== 'all'
+  ) {
+    const categoryName = resolvedSearchParams.category;
     title = `${categoryName} - ${title}`;
     description = `Explore ${categoryName} products - ${description}`;
   }
 
-  const canonicalUrl = `https://www.kiarakraft.com/${params.locale}/explore`;
+  const canonicalUrl = `https://www.kiarakraft.com/${resolvedParams.locale}/explore`;
   const alternateUrls = {
     'fa-IR': `https://www.kiarakraft.com/fa/explore`,
     'en-US': `https://www.kiarakraft.com/en/explore`,
@@ -132,8 +138,8 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
       description,
       type: 'website',
       url: canonicalUrl,
-      locale: params.locale === 'fa' ? 'fa_IR' : 'en_US',
-      alternateLocale: params.locale === 'fa' ? 'en_US' : 'fa_IR',
+      locale: resolvedParams.locale === 'fa' ? 'fa_IR' : 'en_US',
+      alternateLocale: resolvedParams.locale === 'fa' ? 'en_US' : 'fa_IR',
     },
     twitter: {
       card: 'summary_large_image',
@@ -144,25 +150,30 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
 }
 
 export default async function ExplorePage({ params, searchParams }: PageProps) {
+  // Await both params and searchParams (required in Next.js 15+)
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
   const t = await getTranslations({
-    locale: params.locale,
+    locale: resolvedParams.locale,
     namespace: 'explore',
   });
   const tCategories = await getTranslations({
-    locale: params.locale,
+    locale: resolvedParams.locale,
     namespace: 'categories',
   });
 
   const { products, pagination, facets } = await getSearchResults(
-    params.locale,
-    searchParams
+    resolvedParams.locale,
+    resolvedSearchParams
   );
-  const hasQuery = Boolean(searchParams.q?.trim());
+  const hasQuery = Boolean(resolvedSearchParams.q?.trim());
   const hasFilters = Boolean(
-    (searchParams.category && searchParams.category !== 'all') ||
-      searchParams.minPrice ||
-      searchParams.maxPrice ||
-      searchParams.verified === 'true'
+    (resolvedSearchParams.category &&
+      resolvedSearchParams.category !== 'all') ||
+      resolvedSearchParams.minPrice ||
+      resolvedSearchParams.maxPrice ||
+      resolvedSearchParams.verified === 'true'
   );
 
   return (
@@ -175,7 +186,7 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
           </h1>
           <p className="text-lg text-muted-foreground">
             {hasQuery
-              ? t('searchResultsFor', { query: searchParams.q || '' })
+              ? t('searchResultsFor', { query: resolvedSearchParams.q || '' })
               : t('subtitle')}
           </p>
         </div>
@@ -187,15 +198,15 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
           }
         >
           <ExploreFilters
-            initialSearch={searchParams.q || ''}
-            initialCategory={searchParams.category || 'all'}
+            initialSearch={resolvedSearchParams.q || ''}
+            initialCategory={resolvedSearchParams.category || 'all'}
             initialSort={
-              searchParams.sort || (hasQuery ? 'relevance' : 'newest')
+              resolvedSearchParams.sort || (hasQuery ? 'relevance' : 'newest')
             }
-            initialMinPrice={searchParams.minPrice}
-            initialMaxPrice={searchParams.maxPrice}
-            initialVerified={searchParams.verified === 'true'}
-            locale={params.locale}
+            initialMinPrice={resolvedSearchParams.minPrice}
+            initialMaxPrice={resolvedSearchParams.maxPrice}
+            initialVerified={resolvedSearchParams.verified === 'true'}
+            locale={resolvedParams.locale}
             facets={facets}
             precomputed={{
               searchPlaceholder: t('searchPlaceholder'),
@@ -226,11 +237,11 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
 
         {/* Search Statistics */}
         <SearchStats
-          query={searchParams.q}
+          query={resolvedSearchParams.q}
           totalResults={pagination.total}
           hasFilters={hasFilters}
           processingTime={0} // Will be populated by the search function
-          locale={params.locale}
+          locale={resolvedParams.locale}
         />
 
         {/* Products Grid */}
@@ -262,8 +273,8 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
               <ExplorePagination
                 currentPage={pagination.page}
                 totalPages={pagination.pages}
-                searchParams={searchParams}
-                locale={params.locale}
+                searchParams={resolvedSearchParams}
+                locale={resolvedParams.locale}
               />
             )}
           </>
@@ -296,7 +307,7 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
               {(hasQuery || hasFilters) && (
                 <div className="mt-4">
                   <a
-                    href={`/${params.locale}/explore`}
+                    href={`/${resolvedParams.locale}/explore`}
                     className="text-primary hover:underline"
                   >
                     {t('clearAllFilters')}
