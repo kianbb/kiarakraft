@@ -94,11 +94,15 @@ export default function EditProductPage() {
         return;
       }
 
+      // Use /get endpoint to avoid 500 error from heavy imports in main route
       console.log(
         '🌐 [Edit Page] Fetching product from API:',
-        `/api/seller/products/${productId}`
+        `/api/seller/products/${productId}/get`
       );
-      const response = await fetch(`/api/seller/products/${productId}`);
+      const response = await fetch(`/api/seller/products/${productId}/get`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
       console.log('📡 [Edit Page] API response status:', response.status);
 
       if (response.ok) {
