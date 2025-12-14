@@ -26,6 +26,7 @@ interface RawSearchResult {
 
 export interface SearchFilters {
   query?: string;
+  tag?: string; // Filter by exact tag match
   categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
