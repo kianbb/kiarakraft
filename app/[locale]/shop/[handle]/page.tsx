@@ -7,13 +7,13 @@ import { Metadata } from 'next';
 import { MapPin, Phone, Globe } from 'lucide-react';
 
 interface ShopPageProps {
-  params: {
+  params: Promise<{
     locale: string;
     handle: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     page?: string;
-  };
+  }>;
 }
 
 const PAGE_SIZE = 20;
@@ -83,8 +83,11 @@ export async function generateMetadata({
   params,
   searchParams,
 }: ShopPageProps): Promise<Metadata> {
-  const page = Number(searchParams?.page || '1') || 1;
-  const seller = await getSellerByHandle(params.handle, page);
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
+  const page = Number(resolvedSearchParams?.page || '1') || 1;
+  const seller = await getSellerByHandle(resolvedParams.handle, page);
 
   if (!seller) {
     return {
@@ -94,12 +97,12 @@ export async function generateMetadata({
   }
 
   const title =
-    params.locale === 'fa'
+    resolvedParams.locale === 'fa'
       ? `فروشگاه ${seller.displayName} - کیارا کرفت`
       : `${seller.displayName} Shop - Kiara Kraft`;
 
   const description =
-    params.locale === 'fa'
+    resolvedParams.locale === 'fa'
       ? `محصولات دست‌ساز ${seller.displayName} در کیارا کرفت. ${seller._count.products} محصول موجود.`
       : `Handmade products by ${seller.displayName} on Kiara Kraft. ${seller._count.products} products available.`;
 
@@ -118,14 +121,18 @@ export default async function ShopPage({
   params,
   searchParams,
 }: ShopPageProps) {
-  const page = Number(searchParams?.page || '1') || 1;
-  const seller = await getSellerByHandle(params.handle, page);
+  // Await both params and searchParams (required in Next.js 15+)
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
+  const page = Number(resolvedSearchParams?.page || '1') || 1;
+  const seller = await getSellerByHandle(resolvedParams.handle, page);
 
   if (!seller) {
     notFound();
   }
 
-  const isRTL = params.locale === 'fa';
+  const isRTL = resolvedParams.locale === 'fa';
   // Pagination calculations
   const hasNext = seller.products.length > PAGE_SIZE;
   const products = hasNext
@@ -282,7 +289,7 @@ export default async function ShopPage({
         <div className="flex justify-center gap-4 mt-10">
           {page > 1 && (
             <a
-              href={`/${params.locale}/shop/${seller.handle}?page=${page - 1}`}
+              href={`/${resolvedParams.locale}/shop/${seller.handle}?page=${page - 1}`}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
               {isRTL ? 'قبلی' : 'Previous'}
@@ -290,7 +297,7 @@ export default async function ShopPage({
           )}
           {hasNext && (
             <a
-              href={`/${params.locale}/shop/${seller.handle}?page=${page + 1}`}
+              href={`/${resolvedParams.locale}/shop/${seller.handle}?page=${page + 1}`}
               className="px-4 py-2 border rounded hover:bg-gray-50"
             >
               {isRTL ? 'بعدی' : 'Next'}
