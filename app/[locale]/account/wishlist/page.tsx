@@ -7,14 +7,15 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 interface WishlistPageProps {
-  params: {
+  params: Promise<{
     locale: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({
-  params: { locale },
+  params,
 }: WishlistPageProps): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'wishlist' });
 
   return {
@@ -23,9 +24,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function WishlistPage({
-  params: { locale },
-}: WishlistPageProps) {
+export default async function WishlistPage({ params }: WishlistPageProps) {
+  const { locale } = await params;
   const t = await getTranslations('wishlist');
   const wishlistItems = await getUserWishlist();
 

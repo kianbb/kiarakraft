@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 
 interface OrderDetailPageProps {
-  params: { locale: string; id: string };
+  params: Promise<{ locale: string; id: string }>;
 }
 
 async function getOrderById(orderId: string, userId: string) {
@@ -150,6 +150,7 @@ function getOrderTimeline(order: OrderWithDetails, t: (key: string) => string) {
 export default async function OrderDetailPage({
   params,
 }: OrderDetailPageProps) {
+  const { locale, id } = await params;
   const session = await auth();
 
   if (!session) {
@@ -157,8 +158,8 @@ export default async function OrderDetailPage({
   }
 
   const t = await getTranslations('orders');
-  const order = await getOrderById(params.id, session.user.id);
-  const isRTL = params.locale === 'fa';
+  const order = await getOrderById(id, session.user.id);
+  const isRTL = locale === 'fa';
 
   if (!order) {
     notFound();
@@ -176,7 +177,7 @@ export default async function OrderDetailPage({
       {/* Header */}
       <div className="mb-8">
         <Link
-          href={`/${params.locale}/account/orders`}
+          href={`/${locale}/account/orders`}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
@@ -257,7 +258,7 @@ export default async function OrderDetailPage({
                       <p className="text-sm text-gray-500 mt-1">
                         {formatDate(
                           event.date,
-                          params.locale === 'fa' ? 'fa-IR' : 'en-US'
+                          locale === 'fa' ? 'fa-IR' : 'en-US'
                         )}
                       </p>
                     </div>
@@ -288,7 +289,7 @@ export default async function OrderDetailPage({
 
                   <div className="flex-1">
                     <Link
-                      href={`/${params.locale}/product/${item.product.slug}`}
+                      href={`/${locale}/product/${item.product.slug}`}
                       className="font-medium hover:text-blue-600"
                     >
                       {item.product.title}
@@ -323,7 +324,7 @@ export default async function OrderDetailPage({
                       <p className="font-medium">
                         {formatPrice(
                           item.unitPriceToman * item.quantity,
-                          params.locale
+                          locale
                         )}
                       </p>
                     </div>
@@ -409,17 +410,17 @@ export default async function OrderDetailPage({
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">{t('subtotal')}:</span>
-                <span>{formatPrice(subtotal, params.locale)}</span>
+                <span>{formatPrice(subtotal, locale)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">{t('shipping')}:</span>
-                <span>{formatPrice(shippingCost, params.locale)}</span>
+                <span>{formatPrice(shippingCost, locale)}</span>
               </div>
               <div className="pt-3 border-t">
                 <div className="flex justify-between">
                   <span className="font-semibold">{t('total')}:</span>
                   <span className="font-semibold text-lg">
-                    {formatPrice(order.totalToman, params.locale)}
+                    {formatPrice(order.totalToman, locale)}
                   </span>
                 </div>
               </div>
@@ -451,9 +452,7 @@ export default async function OrderDetailPage({
           {/* Action Buttons */}
           <div className="space-y-2">
             {order.payment?.status === 'PAID' && (
-              <Link
-                href={`/${params.locale}/account/orders/${order.id}/return`}
-              >
+              <Link href={`/${locale}/account/orders/${order.id}/return`}>
                 <Button variant="outline" className="w-full">
                   <RotateCcw className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                   {t('requestReturn')}
@@ -461,9 +460,7 @@ export default async function OrderDetailPage({
               </Link>
             )}
             {order.status === 'DELIVERED' && (
-              <Link
-                href={`/${params.locale}/account/orders/${order.id}/review`}
-              >
+              <Link href={`/${locale}/account/orders/${order.id}/review`}>
                 <Button className="w-full">{t('leaveReview')}</Button>
               </Link>
             )}

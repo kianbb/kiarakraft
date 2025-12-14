@@ -4,13 +4,13 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Metadata } from 'next';
 
 interface ShippingPolicyPageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
 export async function generateMetadata({
   params,
 }: ShippingPolicyPageProps): Promise<Metadata> {
-  const { locale } = params;
+  const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'shipping' });
 
@@ -24,7 +24,7 @@ export async function generateMetadata({
 export default async function ShippingPolicyPage({
   params,
 }: ShippingPolicyPageProps) {
-  const { locale } = params;
+  const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'shipping' });
 
