@@ -51,7 +51,8 @@ export default function SellerDashboard() {
       const [statsRes, ordersRes, productsRes] = await Promise.all([
         fetch('/api/seller/stats', fetchOptions),
         fetch('/api/seller/orders?limit=5', fetchOptions),
-        fetch('/api/seller/products?limit=5', fetchOptions),
+        // Use /list endpoint to avoid 500 error from heavy imports in main route
+        fetch('/api/seller/products/list?limit=5', fetchOptions),
       ]);
 
       if (statsRes.ok) {
