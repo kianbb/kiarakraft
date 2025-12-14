@@ -1,24 +1,19 @@
-import DOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
+import sanitizeHtmlLib from 'sanitize-html';
 import { z } from 'zod';
-
-// Initialize DOMPurify for server-side use
-const window = new JSDOM('').window;
-const purify = DOMPurify(window);
 
 /**
  * Sanitize HTML content to prevent XSS attacks
+ * Uses sanitize-html which is CommonJS compatible (no jsdom dependency)
  */
 export function sanitizeHtml(html: string): string {
   if (!html || typeof html !== 'string') {
     return '';
   }
 
-  return purify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'div', 'span'],
-    ALLOWED_ATTR: [],
-    ALLOW_DATA_ATTR: false,
-    ALLOW_UNKNOWN_PROTOCOLS: false,
+  return sanitizeHtmlLib(html, {
+    allowedTags: ['b', 'i', 'em', 'strong', 'p', 'br', 'div', 'span'],
+    allowedAttributes: {},
+    disallowedTagsMode: 'discard',
   });
 }
 
