@@ -4,9 +4,9 @@ updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
+      interval: 'monthly'
       day: 'monday'
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     reviewers:
       - 'kian'
     assignees:
@@ -14,9 +14,33 @@ updates:
     commit-message:
       prefix: 'deps'
       include: 'scope'
+    # Ignore pre-release versions and major updates
+    ignore:
+      # Ignore all pre-release versions (alpha, beta, rc, canary, next, etc.)
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+      # Specifically ignore beta versions of common packages
+      - dependency-name: 'next-auth'
+        versions: ['*-beta*', '*-alpha*', '*-rc*', '*-canary*']
+      - dependency-name: 'next'
+        versions: ['*-canary*', '*-rc*']
+      # Ignore eslint-config-next major bumps (often requires config changes)
+      - dependency-name: 'eslint-config-next'
+        update-types: ['version-update:semver-major']
     groups:
-      # Group minor and patch updates for UI/styling packages
-      ui-minor-patch:
+      # Group all production dependencies (minor + patch only)
+      production-minor-patch:
+        dependency-type: 'production'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - 'next'
+          - 'react'
+          - 'react-dom'
+          - 'next-auth'
+      # Group UI/styling packages
+      ui:
         patterns:
           - '@radix-ui/*'
           - 'lucide-react'
@@ -27,7 +51,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      # Group all Prisma-related updates together
+      # Group Prisma-related updates
       prisma:
         patterns:
           - '@prisma/*'
@@ -35,26 +59,26 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-      # Group type definition updates
+      # Group type definitions
       types:
         patterns:
           - '@types/*'
         update-types:
           - 'minor'
           - 'patch'
-      # Group development dependencies
+      # Group all dev dependencies
       dev-dependencies:
         dependency-type: 'development'
         update-types:
           - 'minor'
           - 'patch'
 
-  # GitHub Actions
+  # GitHub Actions - update less frequently
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'monthly'
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     reviewers:
       - 'kian'
     assignees:
