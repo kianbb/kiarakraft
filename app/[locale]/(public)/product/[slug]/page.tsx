@@ -456,7 +456,7 @@ export default async function Page({ params }: { params: Params }) {
                           {tagsToDisplay.map((tag, index) => (
                             <Link
                               key={index}
-                              href={`/${locale}/explore?q=${encodeURIComponent(tag)}`}
+                              href={`/${locale}/explore?q=${encodeURIComponent(tag.replace(/_/g, ' '))}`}
                               className="inline-block"
                             >
                               <Badge
