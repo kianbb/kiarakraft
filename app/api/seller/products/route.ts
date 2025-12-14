@@ -16,7 +16,8 @@ import {
 import * as Sentry from '@sentry/nextjs';
 import crypto from 'crypto';
 import { withCSRF } from '@/lib/csrf';
-import { waitUntil } from '@vercel/functions';
+// Dynamic import to avoid loading issues with Next.js 16
+// import { waitUntil } from '@vercel/functions';
 import { getBilingualProgress } from '@/lib/progress-messages';
 
 export const runtime = 'nodejs';
@@ -937,6 +938,8 @@ export const POST = withRateLimit(
 
       // Always process assessment in background (with or without enhancement)
       // Use Vercel's waitUntil to keep the function alive after response
+      // Dynamic import to avoid loading issues with Next.js 16
+      const { waitUntil } = await import('@vercel/functions');
       waitUntil(
         processProductEnhancementAndAssessment({
           product,
