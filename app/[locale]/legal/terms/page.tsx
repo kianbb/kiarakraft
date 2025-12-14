@@ -3,10 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Scale } from 'lucide-react';
 
 interface TermsPageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
-export async function generateMetadata({ params: { locale } }: TermsPageProps) {
+export async function generateMetadata({ params }: TermsPageProps) {
+  const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'terms' });
 
   return {
@@ -16,9 +17,8 @@ export async function generateMetadata({ params: { locale } }: TermsPageProps) {
   };
 }
 
-export default async function TermsOfServicePage({
-  params: { locale },
-}: TermsPageProps) {
+export default async function TermsOfServicePage({ params }: TermsPageProps) {
+  const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'terms' });
 

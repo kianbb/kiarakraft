@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 
 interface OrdersPageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
 async function getUserOrders(userId: string) {
@@ -108,6 +108,7 @@ function getShippingStatus(
 }
 
 export default async function OrdersPage({ params }: OrdersPageProps) {
+  const { locale } = await params;
   const session = await auth();
 
   if (!session) {
@@ -116,7 +117,7 @@ export default async function OrdersPage({ params }: OrdersPageProps) {
 
   const t = await getTranslations('orders');
   const orders = await getUserOrders(session.user.id);
-  const isRTL = params.locale === 'fa';
+  const isRTL = locale === 'fa';
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -149,7 +150,7 @@ export default async function OrdersPage({ params }: OrdersPageProps) {
             return (
               <Link
                 key={order.id}
-                href={`/${params.locale}/account/orders/${order.id}`}
+                href={`/${locale}/account/orders/${order.id}`}
                 className="block"
               >
                 <div className="bg-white rounded-lg border p-6 hover:shadow-md transition-shadow cursor-pointer">
@@ -221,7 +222,7 @@ export default async function OrdersPage({ params }: OrdersPageProps) {
                     <div>
                       <p className="text-sm text-gray-500">{t('total')}</p>
                       <p className="text-lg font-semibold">
-                        {formatPrice(order.totalToman, params.locale)}
+                        {formatPrice(order.totalToman, locale)}
                       </p>
                     </div>
 

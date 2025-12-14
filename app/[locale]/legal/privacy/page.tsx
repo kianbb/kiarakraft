@@ -3,12 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Shield } from 'lucide-react';
 
 interface PrivacyPageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
-export async function generateMetadata({
-  params: { locale },
-}: PrivacyPageProps) {
+export async function generateMetadata({ params }: PrivacyPageProps) {
+  const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'privacy' });
 
   return {
@@ -18,9 +17,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function PrivacyPolicyPage({
-  params: { locale },
-}: PrivacyPageProps) {
+export default async function PrivacyPolicyPage({ params }: PrivacyPageProps) {
+  const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'privacy' });
 

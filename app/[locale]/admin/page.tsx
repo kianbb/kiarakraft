@@ -13,10 +13,11 @@ import {
 } from 'lucide-react';
 
 export default async function AdminDashboard({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const session = await auth();
   const t = await getTranslations('admin');
 
