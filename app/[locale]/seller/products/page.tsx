@@ -55,7 +55,11 @@ export default function SellerProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/seller/products');
+      // Use /list endpoint to avoid 500 error from heavy imports in main route
+      const response = await fetch('/api/seller/products/list', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
