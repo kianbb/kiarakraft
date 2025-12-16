@@ -40,7 +40,8 @@ export async function generateProductImageBuffer(params: {
   title: string;
   description: string;
   category?: ProductCategory;
-  size?: '512x512' | '1024x1024' | '2048x2048';
+  size?: '1024x1024' | '1536x1024' | '1024x1536' | 'auto';
+  quality?: 'auto' | 'high' | 'medium' | 'low';
   model?: string;
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_BETA;
@@ -50,6 +51,7 @@ export async function generateProductImageBuffer(params: {
   const prompt = buildPrompt(params.title, params.description, params.category);
   const endpoint = 'https://api.openai.com/v1/images/generations';
   const tryModel = async (model: string) => {
+    const isGptImage = model.startsWith('gpt-image');
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -61,6 +63,7 @@ export async function generateProductImageBuffer(params: {
         prompt,
         size: params.size || '1024x1024',
         n: 1,
+        ...(isGptImage && { quality: params.quality || 'high' }),
       }),
     });
     if (!resp.ok) {
@@ -89,7 +92,11 @@ export async function generateProductImageBuffer(params: {
   };
 
   const preferred =
-    params.model || process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+    params.model || process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1.5';
+
+  // Fallback chain: gpt-image-1.5 -> gpt-image-1 -> dall-e-3
+  const fallbackModels = ['gpt-image-1', 'dall-e-3'];
+
   try {
     return await tryModel(preferred);
   } catch (e: unknown) {
@@ -99,11 +106,22 @@ export async function generateProductImageBuffer(params: {
     } else if (e instanceof Error) {
       raw = String(e.message || '');
     }
+
+    // Check if model access is restricted
     const needsVerification =
-      /must be verified to use the model `gpt-image-1`/i.test(raw);
-    if (preferred === 'gpt-image-1' && needsVerification) {
-      // Fallback to dall-e-3 automatically
-      return await tryModel('dall-e-3');
+      /must be verified to use the model/i.test(raw) ||
+      /model.*not found/i.test(raw) ||
+      /invalid.*model/i.test(raw);
+
+    if (needsVerification && preferred.startsWith('gpt-image')) {
+      // Try fallback models in order
+      for (const fallback of fallbackModels) {
+        try {
+          return await tryModel(fallback);
+        } catch {
+          continue;
+        }
+      }
     }
     throw e;
   }
