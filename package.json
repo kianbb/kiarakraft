@@ -94,7 +94,7 @@
   },
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
-    "@types/jsdom": "^21.1.7",
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^24",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.2",
