@@ -56,7 +56,7 @@
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.4",
-    "@react-email/render": "^1.2.3",
+    "@react-email/render": "^2.0.0",
     "@sentry/nextjs": "^10.27.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node-fetch": "^2.6.13",
