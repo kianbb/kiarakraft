@@ -11,9 +11,8 @@ export async function register() {
 
     try {
       // Dynamic import to avoid build-time issues with crypto module
-      const { initializeSecurityConfig } = await import(
-        '@/lib/security-config'
-      );
+      const { initializeSecurityConfig } =
+        await import('@/lib/security-config');
 
       // Validate security configuration at startup
       initializeSecurityConfig();

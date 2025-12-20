@@ -2,8 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface LabelProps
-  extends React.LabelHTMLAttributes<HTMLLabelElement> {
+export interface LabelProps extends React.LabelHTMLAttributes<HTMLLabelElement> {
   // This interface extends LabelHTMLAttributes without adding additional props
 }
 

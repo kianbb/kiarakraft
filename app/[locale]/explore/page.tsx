@@ -171,9 +171,9 @@ export default async function ExplorePage({ params, searchParams }: PageProps) {
   const hasFilters = Boolean(
     (resolvedSearchParams.category &&
       resolvedSearchParams.category !== 'all') ||
-      resolvedSearchParams.minPrice ||
-      resolvedSearchParams.maxPrice ||
-      resolvedSearchParams.verified === 'true'
+    resolvedSearchParams.minPrice ||
+    resolvedSearchParams.maxPrice ||
+    resolvedSearchParams.verified === 'true'
   );
 
   return (
