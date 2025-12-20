@@ -300,9 +300,8 @@ async function processProductEnhancementAndAssessment({
       });
 
       // Dynamic import to avoid loading Sharp on GET requests
-      const { enhanceProductWithoutAI } = await import(
-        '@/lib/product-enhancement-noai'
-      );
+      const { enhanceProductWithoutAI } =
+        await import('@/lib/product-enhancement-noai');
       const enhancement = await enhanceProductWithoutAI({
         id: product.id,
         title: product.title,

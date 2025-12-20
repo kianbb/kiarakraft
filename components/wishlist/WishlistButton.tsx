@@ -125,8 +125,10 @@ export function WishlistButton({
 /**
  * Wrapper component that checks wishlist status server-side
  */
-interface WishlistButtonWrapperProps
-  extends Omit<WishlistButtonProps, 'initialIsInWishlist'> {
+interface WishlistButtonWrapperProps extends Omit<
+  WishlistButtonProps,
+  'initialIsInWishlist'
+> {
   productId: string;
 }
 
