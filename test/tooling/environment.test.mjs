@@ -73,6 +73,56 @@ test('CI rejects a remote test URL before launching any command', () => {
   );
 });
 
+test('nested CI launchers retain only the validated loopback test database', () => {
+  const databaseUrl = 'postgresql://user:pass@127.0.0.1:55439/kiarakraft_test';
+  let env = safeEnvironment({
+    kind: 'test',
+    nodeEnv: 'test',
+    source: {
+      CI: 'true',
+      KK_LOCAL_DB_PORT: '55439',
+      KK_TEST_DATABASE_URL: databaseUrl,
+      DATABASE_URL: 'remote-database-sentinel',
+      DIRECT_URL: 'remote-direct-sentinel',
+      OPENAI_API_KEY: 'test-provider-sentinel',
+    },
+    config: {},
+  });
+
+  // CI has no generated .env.local. Each real nested launcher sanitizes again.
+  for (let depth = 0; depth < 3; depth++) {
+    env = safeEnvironment({
+      kind: 'test',
+      nodeEnv: 'test',
+      source: env,
+      config: {},
+    });
+    assert.equal(env.CI, 'true');
+    assert.equal(env.DATABASE_URL, databaseUrl);
+    assert.equal(env.DIRECT_URL, databaseUrl);
+    assert.equal(env.KK_TEST_DATABASE_URL, databaseUrl);
+    assert.equal(env.KK_DATABASE_KIND, 'test');
+    assert.ok(!Object.values(env).includes('test-provider-sentinel'));
+    assert.ok(!Object.values(env).includes('remote-database-sentinel'));
+    assert.ok(!Object.values(env).includes('remote-direct-sentinel'));
+  }
+
+  // A sanitized parent is not a bypass: a changed child target is revalidated.
+  for (const value of [
+    databaseUrl.replace('127.0.0.1', 'remote.invalid'),
+    databaseUrl.replace('kiarakraft_test', 'kiarakraft_dev'),
+    databaseUrl + '?host=remote.invalid',
+  ]) {
+    assert.throws(() =>
+      safeEnvironment({
+        kind: 'test',
+        source: { ...env, KK_TEST_DATABASE_URL: value },
+        config: {},
+      })
+    );
+  }
+});
+
 test('Auth.js aliases use only the generated loopback host and local secret', () => {
   const inheritedSecret = randomBytes(32).toString('base64url');
   const env = safeEnvironment({

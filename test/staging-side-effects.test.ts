@@ -276,6 +276,32 @@ async function identityRoute(filename: string, env: Env) {
 }
 
 type Element = { type: unknown; props: Record<string, unknown> };
+
+function renderedElements(value: unknown): Element[] {
+  if (Array.isArray(value)) return value.flatMap(renderedElements);
+  if (!value || typeof value !== 'object') return [];
+  const element = value as Partial<Element>;
+  if (!('type' in element) || !element.props) return [];
+  return [element as Element, ...renderedElements(element.props.children)];
+}
+
+const renderingOrigin = 'https://layout.example.invalid';
+function renderedResourceUrls(elements: Element[]): URL[] {
+  return elements.flatMap(({ props }) => {
+    const references = ['src', 'href'].flatMap(name =>
+      typeof props[name] === 'string' ? [props[name] as string] : []
+    );
+    for (const name of ['srcSet', 'imageSrcSet']) {
+      if (typeof props[name] !== 'string') continue;
+      for (const candidate of (props[name] as string).split(',')) {
+        const reference = candidate.trim().split(/\s+/)[0];
+        if (reference) references.push(reference);
+      }
+    }
+    return references.map(reference => new URL(reference, renderingOrigin));
+  });
+}
+
 async function rendering(env: Env) {
   const jsx = (type: unknown, props: Record<string, unknown>) => ({
     type,
@@ -319,7 +345,7 @@ async function rendering(env: Env) {
   };
   const tree = await layout.default(props);
   const metadata = await layout.generateMetadata(props);
-  const serialized = JSON.stringify(tree);
+  const elements = renderedElements(tree);
   const robot = load<{
     default: () => { rules: { disallow?: string; allow?: string } };
   }>('app/robots.ts', env, {}).default();
@@ -340,7 +366,8 @@ async function rendering(env: Env) {
   }).default;
   const headers = await config.headers();
   return {
-    serialized,
+    elementTypes: new Set(elements.map(element => element.type)),
+    resourceUrls: renderedResourceUrls(elements),
     metadata,
     robot,
     config,
@@ -465,12 +492,11 @@ async function run() {
       );
     }
     const page = await rendering(env);
+    assert.equal(page.elementTypes.has('TelemetrySpeed'), false);
+    assert.equal(page.elementTypes.has('TelemetryAnalytics'), false);
     assert.ok(
-      !page.serialized.includes('TelemetrySpeed') &&
-        !page.serialized.includes('TelemetryAnalytics') &&
-        !page.serialized.includes('https://plausible.io') &&
-        !page.serialized.includes('https://res.cloudinary.com') &&
-        !page.serialized.includes('https://images.unsplash.com')
+      page.resourceUrls.every(url => url.origin === renderingOrigin),
+      'Staging renders no external resource URLs or connection hints'
     );
     assert.equal(page.metadata.robots.index, false);
     assert.equal(page.metadata.robots.follow, false);
@@ -579,10 +605,25 @@ async function run() {
   );
   assert.equal(normalPush.calls.push, 1);
   const normalPage = await rendering({ ...accidentalKeys });
+  assert.equal(normalPage.elementTypes.has('TelemetrySpeed'), true);
+  assert.equal(normalPage.elementTypes.has('TelemetryAnalytics'), true);
   assert.ok(
-    normalPage.serialized.includes('TelemetrySpeed') &&
-      normalPage.serialized.includes('TelemetryAnalytics') &&
-      normalPage.serialized.includes('https://plausible.io')
+    normalPage.resourceUrls.some(
+      url => url.href === 'https://plausible.io/js/script.js'
+    ),
+    'Ordinary rendering retains the exact analytics script URL'
+  );
+  assert.deepEqual(
+    new Set(
+      normalPage.resourceUrls
+        .filter(url => url.origin !== renderingOrigin)
+        .map(url => url.origin)
+    ),
+    new Set([
+      'https://plausible.io',
+      'https://res.cloudinary.com',
+      'https://images.unsplash.com',
+    ])
   );
   assert.equal(normalPage.metadata.robots.index, true);
   assert.equal(normalPage.noindex, false);

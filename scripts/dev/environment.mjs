@@ -160,6 +160,9 @@ export function safeEnvironment({
   env.AUTH_URL = env.NEXTAUTH_URL;
   env.AUTH_SECRET = env.NEXTAUTH_SECRET;
   if (source.CI) env.CI = 'true';
+  // Nested CI launchers have no generated local config. Carry forward only
+  // the explicit test target already checked above; children validate it again.
+  if (ciTestUrl) env.KK_TEST_DATABASE_URL = env.DATABASE_URL;
   if (source.NEXT_URL) {
     const url = new URL(source.NEXT_URL);
     if (
