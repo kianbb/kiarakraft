@@ -3,8 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { Truck, Zap, Package } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { SHIPPING_PRICES, type ShippingMethod } from '@/lib/shipping';
 
-export type ShippingMethod = 'STANDARD' | 'EXPRESS' | 'PICKUP';
+export type { ShippingMethod } from '@/lib/shipping';
 
 interface ShippingOption {
   id: ShippingMethod;
@@ -31,7 +32,7 @@ export function ShippingMethodSelector({
       id: 'STANDARD',
       name: t('standardShipping'),
       description: t('standardShippingDesc'),
-      price: 50000, // 50,000 Toman
+      price: SHIPPING_PRICES.STANDARD,
       icon: <Package className="h-5 w-5" />,
       estimatedDays: t('standardDays'),
     },
@@ -39,7 +40,7 @@ export function ShippingMethodSelector({
       id: 'EXPRESS',
       name: t('expressShipping'),
       description: t('expressShippingDesc'),
-      price: 120000, // 120,000 Toman
+      price: SHIPPING_PRICES.EXPRESS,
       icon: <Zap className="h-5 w-5" />,
       estimatedDays: t('expressDays'),
     },
@@ -47,7 +48,7 @@ export function ShippingMethodSelector({
       id: 'PICKUP',
       name: t('pickup'),
       description: t('pickupDesc'),
-      price: 0, // Free
+      price: SHIPPING_PRICES.PICKUP,
       icon: <Truck className="h-5 w-5" />,
       estimatedDays: t('pickupDays'),
     },

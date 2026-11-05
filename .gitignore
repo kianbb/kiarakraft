@@ -52,4 +52,7 @@ temp.txt
 
 # Security - demo credentials from production seed
 .demo-credentials.txt
+.local/
+.worktrees/
 #
+/prisma/dev.db

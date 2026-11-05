@@ -16,8 +16,9 @@ export const PATCH = withRateLimit(
   adminRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params: routeParams }: { params: Promise<{ id: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
       if (!session?.user?.email || session.user.role !== 'ADMIN') {

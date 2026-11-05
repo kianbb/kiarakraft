@@ -68,7 +68,14 @@ export const POST = withRateLimit(
         where: { orderId },
         include: {
           product: {
-            select: { id: true, title: true, stock: true, active: true },
+            select: {
+              id: true,
+              title: true,
+              stock: true,
+              active: true,
+              isTest: true,
+              eligibilityStatus: true,
+            },
           },
         },
       });
@@ -81,6 +88,8 @@ export const POST = withRateLimit(
             title: it.product?.title || 'Unknown',
             stock: it.product?.stock ?? 0,
             active: it.product?.active ?? false,
+            isTest: it.product?.isTest ?? true,
+            eligibilityStatus: it.product?.eligibilityStatus ?? 'PENDING',
           },
         }))
       );

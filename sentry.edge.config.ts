@@ -1,30 +1,32 @@
 import * as Sentry from '@sentry/nextjs';
+import { isStagingDeployment } from './lib/deployment-policy';
 
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.SENTRY_ENVIRONMENT || 'development',
+if (!isStagingDeployment())
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.SENTRY_ENVIRONMENT || 'development',
 
-  // Performance Monitoring for Edge Runtime
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.05 : 1.0,
+    // Performance Monitoring for Edge Runtime
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.05 : 1.0,
 
-  // Edge-specific configuration
-  debug: process.env.NODE_ENV === 'development',
+    // Edge-specific configuration
+    debug: process.env.NODE_ENV === 'development',
 
-  // Enhanced context for edge runtime
-  initialScope: {
-    tags: {
-      component: 'edge',
-      runtime: 'edge',
+    // Enhanced context for edge runtime
+    initialScope: {
+      tags: {
+        component: 'edge',
+        runtime: 'edge',
+      },
     },
-  },
 
-  beforeSend(event, hint) {
-    // Add edge-specific context
-    event.tags = {
-      ...event.tags,
-      runtime: 'edge',
-    };
+    beforeSend(event) {
+      // Add edge-specific context
+      event.tags = {
+        ...event.tags,
+        runtime: 'edge',
+      };
 
-    return event;
-  },
-});
+      return event;
+    },
+  });

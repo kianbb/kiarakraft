@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { seedProduction } from '@/prisma/seed-production';
 import { auth } from '@/lib/auth';
 import crypto from 'crypto';
+import { isStagingDeployment } from '@/lib/deployment-policy';
 
 // This endpoint should ONLY exist in development
 // In production, seeding should be done via direct database access
 export async function POST(request: NextRequest) {
+  if (isStagingDeployment())
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   try {
     // SECURITY: Multiple layers of protection
     const isDevelopment = process.env.NODE_ENV === 'development';
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
     console.log(`🌱 Seed request from IP: ${clientIP}`);
 
     console.log('🌱 Starting production seed via API...');
+    const { seedProduction } = await import('@/prisma/seed-production');
     const result = await seedProduction();
 
     return NextResponse.json({

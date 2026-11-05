@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import fetch from 'node-fetch';
 import { validateURL } from './url-validator';
+import { isStagingDeployment } from './deployment-policy';
 
 /**
  * Resize image to 1024x1024 maintaining aspect ratio with padding if needed
@@ -10,6 +11,7 @@ import { validateURL } from './url-validator';
 export async function resizeImageTo1024(
   imageUrl: string
 ): Promise<string | null> {
+  if (isStagingDeployment()) return null;
   try {
     console.log('📐 Resizing image to 1024x1024...');
 
@@ -116,6 +118,7 @@ export async function resizeImageBufferTo1024(
  * @returns Image metadata including dimensions
  */
 export async function getImageMetadata(imageUrl: string) {
+  if (isStagingDeployment()) return null;
   try {
     // SECURITY: Validate URL to prevent SSRF attacks
     const validation = await validateURL(imageUrl);

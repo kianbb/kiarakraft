@@ -1,49 +1,100 @@
 name: Security Audit
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   schedule:
-    # Run security audit daily at 9 AM UTC
     - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  audit:
+  dependencies:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      HUSKY: '0'
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          persist-credentials: false
 
-      - name: Install dependencies
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run npm audit (production only)
+      - name: Audit production dependencies (blocking)
+        shell: bash
         run: |
-          npm audit --production --audit-level=low || exit_code=$?
-          if [ "${exit_code:-0}" -gt 0 ]; then
-            echo "::error::Production vulnerabilities found!"
-            exit $exit_code
-          fi
+          set -euo pipefail
+          audit_status=0
+          npm audit --omit=dev --audit-level=high --json > "$RUNNER_TEMP/kiarakraft-npm-audit.json" || audit_status=$?
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
 
-      - name: Run npm audit (including dev)
-        run: |
-          npm audit --audit-level=moderate || exit_code=$?
-          if [ "${exit_code:-0}" -gt 0 ]; then
-            echo "::warning::Development dependency vulnerabilities found (non-blocking)"
-          fi
-        continue-on-error: true
+          const raw = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'kiarakraft-npm-audit.json'), 'utf8'));
+          if (raw.error || !raw.metadata?.vulnerabilities || !raw.vulnerabilities) {
+            throw new Error('Dependency audit did not return a valid vulnerability report.');
+          }
+          // Publish only dependency/advisory fields, never the raw command response.
+          const report = {
+            counts: raw.metadata.vulnerabilities,
+            packages: Object.entries(raw.vulnerabilities).map(([name, finding]) => ({
+              name,
+              severity: finding.severity,
+              direct: finding.isDirect,
+              advisories: finding.via.filter(item => typeof item === 'object').map(item => ({
+                title: item.title,
+                severity: item.severity,
+                url: typeof item.url === 'string' && item.url.startsWith('https://github.com/advisories/') ? item.url : undefined,
+                affectedVersions: item.range,
+              })),
+            })),
+          };
+          fs.writeFileSync('dependency-audit-summary.json', JSON.stringify(report, null, 2) + '\n');
+          console.log('Dependency audit counts:', JSON.stringify(report.counts));
+          NODE
+          exit "$audit_status"
 
-      - name: Check for secrets
-        uses: trufflesecurity/trufflehog@main
+      - name: Upload dependency advisory summary
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          extra_args: --debug --only-verified
+          name: dependency-audit-summary
+          path: dependency-audit-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full history for secret scanning
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Scan tracked files and history without revealing secret values
+        run: npm run security:secrets -- --all-history

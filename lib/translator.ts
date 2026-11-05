@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { translateText as translateAzureText } from './azure-translator';
 
 type Provider = 'azure' | 'deepl' | 'openai' | 'mock';
 
@@ -28,7 +29,8 @@ export async function translateText(
   const cached = cache.get(key);
   if (cached) return cached;
 
-  // Simple in-memory daily budget guard (resets on cold start; use persistent store in prod)
+  // Additional process-local character throttle; durable spending reservations
+  // are enforced inside the shared Azure adapter before every network request.
   if (text.length + dailyCount > DAILY_CHAR_LIMIT) {
     return text; // refuse translation beyond budget
   }
@@ -36,40 +38,17 @@ export async function translateText(
   let translated = text;
 
   if (PROVIDER === 'azure') {
-    const endpoint = process.env.AZURE_TRANSLATOR_ENDPOINT;
-    const apiKey = process.env.AZURE_TRANSLATOR_KEY;
-    const region = process.env.AZURE_TRANSLATOR_REGION; // Optional for Translator (single-service)
-    if (!endpoint || !apiKey) {
-      // Fallback: return original text if not configured
-      return text;
-    }
-    const url = `${endpoint}/translate?api-version=3.0&from=${from}&to=${to}`;
-    const headers: Record<string, string> = {
-      'Ocp-Apim-Subscription-Key': apiKey,
-      'Content-Type': 'application/json',
-    };
-    if (region) {
-      // Required for Azure AI services (multi-service) or regional endpoints
-      headers['Ocp-Apim-Subscription-Region'] = region;
-    }
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify([{ Text: text }]),
-    });
-    if (resp.ok) {
-      const data = await resp.json();
-      translated = data?.[0]?.translations?.[0]?.text ?? text;
-    } else {
-      // On failure, return original text
-      translated = text;
-    }
+    translated = await translateAzureText(text, to, from);
   } else if (PROVIDER === 'mock') {
     translated = text; // no-op for local dev
   } else {
     // Other providers can be added later
     translated = text;
   }
+
+  // Never cache a fallback as a successful translation; it must be retryable
+  // after a budget/provider outage. Source text can legitimately be unchanged.
+  if (translated === text) return text;
 
   // Basic cache with size cap
   cache.set(key, translated);

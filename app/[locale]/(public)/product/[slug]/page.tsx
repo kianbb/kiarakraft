@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/db';
+import { publicProductWhere, publicProductSelect } from '@/lib/public-product';
 import { translateProductFields } from '@/lib/translator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +30,7 @@ export async function generateStaticParams() {
 
   try {
     const products = await db.product.findMany({
-      where: { active: true, isTest: false },
+      where: publicProductWhere,
       select: { slug: true },
     });
     const locales: Array<'fa' | 'en'> = ['fa', 'en'];
@@ -55,7 +56,7 @@ export async function generateMetadata({
 
   const [p, tProduct, tHome] = await Promise.all([
     db.product.findFirst({
-      where: { slug, isTest: false },
+      where: { slug, ...publicProductWhere },
       select: {
         title: true,
         description: true,
@@ -123,19 +124,12 @@ export default async function Page({ params }: { params: Params }) {
 
   // Fetch the product directly - let the actual query determine if it exists
   const product = await db.product.findFirst({
-    where: { slug, isTest: false },
-    include: {
-      images: {
-        orderBy: { sortOrder: 'asc' },
-      },
-      seller: true,
-      category: true,
-      reviews: true,
-    },
+    where: { slug, ...publicProductWhere },
+    select: publicProductSelect,
   });
 
   // Return 404 if product doesn't exist, is inactive, or is a test product
-  if (!product || !product.active || product.isTest) {
+  if (!product) {
     notFound();
   }
 
@@ -475,7 +469,9 @@ export default async function Page({ params }: { params: Params }) {
                 {/* Purchase Section */}
                 {product.stock > 0 && (
                   <div className="border-t pt-6 space-y-4">
-                    <AddToCartButton product={product} />
+                    <AddToCartButton
+                      product={{ id: product.id, stock: product.stock }}
+                    />
 
                     <div className="flex gap-3">
                       <div className="flex-1">

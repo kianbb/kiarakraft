@@ -17,8 +17,9 @@ export const PATCH = withRateLimit(
   sellerRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params: routeParams }: { params: Promise<{ id: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
 
@@ -29,9 +30,16 @@ export const PATCH = withRateLimit(
 
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
+        select: { sellerProfile: { select: { id: true } } },
       });
       if (!user) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      if (!user.sellerProfile) {
+        return NextResponse.json(
+          { error: 'Seller profile required' },
+          { status: 403 }
+        );
       }
 
       const { id } = params;
@@ -59,7 +67,7 @@ export const PATCH = withRateLimit(
       // Determine if this is a single-seller order and that seller is the current user
       const sellerIds = new Set(order.items.map(it => it.product.sellerId));
 
-      if (sellerIds.size !== 1 || !sellerIds.has(user.id)) {
+      if (sellerIds.size !== 1 || !sellerIds.has(user.sellerProfile.id)) {
         return NextResponse.json(
           {
             error:
@@ -82,12 +90,23 @@ export const PATCH = withRateLimit(
       }
 
       const updated = await prisma.order.update({
-        where: { id },
+        where: { id, status: order.status },
         data: { status: nextStatus },
       });
 
       return NextResponse.json(updated);
     } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2025'
+      ) {
+        return NextResponse.json(
+          { error: 'Order status changed; refresh and retry' },
+          { status: 409 }
+        );
+      }
       console.error('Error updating order status (seller):', error);
       Sentry.captureException(error);
       return NextResponse.json(

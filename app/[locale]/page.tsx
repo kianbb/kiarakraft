@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Metadata } from 'next';
 import { searchProducts } from '@/lib/search';
-import { CATEGORY_IMAGE_FALLBACKS } from '@/lib/assets';
+import { CATEGORY_IMAGE_FALLBACKS, HERO_IMAGE } from '@/lib/assets';
 import { prisma } from '@/lib/prisma';
 import {
   OrganizationJsonLd,
@@ -213,7 +213,7 @@ export default async function Home({
           {/* Background Image */}
           <div className="absolute inset-0 -z-10">
             <Image
-              src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80"
+              src={HERO_IMAGE}
               alt=""
               fill
               className="object-cover opacity-5"

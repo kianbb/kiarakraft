@@ -5,10 +5,16 @@ import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
 import { createHash } from 'crypto';
 import * as Sentry from '@sentry/nextjs';
+import { isStagingDeployment } from '@/lib/deployment-policy';
 
 export const POST = withRateLimit(
   authRateLimit,
   withCSRF(async function (request: NextRequest) {
+    if (isStagingDeployment())
+      return NextResponse.json(
+        { error: 'Identity collection is disabled in staging' },
+        { status: 403 }
+      );
     try {
       const session = await auth();
 

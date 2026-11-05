@@ -10,8 +10,9 @@ const updateStatusSchema = z.object({
 
 export const PATCH = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'ADMIN') {

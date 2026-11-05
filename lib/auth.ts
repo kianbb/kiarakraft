@@ -8,42 +8,19 @@ import {
   getClientIP,
   validateEmail,
 } from '@/lib/auth-security';
-import { authConfig } from '@/lib/auth-config';
-import { isSessionValid } from '@/lib/session-manager';
+import {
+  authConfig,
+  createVerifiedJwtCallback,
+  sessionUserSelect,
+} from '@/lib/auth-config';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   callbacks: {
     ...(authConfig.callbacks || {}),
-    async session(ctx) {
-      // First apply the base session mapping from shared authConfig
-      const baseSession = authConfig.callbacks?.session
-        ? await authConfig.callbacks.session(ctx)
-        : ctx.session;
-
-      try {
-        // Type-safe token access
-        const contextWithToken = ctx as {
-          token?: { sub?: string; iat?: number };
-        };
-        const token = contextWithToken.token;
-        const sub = token?.sub;
-        const iat = token?.iat;
-
-        if (sub && iat) {
-          const valid = await isSessionValid(sub, iat);
-          if (!valid) {
-            // Invalidate by clearing user to force auth checks to fail
-            return { ...baseSession, user: undefined };
-          }
-        }
-      } catch {
-        // Fail closed on errors: treat as invalid
-        return { ...baseSession, user: undefined };
-      }
-
-      return baseSession;
-    },
+    jwt: createVerifiedJwtCallback(id =>
+      prisma.user.findUnique({ where: { id }, select: sessionUserSelect })
+    ),
   },
   providers: [
     CredentialsProvider({
@@ -92,9 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: {
             email: email,
           },
-          include: {
-            sellerProfile: true,
-          },
+          select: { ...sessionUserSelect, password: true },
         });
 
         if (!user) {
@@ -122,6 +97,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           image: user.image,
           sellerProfile: user.sellerProfile,
+          // Capture the credential version from the same snapshot whose
+          // password was verified, so a concurrent password change is denied.
+          authVersion: user.passwordChangedAt?.getTime() ?? 0,
         };
       },
     }),

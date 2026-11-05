@@ -1,6 +1,10 @@
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { ReactElement } from 'react';
+import {
+  assertProviderAllowed,
+  isStagingDeployment,
+} from './deployment-policy';
 
 // Email configuration
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -21,11 +25,15 @@ const SMTP_CONFIG = {
 };
 
 // Initialize Resend client if API key is available
-const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+const resend =
+  !isStagingDeployment() && RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 // Initialize SMTP transporter as fallback
 const smtpTransporter =
-  SMTP_CONFIG.host && SMTP_CONFIG.auth.user && SMTP_CONFIG.auth.pass
+  !isStagingDeployment() &&
+  SMTP_CONFIG.host &&
+  SMTP_CONFIG.auth.user &&
+  SMTP_CONFIG.auth.pass
     ? nodemailer.createTransport(SMTP_CONFIG)
     : null;
 
@@ -49,6 +57,7 @@ export interface EmailResult {
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
+    assertProviderAllowed('email');
     const { to, subject, html, text, react } = options;
 
     // Convert React component to HTML if provided

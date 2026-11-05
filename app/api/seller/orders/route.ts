@@ -12,10 +12,17 @@ export async function GET(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      select: { sellerProfile: { select: { id: true } } },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (!user.sellerProfile) {
+      return NextResponse.json(
+        { error: 'Seller profile required' },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -29,19 +36,19 @@ export async function GET(request: NextRequest) {
         items: {
           some: {
             product: {
-              sellerId: user.id,
+              sellerId: user.sellerProfile.id,
             },
           },
         },
       },
       include: {
-        user: true,
+        user: { select: { id: true, name: true, email: true } },
         address: true,
         shipping: true,
         items: {
           where: {
             product: {
-              sellerId: user.id,
+              sellerId: user.sellerProfile.id,
             },
           },
           include: {

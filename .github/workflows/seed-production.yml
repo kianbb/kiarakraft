@@ -23,18 +23,20 @@ jobs:
 
     steps:
       - name: Validate confirmation
+        env:
+          SEED_CONFIRMATION: ${{ inputs.confirm }}
         run: |
-          if [ "${{ inputs.confirm }}" != "SEED" ]; then
+          if [ "$SEED_CONFIRMATION" != "SEED" ]; then
             echo "❌ Confirmation required: Type 'SEED' to proceed"
             exit 1
           fi
           echo "✅ Confirmation validated"
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -50,11 +52,10 @@ jobs:
 
       - name: Check database connection
         run: |
-          echo "SELECT 1;" | npx prisma db execute --stdin || echo "Database connection failed"
+          echo "SELECT 1;" | npx prisma db execute --stdin
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DIRECT_URL }}
-        continue-on-error: true
 
       - name: Run production seed
         run: npm run db:seed:production
@@ -74,4 +75,3 @@ jobs:
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DIRECT_URL }}
-        continue-on-error: true

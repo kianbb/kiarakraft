@@ -4,6 +4,7 @@
  */
 
 import { prisma } from './prisma';
+import { withinBcryptLimit } from './password-reset';
 
 // Configuration constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -22,6 +23,10 @@ export function validatePasswordComplexity(password: string): {
 
   if (password.length < 8) {
     errors.push('Password must be at least 8 characters long');
+  }
+
+  if (!withinBcryptLimit(password)) {
+    errors.push('Password must not exceed 72 UTF-8 bytes');
   }
 
   if (!/[a-z]/.test(password)) {
