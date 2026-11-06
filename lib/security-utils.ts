@@ -1,14 +1,12 @@
-import { prisma } from '@/lib/prisma';
+import { AIBudgetError, reserveAICall } from '@/lib/ai-budget';
 import { URL } from 'url';
 import * as Sentry from '@sentry/nextjs';
 import sanitizeHtml from 'sanitize-html';
 
-// Maximum costs per month in USD
-const MAX_MONTHLY_AI_COST = 100;
 const MAX_IMAGE_SIZE_MB = 10;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
-// AI API Cost estimates (in USD)
+// Legacy cost estimates, not invoice-safe prices or authorization limits.
 export const AI_COSTS = {
   GPT5_MINI_INPUT: 0.00025, // per 1K tokens ($0.25 per 1M tokens)
   GPT5_MINI_OUTPUT: 0.002, // per 1K tokens ($2.00 per 1M tokens)
@@ -145,69 +143,29 @@ export async function trackAIUsage(
   estimatedCost: number
 ): Promise<{ allowed: boolean; monthlyTotal: number; limit: number }> {
   try {
-    // Create AI usage entry
-    await prisma.aIUsage.create({
-      data: {
-        userId,
-        service,
-        cost: estimatedCost,
-        timestamp: new Date(),
-      },
-    });
-
-    // Calculate monthly usage
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const monthlyUsage = await prisma.aIUsage.aggregate({
-      where: {
-        userId,
-        timestamp: {
-          gte: startOfMonth,
-        },
-      },
-      _sum: {
-        cost: true,
-      },
-    });
-
-    const monthlyTotal = monthlyUsage._sum.cost || 0;
-
-    // Check if within limits
-    if (monthlyTotal > MAX_MONTHLY_AI_COST) {
-      // Log to Sentry for monitoring
-      Sentry.captureMessage('AI usage limit exceeded', {
-        level: 'warning',
-        extra: {
-          userId,
-          monthlyTotal,
-          limit: MAX_MONTHLY_AI_COST,
-        },
-      });
-
-      return {
-        allowed: false,
-        monthlyTotal,
-        limit: MAX_MONTHLY_AI_COST,
-      };
+    if (service !== 'GPT5_MINI' && service !== 'GPT_IMAGE_1') {
+      throw new AIBudgetError('INVALID_INPUT', 'Unknown AI usage service');
     }
-
+    const reservation = await reserveAICall({
+      userId,
+      purpose: 'legacy-usage',
+      kind: service === 'GPT5_MINI' ? 'text' : 'image',
+      estimatedUsd: estimatedCost,
+    });
     return {
       allowed: true,
-      monthlyTotal,
-      limit: MAX_MONTHLY_AI_COST,
+      monthlyTotal: reservation.userMonthlyReservedUsd,
+      limit: reservation.userLimitUsd,
     };
   } catch (error) {
     // SECURITY: Fail closed - deny expensive AI operations if tracking fails
     // This prevents attackers from bypassing cost limits by disrupting the database
-    console.error('Failed to track AI usage:', error);
-    Sentry.captureException(error);
+    if (!(error instanceof AIBudgetError)) Sentry.captureException(error);
 
     return {
       allowed: false,
       monthlyTotal: 0,
-      limit: MAX_MONTHLY_AI_COST,
+      limit: 0,
     };
   }
 }
@@ -219,6 +177,17 @@ export function estimateGPT5MiniCost(
   inputTokens: number,
   outputTokens: number
 ): number {
+  if (
+    !Number.isSafeInteger(inputTokens) ||
+    inputTokens < 0 ||
+    !Number.isSafeInteger(outputTokens) ||
+    outputTokens < 0
+  ) {
+    throw new AIBudgetError(
+      'INVALID_INPUT',
+      'AI token counts must be non-negative safe integers'
+    );
+  }
   const inputCost = (inputTokens / 1000) * AI_COSTS.GPT5_MINI_INPUT;
   const outputCost = (outputTokens / 1000) * AI_COSTS.GPT5_MINI_OUTPUT;
   return inputCost + outputCost;

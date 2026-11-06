@@ -6,6 +6,7 @@ import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 import { parseOrderId } from '@/lib/validation';
 import { sendNotification } from '@/lib/notifications';
+import { decrementOrderableStock } from '@/lib/orderStock';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,13 +84,7 @@ export const POST = withRateLimit(
           const items = await tx.orderItem.findMany({
             where: { orderId: payment.orderId },
           });
-          for (const item of items) {
-            const updated: unknown =
-              await tx.$executeRaw`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`;
-            if (Number(updated) === 0) {
-              throw new Error('Insufficient stock while finalizing order');
-            }
-          }
+          await decrementOrderableStock(tx, items);
         },
         { isolationLevel: 'Serializable' }
       );

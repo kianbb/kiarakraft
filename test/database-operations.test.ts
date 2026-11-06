@@ -4,6 +4,7 @@
  * Verify that new database schema changes work correctly
  */
 
+import '../scripts/dev/guard-test.mjs';
 import { prisma } from '../lib/prisma';
 
 console.log('🗄️  Testing Database Operations...\n');

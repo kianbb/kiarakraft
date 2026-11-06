@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { publicProductSelect } from '@/lib/public-product';
 import { validateCSRF } from '@/lib/csrf';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // CSRF validation
   if (!validateCSRF(request)) {
@@ -15,6 +16,13 @@ export async function PUT(
     );
   }
   try {
+    const { id } = await params;
+    if (typeof id !== 'string' || !id.trim()) {
+      return NextResponse.json(
+        { error: 'Cart item not found' },
+        { status: 404 }
+      );
+    }
     const session = await auth();
 
     if (!session?.user?.email) {
@@ -33,7 +41,7 @@ export async function PUT(
 
     const cartItem = await prisma.cartItem.findFirst({
       where: {
-        id: params.id,
+        id,
         cart: { userId: user.id },
       },
       include: {
@@ -50,7 +58,7 @@ export async function PUT(
     }
 
     if (quantity <= 0) {
-      await prisma.cartItem.delete({ where: { id: params.id } });
+      await prisma.cartItem.delete({ where: { id } });
       return NextResponse.json({ message: 'Item removed from cart' });
     }
 
@@ -62,14 +70,11 @@ export async function PUT(
     }
 
     const updatedItem = await prisma.cartItem.update({
-      where: { id: params.id },
+      where: { id },
       data: { quantity },
       include: {
         product: {
-          include: {
-            seller: true,
-            images: true,
-          },
+          select: publicProductSelect,
         },
       },
     });
@@ -86,7 +91,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // CSRF validation
   if (!validateCSRF(request)) {
@@ -96,6 +101,13 @@ export async function DELETE(
     );
   }
   try {
+    const { id } = await params;
+    if (typeof id !== 'string' || !id.trim()) {
+      return NextResponse.json(
+        { error: 'Cart item not found' },
+        { status: 404 }
+      );
+    }
     const session = await auth();
 
     if (!session?.user?.email) {
@@ -112,7 +124,7 @@ export async function DELETE(
 
     await prisma.cartItem.deleteMany({
       where: {
-        id: params.id,
+        id,
         cart: { userId: user.id },
       },
     });

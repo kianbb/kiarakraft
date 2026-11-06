@@ -1,8 +1,10 @@
+import { isStagingDeployment } from './deployment-policy';
+
 // Centralized, curated image fallbacks for categories and any other assets.
 // Prefer Cloudinary assets if you've uploaded them to the following paths.
 // If not available, we point to stable Unsplash images that match the category.
 
-export const CATEGORY_IMAGE_FALLBACKS: Record<string, string> = {
+const publicCategoryImages: Record<string, string> = {
   // These are public, version-pinned Cloudinary URLs to ensure cache-busting on deploys
   // and to avoid relying on runtime env in static generation.
   ceramics:
@@ -16,3 +18,17 @@ export const CATEGORY_IMAGE_FALLBACKS: Record<string, string> = {
   painting:
     'https://res.cloudinary.com/dyakwocvr/image/upload/v1755723044/kiarakraft/categories/painting.png',
 };
+
+// Staging uses bundled artwork; it never needs the production image account.
+export const CATEGORY_IMAGE_FALLBACKS: Record<string, string> =
+  isStagingDeployment()
+    ? Object.fromEntries(
+        Object.keys(publicCategoryImages).map(key => [
+          key,
+          '/kk-logo-original.png',
+        ])
+      )
+    : publicCategoryImages;
+export const HERO_IMAGE = isStagingDeployment()
+  ? '/kk-logo-original.png'
+  : 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80';

@@ -10,10 +10,16 @@ import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
 import { validateFile, performSecurityChecks } from '@/lib/file-validation';
 import * as Sentry from '@sentry/nextjs';
+import { isStagingDeployment } from '@/lib/deployment-policy';
 
 export const POST = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (request: NextRequest) {
+    if (isStagingDeployment())
+      return NextResponse.json(
+        { error: 'Identity document collection is disabled in staging' },
+        { status: 403 }
+      );
     try {
       const session = await auth();
 

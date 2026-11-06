@@ -1,95 +1,25 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+Kiara Kraft is prelaunch software. Security controls, tests and dependency scans provide evidence for their covered behavior; they do not certify a deployment or guarantee that vulnerabilities are absent.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| Latest  | :white_check_mark: |
+## Reporting
 
-## Security Measures
+Report suspected vulnerabilities through [GitHub private vulnerability reporting](https://github.com/kianbb/kiarakraft/security/advisories/new). This reporting channel is enabled for this repository. Do not post exploit instructions, credentials or personal information in public issues, pull requests or build artifacts.
 
-### Authentication
+Include the affected revision, expected and observed behavior, impact, and a minimal reproduction using synthetic data. Redact tokens and private records. Test hosted systems only with explicit authorization, and avoid accessing other users' information or causing disruption.
 
-- Password hashing with bcryptjs
-- Rate limiting: 5 login attempts before 15-minute lockout
-- IP-based rate limiting: 10 attempts per minute
-- JWT session tokens with 24-hour expiration
-- Strong password requirements enforced
+Maintainers should acknowledge and triage reports privately, agree on a remediation/disclosure plan, and keep sensitive evidence restricted. This policy does not promise a response deadline or authorize testing beyond an agreed scope.
 
-### Data Protection
+## Contributor expectations
 
-- Environment variables for sensitive configuration
-- Database connection pooling with SSL
-- CSRF protection enabled
-- XSS protection via Content Security Policy
+Use the isolated workflow in [development](docs/development.md). Keep hosted credentials and real personal information out of development workers and tests. Never print secret values or matching secret lines; provide redacted locations when reporting scanner findings.
 
-### Payment Security
+Run relevant regressions, staged secret scanning and dependency checks before requesting review. Keep failures visible. Do not weaken guards, assertions or security gates merely to obtain a passing result. Removing a credential from the repository does not revoke it; suspected exposure requires a private response and verified revocation or rotation.
 
-- Payment gateway integration (ZarinPal/IDPay) with server-side validation
-- No credit card data stored locally
-- Payment verification callbacks validated server-side
+Review publication history and artifacts as well as the final source tree. Detailed unresolved findings and confidential evidence belong in private coordination channels.
 
-## Reporting a Vulnerability
+## Releases
 
-Please report security vulnerabilities to:
+Require human review of the integrated change and deliberate release approval. Check authorization, data isolation, migration/recovery planning, provider behavior and deployment configuration for the affected scope. Builds do not apply hosted migrations automatically.
 
-- Email: security@kiarakraft.com (if available)
-- Or create a private security advisory on GitHub
-
-**Do NOT create public issues for security vulnerabilities.**
-
-### Response Time
-
-- Critical vulnerabilities: 24 hours
-- High severity: 48 hours
-- Medium/Low severity: 1 week
-
-## Development Security Checklist
-
-### Before Each Deploy
-
-- [ ] Run `npm audit` to check for vulnerabilities
-- [ ] Review Dependabot security alerts
-- [ ] Ensure no secrets in code (`git secrets --scan`)
-- [ ] Verify environment variables are set correctly
-- [ ] Check authentication endpoints are protected
-
-### Regular Maintenance
-
-- [ ] Weekly: Review and merge Dependabot PRs
-- [ ] Monthly: Full security audit
-- [ ] Quarterly: Review and update dependencies
-- [ ] Annually: Security penetration testing
-
-## Known Security Considerations
-
-### Current Status
-
-- **Low severity vulnerabilities** in dev dependency `@lhci/cli` (not production-affecting)
-- All production dependencies are up-to-date with no known vulnerabilities
-
-### Recommended Improvements
-
-1. Consider migrating from bcryptjs to native bcrypt for better performance
-2. Implement 2FA for seller accounts handling money
-3. Add request signing for payment webhooks
-4. Implement API rate limiting for public endpoints
-5. Add security headers middleware (helmet.js)
-
-## Security Headers
-
-Current headers configured:
-
-- X-Frame-Options: DENY
-- X-Content-Type-Options: nosniff
-- Strict-Transport-Security (HTTPS only)
-- Content-Security-Policy (configured)
-
-## Dependency Management
-
-- Automated updates via Dependabot (weekly)
-- Grouped updates for minor/patch versions
-- Manual review for major version updates
-- Security updates prioritized
-
-Last security audit: 2025-09-09
+Follow [staging](docs/staging.md) for synthetic hosted verification. CI or GitHub environment approval alone does not establish that a separate hosting provider's deployment path is protected. Verify deployed revisions and access controls directly before handling real customer data or money.

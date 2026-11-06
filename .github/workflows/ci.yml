@@ -1,4 +1,3 @@
----
 name: CI
 
 on:
@@ -6,120 +5,197 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      CI: 'true'
+      HUSKY: '0'
+      NEXT_TELEMETRY_DISABLED: '1'
+      KK_LOCAL_DB_PORT: '55432'
+      KK_TEST_DATABASE_URL: postgresql://user:pass@127.0.0.1:55432/kiarakraft_test
+      KK_APP_PORT: '3000'
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: test
+          POSTGRES_DB: kiarakraft_test
           POSTGRES_USER: user
           POSTGRES_PASSWORD: pass
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
+          --health-cmd "pg_isready -U user -d kiarakraft_test"
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
-          - 5432:5432
+          - 55432:5432
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version-file: .nvmrc
+          cache: npm
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Setup database
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
+      - name: Prepare isolated test database and synthetic fixtures
+        run: npm run db:test:prepare
 
-      - name: Security audit
+      - name: Verify formatting, types, lint, unit tests, translations, and policies
+        run: npm run verify
+
+      - name: Run guarded database integration tests
+        run: npm run test:integration
+
+      - name: Build with local-only service configuration
+        run: npm run build:local
+
+      - name: Start local application and verify bilingual pages
+        env:
+          NEXT_URL: http://127.0.0.1:3000
+        shell: bash
         run: |
-          echo "🔍 Auditing production dependencies (strict)..."
-          npm audit --audit-level=high --omit=dev
-          echo "🔍 Auditing dev dependencies (advisory)..."
-          npm audit --audit-level=high --omit=prod || echo "⚠️ Dev dependency vulnerabilities found - documented for review"
-        continue-on-error: false
+          set -euo pipefail
+          npm run start:local > "$RUNNER_TEMP/kiarakraft-local-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
 
-      - name: Check code formatting
-        run: npm run format:check
+          ready=false
+          for attempt in {1..60}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "::error::The isolated local application exited before becoming ready."
+              exit 1
+            fi
+            if curl --fail --silent --max-time 2 --output /dev/null "$NEXT_URL/api/health"; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "::error::The isolated local application did not become ready within 60 attempts."
+            exit 1
+          fi
+          npm run test:i18n
+          npm run test:application
+          npm run test:password-security
 
-      - name: Run linting
-        run: npm run lint
-
-      - name: Run tests
-        run: npm run test
-        env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
-
-      - name: Run i18n smoke tests
-        run: npm run test:i18n
-
-      - name: Verify i18n completeness
-        run: npm run verify:i18n
-
-      - name: Run typecheck
-        run: npm run typecheck
-
-      - name: Build application for CI
-        run: npm run build
-        env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
-          NEXT_PUBLIC_PLAUSIBLE_DOMAIN: kiarakraft.com
-          CI: 'true'
-
-      - name: Wait for Vercel preview deployment
-        uses: patrickedqvist/wait-for-vercel-preview@v1.3.2
-        id: waitForVercel
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          max_timeout: 300
-
-      - name: Run status checks against preview deployment
-        run: npm run check:status
-        env:
-          VERCEL_URL: ${{ steps.waitForVercel.outputs.url }}
-
-      - name: Check analytics integration
-        run: npm run check:analytics
-
-      - name: Check for SSR placeholder leaks
-        run: npm run check:ssr
-
-      - name: Run search smoke tests
-        run: npm run search:smoke
-        env:
-          DATABASE_URL: postgresql://user:pass@localhost:5432/test
-          DIRECT_URL: postgresql://user:pass@localhost:5432/test
-
-  security:
+  codeql:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
-      security-events: write
       contents: read
+      security-events: write
       actions: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
-          languages: javascript
+          languages: javascript-typescript
+          build-mode: none
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+      - name: Analyze code
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+
+  dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      HUSKY: '0'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Audit production dependencies (blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          audit_status=0
+          npm audit --omit=dev --audit-level=high --json > "$RUNNER_TEMP/kiarakraft-npm-audit.json" || audit_status=$?
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const raw = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'kiarakraft-npm-audit.json'), 'utf8'));
+          if (raw.error || !raw.metadata?.vulnerabilities || !raw.vulnerabilities) {
+            throw new Error('Dependency audit did not return a valid vulnerability report.');
+          }
+          // Publish only dependency/advisory fields, never the raw command response.
+          const report = {
+            counts: raw.metadata.vulnerabilities,
+            packages: Object.entries(raw.vulnerabilities).map(([name, finding]) => ({
+              name,
+              severity: finding.severity,
+              direct: finding.isDirect,
+              advisories: finding.via.filter(item => typeof item === 'object').map(item => ({
+                title: item.title,
+                severity: item.severity,
+                url: typeof item.url === 'string' && item.url.startsWith('https://github.com/advisories/') ? item.url : undefined,
+                affectedVersions: item.range,
+              })),
+            })),
+          };
+          fs.writeFileSync('dependency-audit-summary.json', JSON.stringify(report, null, 2) + '\n');
+          console.log('Dependency audit counts:', JSON.stringify(report.counts));
+          NODE
+          exit "$audit_status"
+
+      - name: Upload dependency advisory summary
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: dependency-audit-summary
+          path: dependency-audit-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full history for secret scanning
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Scan tracked files and history without revealing secret values
+        run: npm run security:secrets -- --all-history

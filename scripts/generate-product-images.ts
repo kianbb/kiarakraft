@@ -86,6 +86,7 @@ async function main(opts: Options) {
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             return await generateProductImageBuffer({
+              userId: 'service:image-generation',
               title: enTitle,
               description: enDescription,
               category,

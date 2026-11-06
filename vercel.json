@@ -1,11 +1,5 @@
 {
-  "installCommand": "npm install --legacy-peer-deps",
-  "crons": [
-    {
-      "path": "/api/fx/update",
-      "schedule": "0 6 * * *"
-    }
-  ],
+  "installCommand": "npm ci --legacy-peer-deps",
   "redirects": [
     {
       "source": "/",
@@ -176,5 +170,9 @@
       "source": "/health",
       "destination": "/api/health"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  },
+  "buildCommand": "npm run vercel-build"
 }

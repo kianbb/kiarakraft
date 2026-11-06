@@ -19,8 +19,9 @@ const updateAddressSchema = z.object({
 // PUT /api/addresses/[id] - Update address
 export const PUT = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -68,8 +69,9 @@ export const PUT = withCSRF(async function (
 // DELETE /api/addresses/[id] - Delete address
 export const DELETE = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
     if (!session?.user?.id) {

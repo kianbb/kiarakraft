@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  updateProductSchema,
+  ProductInputError,
+  readProductInput,
+} from '@/lib/product-input';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
@@ -127,8 +132,8 @@ async function handlePUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const data = await request.json();
-    const useAI = (data.useAI as boolean) ?? true;
+    const data = await readProductInput(request, updateProductSchema);
+    const useAI = data.useAI;
 
     if (
       (data.title?.length || 0) > 200 ||
@@ -249,6 +254,12 @@ async function handlePUT(
 
     return NextResponse.json(updatedProduct);
   } catch (error) {
+    if (error instanceof ProductInputError) {
+      return NextResponse.json(
+        { error: error.message, fields: error.fields },
+        { status: error.status }
+      );
+    }
     console.error('Error updating product:', error);
     const Sentry = await getSentry();
     Sentry.captureException(error);

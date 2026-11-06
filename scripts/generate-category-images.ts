@@ -37,6 +37,7 @@ async function main() {
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             return await generateProductImageBuffer({
+              userId: 'service:image-generation',
               title,
               description,
               category: c.slug,
