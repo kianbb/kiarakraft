@@ -142,7 +142,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     throw new Error(
       'No email provider configured. Please set RESEND_API_KEY or SMTP credentials.'
     );
-  } catch (error) {
+  } catch {
     console.error('Email delivery failed');
     return {
       success: false,
