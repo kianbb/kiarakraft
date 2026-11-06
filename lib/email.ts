@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import nodemailer from 'nodemailer';
+import nodemailer from 'smtp-mailer';
 import { ReactElement } from 'react';
 import {
   assertProviderAllowed,
@@ -99,28 +99,20 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
           result = await resend.emails.send(emailOptions);
         }
 
-        console.log(`Email sent via Resend: ${result.data?.id}`);
+        if (result.error || !result.data?.id) {
+          throw new Error('Resend did not accept delivery');
+        }
+        console.log(`Email sent via Resend: ${result.data.id}`);
         return {
           success: true,
           messageId: result.data?.id,
           provider: 'resend',
         };
       } catch (resendError) {
-        console.error('🚨 RESEND FAILED - Details:');
+        // Provider exceptions may contain request bodies or authentication data.
         console.error(
-          'Error message:',
-          resendError instanceof Error ? resendError.message : 'Unknown error'
+          'Resend delivery failed; attempting configured SMTP fallback.'
         );
-        console.error('Full error object:', resendError);
-        console.error('EMAIL_FROM being used:', EMAIL_FROM);
-        console.error('Resend options that failed:', {
-          from: EMAIL_FROM,
-          to: '[REDACTED]',
-          subject,
-          hasHtml: !!finalHtml,
-          hasText: !!text,
-        });
-        console.error('Falling back to SMTP...');
 
         // Fall through to SMTP if Resend fails
         if (!smtpTransporter) {
@@ -151,10 +143,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       'No email provider configured. Please set RESEND_API_KEY or SMTP credentials.'
     );
   } catch (error) {
-    console.error('Email sending failed:', error);
+    console.error('Email delivery failed');
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown email error',
+      error: 'Email delivery failed',
     };
   }
 }

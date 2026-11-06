@@ -1,8 +1,13 @@
 import * as Sentry from '@sentry/nextjs';
+import {
+  telemetryPrivacyOptions,
+  redactTelemetryEvent,
+} from './lib/telemetry-policy';
 
 // The deployment build supplies this public boolean; no credentials are exposed.
 if (process.env.NEXT_PUBLIC_KK_STAGING !== 'true')
   Sentry.init({
+    ...telemetryPrivacyOptions,
     dsn: process.env.SENTRY_DSN,
     environment: process.env.SENTRY_ENVIRONMENT || 'development',
 
@@ -49,15 +54,6 @@ if (process.env.NEXT_PUBLIC_KK_STAGING !== 'true')
         }
       }
 
-      // Add additional context
-      if (typeof window !== 'undefined') {
-        event.tags = {
-          ...event.tags,
-          url: window.location.href,
-          userAgent: navigator.userAgent,
-        };
-      }
-
-      return event;
+      return redactTelemetryEvent(event);
     },
   });

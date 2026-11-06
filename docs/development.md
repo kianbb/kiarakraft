@@ -85,3 +85,9 @@ Functional CI uses a dedicated PostgreSQL service, synthetic fixtures, isolated 
 Keep failing checks visible. Fix configuration errors without weakening guards, and resolve findings before release or document a narrowly reviewed exception. Reports should identify a redacted location without exposing credentials or confidential evidence.
 
 Production and staging require separate configuration, credentials, access controls and human release review. Follow [staging](staging.md); a GitHub approval gate alone does not establish that an independent hosting deployment is protected.
+
+## Dependency compatibility
+
+The application SMTP transport is installed as `smtp-mailer` (an npm alias of maintained Nodemailer). Auth.js uses Credentials authentication here; its optional canonical Nodemailer email-provider peer is intentionally absent. The alias retains the real package identity for auditing. Do not install an older canonical Nodemailer to satisfy an unused optional provider. SMTP composition and provider-failure regressions are local checks, not proof of external email delivery.
+
+Sentry 11 uses explicitly restricted collection settings and a static trace lifecycle for existing callbacks. Staging initialization remains disabled. Node SDK event-pipeline tests cover structured-context removal; free-form messages, Browser/Edge integrations and live telemetry require separate review before activation. The application no longer installs the unused Vercel deployment CLI. Manage deployments through the approved hosting connection and release procedure.

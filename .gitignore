@@ -56,3 +56,5 @@ temp.txt
 .worktrees/
 #
 /prisma/dev.db
+# Private operator planning is not part of public source.
+/docs/credential-rotation-plan.md

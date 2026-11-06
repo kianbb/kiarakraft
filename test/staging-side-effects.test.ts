@@ -1,3 +1,7 @@
+import {
+  telemetryPrivacyOptions,
+  redactTelemetryEvent,
+} from '../lib/telemetry-policy';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
@@ -38,6 +42,10 @@ function load<T>(
   runInNewContext(policyCode, { exports: policy, process: { env }, URL });
   const modules = {
     ...dependencies,
+    './lib/telemetry-policy': {
+      telemetryPrivacyOptions,
+      redactTelemetryEvent,
+    },
     './deployment-policy': policy,
     '@/lib/deployment-policy': policy,
     './lib/deployment-policy': policy,
@@ -127,7 +135,10 @@ function cloudinary(env: Env) {
   };
 }
 
-function email(env: Env, failResend = false) {
+function email(
+  env: Env,
+  failResend: boolean | 'resolved-error' | 'missing-id' = false
+) {
   const calls = { resendInit: 0, smtpInit: 0, resend: 0, smtp: 0 };
   class Resend {
     constructor() {
@@ -136,14 +147,20 @@ function email(env: Env, failResend = false) {
     emails = {
       send: async () => {
         calls.resend++;
-        if (failResend) throw new Error('Synthetic provider failure');
+        if (failResend === true) throw new Error('Synthetic provider failure');
+        if (failResend === 'resolved-error')
+          return {
+            data: null,
+            error: { message: 'Synthetic provider rejection' },
+          };
+        if (failResend === 'missing-id') return { data: null, error: null };
         return { data: { id: 'synthetic-email' } };
       },
     };
   }
   const dependencies = {
     resend: { Resend },
-    nodemailer: {
+    'smtp-mailer': {
       __esModule: true,
       default: {
         createTransport: () => {
@@ -536,6 +553,10 @@ async function run() {
           SENTRY_DSN: 'https://synthetic@example.invalid/1',
         },
         {
+          './lib/telemetry-policy': {
+            telemetryPrivacyOptions,
+            redactTelemetryEvent,
+          },
           '@sentry/nextjs': {
             init: () => {
               init++;
@@ -598,6 +619,22 @@ async function run() {
     ).provider,
     'smtp'
   );
+  for (const mode of ['resolved-error', 'missing-id'] as const) {
+    const rejected = email({ ...accidentalKeys }, mode);
+    const options = {
+      to: 'synthetic@example.invalid',
+      text: 'Synthetic',
+      subject: 'Synthetic',
+    };
+    assert.equal((await rejected.module.sendEmail(options)).provider, 'smtp');
+    assert.equal(rejected.calls.smtp, 1);
+    const noFallback = email(
+      { RESEND_API_KEY: accidentalKeys.RESEND_API_KEY },
+      mode
+    );
+    assert.equal((await noFallback.module.sendEmail(options)).success, false);
+    assert.equal(noFallback.calls.smtp, 0);
+  }
   const normalPush = notifications({ ...accidentalKeys });
   assert.equal(
     (await normalPush.module.sendNotification(notice, ['push']))[0].success,

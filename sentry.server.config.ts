@@ -1,8 +1,13 @@
 import * as Sentry from '@sentry/nextjs';
+import {
+  telemetryPrivacyOptions,
+  redactTelemetryEvent,
+} from './lib/telemetry-policy';
 import { isStagingDeployment } from './lib/deployment-policy';
 
 if (!isStagingDeployment())
   Sentry.init({
+    ...telemetryPrivacyOptions,
     dsn: process.env.SENTRY_DSN,
     environment: process.env.SENTRY_ENVIRONMENT || 'development',
 
@@ -42,7 +47,7 @@ if (!isStagingDeployment())
         }
       }
 
-      return event;
+      return redactTelemetryEvent(event);
     },
 
     // Capture additional server context
@@ -54,6 +59,6 @@ if (!isStagingDeployment())
           Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
       };
 
-      return event;
+      return redactTelemetryEvent(event);
     },
   });

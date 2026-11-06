@@ -1,4 +1,3 @@
-import { withSentryConfig } from '@sentry/nextjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 // Build a CSP string. Start with Report-Only, then enforce after verification.

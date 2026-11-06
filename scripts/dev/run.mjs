@@ -79,6 +79,7 @@ async function main() {
         'deployment-policy',
         'staging-side-effects',
         'staging-extra-boundaries',
+        'dependency-adapters',
       ]) {
         await run(
           process.execPath,

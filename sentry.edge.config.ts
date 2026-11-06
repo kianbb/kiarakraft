@@ -1,8 +1,13 @@
 import * as Sentry from '@sentry/nextjs';
+import {
+  telemetryPrivacyOptions,
+  redactTelemetryEvent,
+} from './lib/telemetry-policy';
 import { isStagingDeployment } from './lib/deployment-policy';
 
 if (!isStagingDeployment())
   Sentry.init({
+    ...telemetryPrivacyOptions,
     dsn: process.env.SENTRY_DSN,
     environment: process.env.SENTRY_ENVIRONMENT || 'development',
 
@@ -27,6 +32,6 @@ if (!isStagingDeployment())
         runtime: 'edge',
       };
 
-      return event;
+      return redactTelemetryEvent(event);
     },
   });
