@@ -15,8 +15,9 @@ const updateShippingSchema = z.object({
 // PUT /api/admin/shipping/[id] - Update shipping status
 export const PUT = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
 
@@ -143,8 +144,9 @@ export const PUT = withCSRF(async function (
 // GET /api/admin/shipping/[id] - Get shipping details
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
 

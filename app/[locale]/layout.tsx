@@ -14,6 +14,7 @@ import { Analytics } from '@vercel/analytics/react';
 // Note: We inline the Plausible script using a plain <script> for SSR visibility in HTML source
 import { inter, vazirmatn } from '@/lib/fonts';
 import { Metadata } from 'next';
+import { isStagingDeployment } from '@/lib/deployment-policy';
 
 interface LocaleLayoutProps {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ export async function generateMetadata({
   params,
 }: LocaleLayoutProps): Promise<Metadata> {
   const { locale } = await params;
+  const staging = isStagingDeployment();
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'home' });
 
@@ -62,11 +64,11 @@ export async function generateMetadata({
       languages: alternateUrls,
     },
     robots: {
-      index: true,
-      follow: true,
+      index: !staging,
+      follow: !staging,
       googleBot: {
-        index: true,
-        follow: true,
+        index: !staging,
+        follow: !staging,
         'max-video-preview': -1,
         'max-image-preview': 'large',
         'max-snippet': -1,
@@ -116,6 +118,7 @@ export default async function LocaleLayout({
   params,
 }: LocaleLayoutProps) {
   const { locale } = await params;
+  const staging = isStagingDeployment();
   setRequestLocale(locale);
   // Ensure messages are loaded for the current locale explicitly
   const messages = await getMessages({ locale });
@@ -204,26 +207,29 @@ export default async function LocaleLayout({
       className={`${inter.variable} ${vazirmatn.variable}`}
     >
       <head>
-        {/* Preconnect to external domains for performance */}
-        <link
-          rel="preconnect"
-          href="https://images.unsplash.com"
-          crossOrigin="anonymous"
-        />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
-        <link
-          rel="preconnect"
-          href="https://res.cloudinary.com"
-          crossOrigin="anonymous"
-        />
-        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-        <link
-          rel="preconnect"
-          href="https://plausible.io"
-          crossOrigin="anonymous"
-        />
-        <link rel="dns-prefetch" href="https://plausible.io" />
-        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
+        {!staging && (
+          <>
+            <link
+              rel="preconnect"
+              href="https://images.unsplash.com"
+              crossOrigin="anonymous"
+            />
+            <link rel="dns-prefetch" href="https://images.unsplash.com" />
+            <link
+              rel="preconnect"
+              href="https://res.cloudinary.com"
+              crossOrigin="anonymous"
+            />
+            <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+            <link
+              rel="preconnect"
+              href="https://plausible.io"
+              crossOrigin="anonymous"
+            />
+            <link rel="dns-prefetch" href="https://plausible.io" />
+          </>
+        )}
+        {!staging && process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
           <script
             defer
             data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
@@ -231,21 +237,27 @@ export default async function LocaleLayout({
           ></script>
         ) : null}
 
-        {/* Preload LCP image for hero section */}
-        <link
-          rel="preload"
-          href="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80"
-          as="image"
-          imageSrcSet="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1280&h=720&fit=crop&q=70 1280w, https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=70 1920w"
-          imageSizes="100vw"
-          fetchPriority="high"
-        />
+        {/* Only the public storefront preloads the external hero. */}
+        {!staging && (
+          <link
+            rel="preload"
+            href="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=80"
+            as="image"
+            imageSrcSet="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1280&h=720&fit=crop&q=70 1280w, https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1920&h=1080&fit=crop&q=70 1920w"
+            imageSizes="100vw"
+            fetchPriority="high"
+          />
+        )}
       </head>
       <body className={fontClass}>
         <Providers messages={messages} locale={locale}>
           <ServiceWorkerRegistration />
-          <SpeedInsights />
-          <Analytics />
+          {!staging && (
+            <>
+              <SpeedInsights />
+              <Analytics />
+            </>
+          )}
           <StructuredData data={organizationStructuredData} />
           <StructuredData data={websiteStructuredData} />
           <div className="min-h-screen bg-background">

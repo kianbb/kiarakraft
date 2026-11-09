@@ -32,6 +32,8 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
+    ".worktrees",
+    ".local",
     "node_modules",
     "node_modules.backup",
     ".next",

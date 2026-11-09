@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { publicProductSelect } from '@/lib/public-product';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
 
@@ -32,13 +34,7 @@ export async function GET(
         items: {
           include: {
             product: {
-              include: {
-                seller: true,
-                images: {
-                  orderBy: { sortOrder: 'asc' },
-                  take: 1,
-                },
-              },
+              select: publicProductSelect,
             },
           },
         },

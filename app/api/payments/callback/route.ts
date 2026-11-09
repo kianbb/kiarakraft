@@ -8,6 +8,7 @@ import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 import OrderReceiptEmail from '@/lib/email-templates/OrderReceiptEmail';
 import { sendNotification } from '@/lib/notifications';
+import { decrementOrderableStock } from '@/lib/orderStock';
 import {
   validatePaymentWebhook,
   logWebhookValidation,
@@ -181,14 +182,7 @@ export const GET = withRateLimit(
               const items = await tx.orderItem.findMany({
                 where: { orderId: payment!.orderId },
               });
-              for (const item of items) {
-                const updated = await tx.$executeRaw(
-                  Prisma.sql`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`
-                );
-                if (updated === 0) {
-                  throw new Error('Insufficient stock while finalizing order');
-                }
-              }
+              await decrementOrderableStock(tx, items);
             },
             { isolationLevel: 'Serializable' }
           );

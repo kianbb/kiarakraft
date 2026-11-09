@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 
 // Environment-aware SSR smoke tests (defaults to local server for reliability)
 const BASE_URL = process.env.NEXT_URL || 'http://localhost:3001';
+const target = new URL(BASE_URL);
+if (target.protocol !== 'http:' || target.hostname !== '127.0.0.1') {
+  throw new Error(
+    'Smoke tests require the explicit local target provided by npm run test:i18n.'
+  );
+}
 
 async function fetchHtml(url: string, tries = 3): Promise<string> {
   let lastErr: unknown;
@@ -9,7 +15,13 @@ async function fetchHtml(url: string, tries = 3): Promise<string> {
     try {
       const res = await fetch(url, {
         headers: { 'accept-language': 'en-US,en;q=0.9' },
+        signal: AbortSignal.timeout(10000),
+        redirect: 'error',
       });
+      assert.ok(
+        res.ok,
+        `Expected success from ${new URL(url).pathname}, got ${res.status}`
+      );
       const html = await res.text();
       return html.slice(0, 12000);
     } catch (e) {
@@ -44,10 +56,9 @@ async function mustNotInclude(url: string, markers: string[]) {
     try {
       await fetchHtml(`${BASE_URL}/api/health`, 1);
     } catch {
-      console.log(
-        `Skipping i18n smoke tests: local server not reachable at ${BASE_URL}`
+      throw new Error(
+        'Local smoke-test server is unavailable; start npm run start:local first.'
       );
-      process.exit(0);
     }
   }
 

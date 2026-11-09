@@ -12,8 +12,11 @@ export const DELETE = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string; imageId: string } }
+    {
+      params: routeParams,
+    }: { params: Promise<{ id: string; imageId: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
       if (!session?.user?.email) {
@@ -68,8 +71,11 @@ export const PATCH = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string; imageId: string } }
+    {
+      params: routeParams,
+    }: { params: Promise<{ id: string; imageId: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
       if (!session?.user?.email)

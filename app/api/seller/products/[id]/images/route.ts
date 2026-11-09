@@ -1,3 +1,7 @@
+import {
+  ImageOrderError,
+  reorderProductImages,
+} from '@/lib/product-image-order';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -108,8 +112,9 @@ export const PATCH = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params: routeParams }: { params: Promise<{ id: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
       if (!session?.user?.email) {
@@ -140,26 +145,16 @@ export const PATCH = withRateLimit(
       }
 
       const body = await request.json();
-      const updates: Array<{ id: string; sortOrder: number }> =
-        body?.order ?? [];
-      if (!Array.isArray(updates) || updates.length === 0) {
-        return NextResponse.json(
-          { error: 'No order provided' },
-          { status: 400 }
-        );
-      }
-
-      await Promise.all(
-        updates.map(u =>
-          prisma.listingImage.update({
-            where: { id: u.id },
-            data: { sortOrder: u.sortOrder },
-          })
-        )
-      );
+      await reorderProductImages(prisma, productId, body?.order);
 
       return NextResponse.json({ success: true });
     } catch (error) {
+      if (error instanceof ImageOrderError) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: error.status }
+        );
+      }
       console.error('Reorder images error:', error);
       return NextResponse.json({ error: 'Reorder failed' }, { status: 500 });
     }

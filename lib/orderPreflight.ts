@@ -1,3 +1,5 @@
+import { isPublicProduct } from './public-product';
+
 export type PreflightIssueReason = 'inactive' | 'insufficient_stock';
 
 export interface PreflightProduct {
@@ -5,12 +7,14 @@ export interface PreflightProduct {
   title: string;
   stock: number;
   active: boolean;
+  isTest: boolean;
+  eligibilityStatus: string;
 }
 
 export interface PreflightItem {
   productId: string;
   quantity: number;
-  product: Pick<PreflightProduct, 'title' | 'stock' | 'active'>;
+  product: Omit<PreflightProduct, 'id'>;
 }
 
 export interface PreflightIssue {
@@ -27,9 +31,9 @@ export function collectPreflightIssues(
   const issues: PreflightIssue[] = [];
   for (const it of items) {
     const available = it.product?.stock ?? 0;
-    const isActive = it.product?.active ?? false;
+    const isAvailable = it.product ? isPublicProduct(it.product) : false;
     const title = it.product?.title || 'Unknown';
-    if (!isActive) {
+    if (!isAvailable) {
       issues.push({
         productId: it.productId,
         title,

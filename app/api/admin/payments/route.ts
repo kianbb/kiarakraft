@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
+import { decrementOrderableStock } from '@/lib/orderStock';
 
 export async function GET(request: NextRequest) {
   try {
@@ -219,14 +220,7 @@ export const PATCH = withRateLimit(
           });
 
           // Decrement stock atomically for all ordered items (similar to gateway callback)
-          for (const item of payment.order.items) {
-            // Atomic stock decrement with guard using SQL (prevents negative values)
-            const updated =
-              await tx.$executeRaw`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`;
-            if (Number(updated) === 0) {
-              throw new Error('Insufficient stock while marking order as paid');
-            }
-          }
+          await decrementOrderableStock(tx, payment.order.items);
 
           return { paymentId: payment.id, orderId: payment.orderId };
         });

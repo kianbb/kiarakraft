@@ -1,13 +1,8 @@
 import OpenAI, { toFile } from 'openai';
 import * as Sentry from '@sentry/nextjs';
 // import { uploadImageToCloudinary } from '@/lib/cloudinary'; // Used in route.ts for uploading enhanced images
-import {
-  sanitizeForPrompt,
-  secureFetchImage,
-  trackAIUsage,
-  estimateGPT5MiniCost,
-  AI_COSTS,
-} from '@/lib/security-utils';
+import { sanitizeForPrompt, secureFetchImage } from '@/lib/security-utils';
+import { AIBudgetError, reserveAICall } from '@/lib/ai-budget';
 
 type EnhancementResult = {
   enhancedTitle?: string; // Enhanced title in original language
@@ -102,11 +97,6 @@ export async function enhanceProductPresentation(input: {
       throw new Error('AI configuration error - please contact support');
     }
 
-    const openai = new OpenAI({
-      apiKey: openaiKey,
-      timeout: 120000, // 2 minute timeout (enough for GPT-5 + image)
-    });
-
     // Step 1: Use GPT-5 mini to analyze product and generate enhancements
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       {
@@ -159,30 +149,16 @@ Focus on highlighting handmade qualities and improving marketability.`,
       },
     ];
 
-    // Track AI usage if userId provided
-    if (input.userId) {
-      try {
-        const estimatedCost = estimateGPT5MiniCost(2000, 1000); // Rough estimate
-        const usageCheck = await trackAIUsage(
-          input.userId,
-          'GPT5_MINI',
-          estimatedCost
-        );
-
-        if (!usageCheck.allowed) {
-          console.warn(
-            `⚠️ AI enhancement limit exceeded for user ${input.userId}: $${usageCheck.monthlyTotal}/$${usageCheck.limit}`
-          );
-          throw new Error(
-            'Monthly AI usage limit exceeded - please try again next month'
-          );
-        }
-      } catch (trackingError) {
-        // Don't fail enhancement if usage tracking fails
-        console.error('AI usage tracking failed (continuing):', trackingError);
-        // Continue with enhancement even if tracking fails
-      }
-    }
+    await reserveAICall({
+      userId: input.userId,
+      purpose: 'product-enhancement',
+      kind: 'text',
+    });
+    const openai = new OpenAI({
+      apiKey: openaiKey,
+      timeout: 120000,
+      maxRetries: 0, // Every billable attempt requires its own reservation.
+    });
 
     console.log('🎆 Calling GPT-5 mini for enhancement...', {
       model: 'gpt-5-mini-2025-08-07',
@@ -300,6 +276,7 @@ Focus on highlighting handmade qualities and improving marketability.`,
       improvements: result.improvements,
     };
   } catch (error) {
+    if (error instanceof AIBudgetError) throw error;
     // Log detailed error information
     console.error('🚨 AI ENHANCEMENT FAILED - USING BASIC FALLBACK', {
       error: error instanceof Error ? error.message : error,
@@ -310,7 +287,6 @@ Focus on highlighting handmade qualities and improving marketability.`,
       model: 'gpt-5-mini-2025-08-07',
       hasImage: !!input.imageUrl,
       apiKeyPresent: !!process.env.OPENAI_API_KEY,
-      apiKeyPrefix: process.env.OPENAI_API_KEY?.substring(0, 10),
       title: input.title?.substring(0, 50),
       timestamp: new Date().toISOString(),
     });
@@ -341,9 +317,15 @@ async function enhanceImageWithGPTImage1(params: {
   userId?: string;
 }): Promise<string> {
   try {
+    await reserveAICall({
+      userId: params.userId,
+      purpose: 'product-image-edit',
+      kind: 'image',
+    });
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY!,
       timeout: 120000, // 2 minute timeout for image operations
+      maxRetries: 0,
     });
 
     // Securely fetch the original image with SSRF protection
@@ -370,20 +352,6 @@ async function enhanceImageWithGPTImage1(params: {
     const imageFile = await toFile(imageBlob, 'product.png', {
       type: 'image/png',
     });
-
-    // Track AI usage for image enhancement
-    if (params.userId) {
-      const usageCheck = await trackAIUsage(
-        params.userId,
-        'GPT_IMAGE_1',
-        AI_COSTS.GPT_IMAGE_1_EDIT
-      );
-
-      if (!usageCheck.allowed) {
-        console.warn(`AI image usage limit exceeded for user ${params.userId}`);
-        return params.originalImageUrl; // Return original if limit exceeded
-      }
-    }
 
     // Use the OpenAI Images Edits endpoint
     // Note: supported sizes are typically 1024x1024, 1024x1792, or 1792x1024 for gpt-image-1

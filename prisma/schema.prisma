@@ -391,12 +391,14 @@ model AuditLog {
 
 model AIUsage {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
+  actorId   String   // User id, or an explicit service actor without a login account
   service   String   // 'GPT5_MINI' or 'GPT_IMAGE_1'
   cost      Float    // Estimated cost in USD
   timestamp DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
+  @@index([actorId, timestamp])
   @@index([timestamp])
 }
