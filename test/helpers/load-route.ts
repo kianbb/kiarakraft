@@ -7,7 +7,8 @@ import ts from 'typescript';
 // explicitly replaced. This keeps unit tests from importing Prisma/providers.
 export function loadRoute<T>(
   path: string,
-  dependencies: Record<string, unknown>
+  dependencies: Record<string, unknown>,
+  options: { console?: Console } = {}
 ): T {
   const source = readFileSync(
     new URL(`../../${path}`, import.meta.url),
@@ -27,7 +28,7 @@ export function loadRoute<T>(
       assert.ok(name in dependencies, `Unexpected route dependency: ${name}`);
       return dependencies[name];
     },
-    console,
+    console: options.console || console,
     URL,
     URLSearchParams,
   });

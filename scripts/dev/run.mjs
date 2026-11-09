@@ -80,6 +80,8 @@ async function main() {
         'staging-side-effects',
         'staging-extra-boundaries',
         'dependency-adapters',
+        'identity-fingerprint',
+        'rate-limit-privacy',
       ]) {
         await run(
           process.execPath,

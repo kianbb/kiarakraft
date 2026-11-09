@@ -43,6 +43,8 @@ test('child environment excludes inherited credentials and preload hooks', () =>
       SENTRY_AUTH_TOKEN: 'test-synthetic-sentinel',
       AI_MONTHLY_GLOBAL_BUDGET_USD: '99',
       AI_IMAGE_REQUEST_RESERVATION_USD: '10',
+      IDENTITY_HASH_KEY: 'test-synthetic-sentinel',
+      IDENTITY_HASH_KEY_ID: 'test-synthetic-sentinel',
     },
     config: {},
   });
@@ -52,6 +54,8 @@ test('child environment excludes inherited credentials and preload hooks', () =>
   assert.ok(!Object.values(env).includes('remote-sentinel'));
   assert.equal(env.TRANSLATOR_PROVIDER, 'mock');
   assert.equal(env.PAYMENT_GATEWAY, 'OFFLINE');
+  assert.equal(env.IDENTITY_HASH_KEY, '');
+  assert.equal(env.IDENTITY_HASH_KEY_ID, '');
   assert.equal(env.DATABASE_URL, env.DIRECT_URL);
   assert.equal(env.AI_MONTHLY_GLOBAL_BUDGET_USD, '0');
   assert.equal(env.AI_MONTHLY_USER_BUDGET_USD, '0');

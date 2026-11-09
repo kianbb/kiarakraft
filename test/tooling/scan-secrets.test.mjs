@@ -246,3 +246,10 @@ test('legacy SQLite is preserved in tracked scans but any staged change is block
   git('add', 'prisma/dev.db');
   assert.equal(run('--staged').status, 1);
 });
+
+test('dedicated identity keys are detected without returning their values', () => {
+  const value = 'D'.repeat(43);
+  const findings = scanText(`IDENTITY_HASH_KEY=${value}`);
+  assert.deepEqual(findings, [{ rule: 'literal-sensitive-setting', line: 1 }]);
+  assert.ok(!JSON.stringify(findings).includes(value));
+});

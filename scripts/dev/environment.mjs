@@ -138,6 +138,8 @@ export function safeEnvironment({
     ALLOWED_APP_BASE_HOSTS: `127.0.0.1:${appPort}`,
     ALLOWED_CSRF_HOSTS: `127.0.0.1:${appPort}`,
     PAYMENT_GATEWAY: 'OFFLINE',
+    IDENTITY_HASH_KEY: '',
+    IDENTITY_HASH_KEY_ID: '',
     ENABLE_SEED_ENDPOINT: 'false',
     TRANSLATOR_PROVIDER: 'mock',
     AI_MONTHLY_USER_BUDGET_USD: '0',

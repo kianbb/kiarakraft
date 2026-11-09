@@ -561,7 +561,8 @@ async function run() {
     (await denied(request('reset-password?token=' + current))).status,
     429
   );
-  assert.ok(logged.some(line => line.includes('/api/auth/reset-password')));
+  assert.ok(logged.includes('Rate limit exceeded.'));
+  assert.ok(logged.every(line => !line.includes('/api/auth/reset-password')));
   assert.ok(
     logged.every(
       line =>

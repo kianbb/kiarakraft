@@ -274,6 +274,9 @@ async function identityRoute(filename: string, env: Env) {
     '@/lib/prisma': { prisma: {} },
     '@/lib/cloudinary': {},
     '@/lib/file-validation': {},
+    '@/lib/identity-fingerprint': {},
+    '@/lib/json-input': {},
+    '@/lib/seller-onboarding-input': {},
     '@/lib/csrf': { withCSRF: (handler: unknown) => handler },
     '@/lib/rateLimit': {
       withRateLimit: (_config: unknown, handler: unknown) => handler,

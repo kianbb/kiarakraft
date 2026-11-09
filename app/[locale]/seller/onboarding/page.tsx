@@ -83,8 +83,14 @@ const contactSchema = z.object({
 const verificationSchema = z.object({
   nationalId: z
     .string()
-    .min(8, 'National ID is required')
-    .max(20, 'National ID too long'),
+    .max(64, 'nationalIdInvalid')
+    .trim()
+    .transform(value =>
+      value.replace(/[۰-۹٠-٩]/g, digit =>
+        String(digit.charCodeAt(0) - (digit >= '۰' ? 0x06f0 : 0x0660))
+      )
+    )
+    .refine(value => /^[0-9]{10}$/.test(value), 'nationalIdInvalid'),
   agreeToTerms: z
     .boolean()
     .refine(val => val === true, 'You must agree to terms'),
@@ -180,29 +186,21 @@ export default function SellerOnboardingPage() {
           setUploadedDocs(prev => [...prev, result.url]);
           toast.success('Document uploaded successfully');
         } else {
-          let msg = 'Failed to upload document';
-          try {
-            const err = await response.json();
-            msg = err?.message || msg;
-          } catch {}
-          toast.error(msg);
+          toast.error(t('documentUploadFailed'));
         }
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Upload failed');
+    } catch {
+      toast.error(t('documentUploadFailed'));
     } finally {
       setLoading(false);
     }
   };
 
-  const onProfileSubmit = (data: ProfileForm) => {
-    console.log('Profile data:', data);
+  const onProfileSubmit = () => {
     setCurrentStep(2);
   };
 
-  const onContactSubmit = (data: ContactForm) => {
-    console.log('Contact data:', data);
+  const onContactSubmit = () => {
     setCurrentStep(3);
   };
 
@@ -230,11 +228,16 @@ export default function SellerOnboardingPage() {
         router.push(`/${locale}/seller`);
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Failed to complete onboarding');
+        const messageKey =
+          error?.error === 'IDENTITY_ALREADY_RECORDED'
+            ? 'identityAlreadyRecorded'
+            : error?.error === 'IDENTITY_UNAVAILABLE'
+              ? 'identityUnavailable'
+              : 'onboardingFailed';
+        toast.error(t(messageKey));
       }
-    } catch (error) {
-      console.error('Onboarding error:', error);
-      toast.error('Failed to complete onboarding');
+    } catch {
+      toast.error(t('onboardingFailed'));
     } finally {
       setLoading(false);
     }
@@ -532,7 +535,7 @@ export default function SellerOnboardingPage() {
                 />
                 {verificationErrors.nationalId && (
                   <p className="text-sm text-destructive mt-1">
-                    {verificationErrors.nationalId.message}
+                    {t('nationalIdInvalid')}
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">

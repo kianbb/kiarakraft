@@ -97,7 +97,7 @@ export function scanText(text) {
   // Entire literal assignments only: do not consume the next line after an empty
   // setting or mistake a function call that generates a key for a literal key.
   const assignments =
-    /^[ \t]*(?:NEXTAUTH_SECRET|AUTH_SECRET|CLOUDINARY_API_SECRET|SMTP_PASS(?:WORD)?|DATABASE_PASSWORD|OPENAI_API_KEY|AZURE_TRANSLATOR_KEY|RESEND_API_KEY|SEED_TOKEN|CRON_SECRET)[ \t]*[:=][ \t]*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([A-Za-z0-9_+/=!-]{16,}))[ \t]*[,;]?[ \t]*(?:#.*)?$/gm;
+    /^[ \t]*(?:NEXTAUTH_SECRET|AUTH_SECRET|IDENTITY_HASH_KEY|CLOUDINARY_API_SECRET|SMTP_PASS(?:WORD)?|DATABASE_PASSWORD|OPENAI_API_KEY|AZURE_TRANSLATOR_KEY|RESEND_API_KEY|SEED_TOKEN|CRON_SECRET)[ \t]*[:=][ \t]*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([A-Za-z0-9_+/=!-]{16,}))[ \t]*[,;]?[ \t]*(?:#.*)?$/gm;
   for (const match of text.matchAll(assignments)) {
     const value = match[1] ?? match[2] ?? match[3];
     if (value.length >= 16 && !placeholder(value))
