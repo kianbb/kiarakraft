@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import pg from 'pg';
 import { spawnSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
 import {
@@ -10,6 +11,7 @@ import {
 } from '../lib/deployment-policy';
 import {
   guardStagingPrisma,
+  STAGING_IDENTITY_SQL,
   stagingConnectionOptions,
   verifyStagingDatabaseIdentity,
 } from '../lib/staging-database';
@@ -150,26 +152,67 @@ async function run() {
   assert.equal(options.host, policy.databaseUrl.hostname);
   assert.equal(options.database, policy.databaseName);
   assert.deepEqual(options.ssl, { rejectUnauthorized: true });
-  assert.equal(options.options, '-c search_path=public');
+  assert.equal(options.options, '-c client_encoding=UTF8');
+  assert.equal(options.statement_timeout, 0);
+  assert.equal(options.connectionTimeoutMillis, 5000);
+  assert.equal(options.query_timeout, 5000);
+  const previousPgOptions = process.env.PGOPTIONS;
+  try {
+    process.env.PGOPTIONS = '-c search_path=private -c statement_timeout=0';
+    const client = new pg.Client(options) as pg.Client & {
+      getStartupConf(): Record<string, unknown>;
+    };
+    const startup = client.getStartupConf();
+    assert.equal(startup.options, '-c client_encoding=UTF8');
+    assert.equal(Object.hasOwn(startup, 'statement_timeout'), false);
+    assert.doesNotMatch(JSON.stringify(startup), /private|search_path/);
+  } finally {
+    if (previousPgOptions === undefined) delete process.env.PGOPTIONS;
+    else process.env.PGOPTIONS = previousPgOptions;
+  }
   const marker = {
     databaseName: policy.databaseName,
     mode: 'staging',
     purpose: 'synthetic-only-v1',
     deploymentId: policy.deploymentId,
   };
-  let queries = 0;
+  const queries: string[] = [];
   await verifyStagingDatabaseIdentity(
     {
       query: async sql => {
-        queries++;
-        assert.match(sql, /^SELECT /);
-        assert.doesNotMatch(sql, /CREATE|UPDATE|DELETE|INSERT/);
-        return { rows: [marker] };
+        queries.push(sql);
+        return { rows: sql === STAGING_IDENTITY_SQL ? [marker] : [] };
       },
     },
     policy
   );
-  assert.equal(queries, 1);
+  assert.deepEqual(queries, [
+    'BEGIN READ ONLY',
+    "SET LOCAL statement_timeout = '5s'",
+    STAGING_IDENTITY_SQL,
+    'ROLLBACK',
+  ]);
+  for (const failAt of queries) {
+    const attempted: string[] = [];
+    await assert.rejects(
+      verifyStagingDatabaseIdentity(
+        {
+          query: async sql => {
+            attempted.push(sql);
+            if (sql === failAt) throw new Error('private-query-sentinel');
+            return { rows: sql === STAGING_IDENTITY_SQL ? [marker] : [] };
+          },
+        },
+        policy
+      ),
+      error =>
+        error instanceof DeploymentPolicyError &&
+        !error.message.includes('private-query-sentinel')
+    );
+    assert.equal(attempted.at(-1), 'ROLLBACK');
+    if (failAt === "SET LOCAL statement_timeout = '5s'")
+      assert.equal(attempted.includes(STAGING_IDENTITY_SQL), false);
+  }
   for (const rows of [
     [],
     [marker, marker],

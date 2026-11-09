@@ -19,6 +19,8 @@ export async function verifyStagingDatabaseIdentity(
   policy: StagingPolicy
 ): Promise<void> {
   try {
+    await client.query('BEGIN READ ONLY');
+    await client.query("SET LOCAL statement_timeout = '5s'");
     const result = await client.query(STAGING_IDENTITY_SQL);
     const row = result.rows[0] as Record<string, unknown> | undefined;
     if (
@@ -30,7 +32,9 @@ export async function verifyStagingDatabaseIdentity(
       row.deploymentId !== policy.deploymentId
     )
       throw new Error();
+    await client.query('ROLLBACK');
   } catch {
+    await client.query('ROLLBACK').catch(() => {});
     throw new DeploymentPolicyError(
       'Staging database identity could not be verified'
     );
@@ -49,11 +53,14 @@ export function stagingConnectionOptions(
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     ssl: { rejectUnauthorized: true },
-    options: '-c search_path=public',
+    // A tracked startup option blocks ambient PGOPTIONS without relying on
+    // session search_path, which transaction poolers cannot preserve.
+    options: '-c client_encoding=UTF8',
     application_name: 'kiarakraft-staging-identity',
     client_encoding: 'UTF8',
     connectionTimeoutMillis: 5000,
-    statement_timeout: 5000,
+    // Preserve the server bound transaction-locally in the identity check.
+    statement_timeout: 0,
     query_timeout: 5000,
   };
 }
