@@ -10,6 +10,8 @@ import {
 } from '@/lib/identity-fingerprint';
 import { readJsonInput, JsonInputError } from '@/lib/json-input';
 import { sellerOnboardingSchema } from '@/lib/seller-onboarding-input';
+import { ownedReadyDocuments } from '@/lib/seller-document-store';
+import { SellerDocumentError } from '@/lib/seller-documents';
 
 export const POST = withRateLimit(
   authRateLimit,
@@ -68,60 +70,9 @@ export const POST = withRateLimit(
         uploadedDocs,
       } = body;
 
-      // uploadedDocs: optional but if present must be an array of strict Cloudinary doc URLs (<=5)
-      const docs: unknown = uploadedDocs;
-      if (docs !== undefined) {
-        if (!Array.isArray(docs)) {
-          return NextResponse.json(
-            {
-              error: 'VALIDATION_ERROR',
-              message: 'uploadedDocs must be an array',
-            },
-            { status: 400 }
-          );
-        }
-        if (docs.length > 5) {
-          return NextResponse.json(
-            {
-              error: 'VALIDATION_ERROR',
-              message: 'A maximum of 5 documents is allowed',
-            },
-            { status: 400 }
-          );
-        }
-
-        const sellerId = user.sellerProfile.id;
-        const isValidDocUrl = (u: string): boolean => {
-          try {
-            const url = new URL(u);
-            if (url.protocol !== 'https:') return false;
-            if (url.hostname !== 'res.cloudinary.com') return false; // exact host match
-            // Path segments e.g.: /<cloud>/image/upload/v123/kiarakraft/sellers/<id>/documents/filename.pdf
-            const segments = url.pathname.split('/').filter(Boolean);
-            const sellersIdx = segments.indexOf('sellers');
-            if (sellersIdx === -1) return false;
-            if (segments[sellersIdx + 1] !== sellerId) return false;
-            if (segments[sellersIdx + 2] !== 'documents') return false;
-            return true;
-          } catch {
-            return false;
-          }
-        };
-
-        const invalid = docs.some(
-          u => typeof u !== 'string' || !isValidDocUrl(u)
-        );
-        if (invalid) {
-          return NextResponse.json(
-            {
-              error: 'VALIDATION_ERROR',
-              message:
-                'uploadedDocs must be HTTPS Cloudinary URLs within your documents folder',
-            },
-            { status: 400 }
-          );
-        }
-      }
+      // Resolve only persisted, authenticated documents belonging to this seller.
+      if (uploadedDocs?.length)
+        await ownedReadyDocuments(user.sellerProfile.id, uploadedDocs);
 
       const nationalIdHash = fingerprintNationalId(nationalId);
 
@@ -167,6 +118,11 @@ export const POST = withRateLimit(
         },
       });
     } catch (error) {
+      if (error instanceof SellerDocumentError)
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.status }
+        );
       if (error instanceof IdentityKeyError)
         return NextResponse.json(
           { error: 'IDENTITY_UNAVAILABLE' },

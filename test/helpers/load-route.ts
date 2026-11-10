@@ -8,7 +8,7 @@ import ts from 'typescript';
 export function loadRoute<T>(
   path: string,
   dependencies: Record<string, unknown>,
-  options: { console?: Console } = {}
+  options: { console?: Console; globals?: Record<string, unknown> } = {}
 ): T {
   const source = readFileSync(
     new URL(`../../${path}`, import.meta.url),
@@ -31,6 +31,7 @@ export function loadRoute<T>(
     console: options.console || console,
     URL,
     URLSearchParams,
+    ...options.globals,
   });
   return routeExports as T;
 }

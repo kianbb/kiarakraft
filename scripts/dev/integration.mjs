@@ -26,7 +26,12 @@ try {
     ['--import', 'tsx', 'test/orderStock.integration.test.ts'],
     env
   );
-  for (const file of ['password-reset', 'ai-budget', 'identity-fingerprint']) {
+  for (const file of [
+    'password-reset',
+    'ai-budget',
+    'identity-fingerprint',
+    'seller-documents',
+  ]) {
     await run(
       process.execPath,
       ['--import', 'tsx', `test/${file}.integration.test.ts`],

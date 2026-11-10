@@ -169,6 +169,8 @@ function harness(
       },
       '@/lib/json-input': jsonInput,
       '@/lib/seller-onboarding-input': input,
+      '@/lib/seller-document-store': { ownedReadyDocuments: async () => [] },
+      '@/lib/seller-documents': { SellerDocumentError: class extends Error {} },
     },
     { console: logger }
   );

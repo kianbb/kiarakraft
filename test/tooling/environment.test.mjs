@@ -153,3 +153,15 @@ test('smoke tests cannot be redirected to a remote URL', () => {
     })
   );
 });
+
+test('document collection remains disabled despite inherited or configured activation', () => {
+  for (const nodeEnv of ['development', 'production', 'test']) {
+    const env = safeEnvironment({
+      nodeEnv,
+      source: { SELLER_DOCUMENT_COLLECTION_ENABLED: 'true' },
+      config: { SELLER_DOCUMENT_COLLECTION_ENABLED: 'true' },
+    });
+    assert.equal(env.SELLER_DOCUMENT_COLLECTION_ENABLED, 'false');
+    assert.equal(env.KK_ISOLATED, '1');
+  }
+});

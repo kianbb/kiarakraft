@@ -1,224 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  uploadImageToCloudinary,
-  UPLOAD_FOLDER,
-  listAssetsInFolder,
-} from '@/lib/cloudinary';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
-import { validateFile, performSecurityChecks } from '@/lib/file-validation';
-import * as Sentry from '@sentry/nextjs';
 import { isStagingDeployment } from '@/lib/deployment-policy';
+import { readDocumentFile, SellerDocumentError } from '@/lib/seller-documents';
+import {
+  reserveDocument,
+  finalizeDocument,
+  failDocument,
+} from '@/lib/seller-document-store';
+import {
+  uploadPrivateDocument,
+  assertDocumentProviderConfigured,
+  assertDocumentCollectionEnabled,
+} from '@/lib/seller-document-provider';
+
+function privateJson(data: unknown, init: ResponseInit = {}) {
+  return NextResponse.json(data, {
+    ...init,
+    headers: {
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer',
+    },
+  });
+}
 
 export const POST = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (request: NextRequest) {
     if (isStagingDeployment())
-      return NextResponse.json(
+      return privateJson(
         { error: 'Identity document collection is disabled in staging' },
         { status: 403 }
       );
+    let reservation: { id: string; sellerId: string } | undefined;
     try {
       const session = await auth();
-
-      if (!session?.user?.email) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      // Attach user context for observability
-      Sentry.setUser({ email: session.user.email });
-
+      if (!session?.user?.email)
+        return privateJson({ error: 'Unauthorized' }, { status: 401 });
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
-        include: { sellerProfile: true },
+        select: {
+          id: true,
+          role: true,
+          sellerProfile: { select: { id: true } },
+        },
       });
-
-      if (!user || user.role !== 'SELLER' || !user.sellerProfile) {
-        return NextResponse.json(
+      if (user?.role !== 'SELLER' || !user.sellerProfile)
+        return privateJson(
           { error: 'Seller profile required' },
           { status: 403 }
         );
-      }
-
-      const formData = await request.formData();
-      const file = formData.get('file') as File;
-      const type = formData.get('type') as string;
-
-      if (!file) {
-        return NextResponse.json(
-          { error: 'VALIDATION_ERROR', message: 'No file provided' },
-          { status: 400 }
-        );
-      }
-
-      // Convert file to buffer for validation
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      // Validate file content using magic bytes
-      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-
-      const fileValidation = validateFile(buffer, file.type, allowedTypes);
-
-      if (!fileValidation.isValid) {
-        console.warn(`Document validation failed: ${fileValidation.error}`);
-        return NextResponse.json(
-          {
-            error: 'VALIDATION_ERROR',
-            message: fileValidation.error || 'Invalid file content detected',
-          },
-          { status: 400 }
-        );
-      }
-
-      // Perform additional security checks
-      const securityCheck = performSecurityChecks(buffer);
-      if (!securityCheck.isSafe) {
-        console.warn(
-          `Security threats in document: ${securityCheck.threats.join(', ')}`
-        );
-        return NextResponse.json(
-          {
-            error: 'VALIDATION_ERROR',
-            message: 'Security threat detected in file content',
-          },
-          { status: 400 }
-        );
-      }
-
-      // Log warnings if MIME type doesn't match detected type
-      if (fileValidation.warnings) {
-        console.warn(
-          'Document validation warnings:',
-          fileValidation.warnings.join(', ')
-        );
-      }
-
-      const maxSize = 10 * 1024 * 1024; // 10MB for documents
-      if (file.size > maxSize) {
-        return NextResponse.json(
-          {
-            error: 'VALIDATION_ERROR',
-            message: 'File too large. Maximum 10MB allowed.',
-          },
-          { status: 400 }
-        );
-      }
-
-      // Enforce a maximum number of documents per seller (5) by listing Cloudinary folder
-      const folderPath = `${UPLOAD_FOLDER}/sellers/${user.sellerProfile.id}/documents`;
-      const existing = await listAssetsInFolder(folderPath, 200);
-      if (existing.length >= 5) {
-        return NextResponse.json(
-          { error: 'VALIDATION_ERROR', message: 'Maximum 5 documents allowed' },
-          { status: 400 }
-        );
-      }
-
-      // Buffer already created during validation
-
-      // Create secure folder path
-      const fileName = `${type || 'document'}-${Date.now()}`;
-
-      // Upload to Cloudinary
-      let uploadResult;
-      if (file.type === 'application/pdf') {
-        // For PDFs, use raw upload
-        uploadResult = await new Promise((resolve, reject) => {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { cloudinary } = require('@/lib/cloudinary');
-
-          cloudinary.uploader
-            .upload_stream(
-              {
-                folder: folderPath,
-                public_id: fileName,
-                resource_type: 'raw',
-                secure: true,
-              },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (error: any, result: any) => {
-                if (error) {
-                  console.error('Cloudinary PDF upload error:', error);
-                  reject(new Error('Document upload failed'));
-                } else if (result) {
-                  resolve({
-                    public_id: result.public_id,
-                    secure_url: result.secure_url,
-                    bytes: result.bytes,
-                  });
-                } else {
-                  reject(new Error('Upload failed: No result'));
-                }
-              }
-            )
-            .end(buffer);
-        });
-      } else {
-        // For images, use the existing upload function
-        uploadResult = await uploadImageToCloudinary(buffer, {
-          folder: folderPath,
-          public_id: fileName,
-        });
-      }
-
-      // Update seller profile with docs folder if not set
-      if (!user.sellerProfile.docsFolder) {
-        await prisma.sellerProfile.update({
-          where: { id: user.sellerProfile.id },
-          data: { docsFolder: folderPath },
-        });
-      }
-
-      // Persist document metadata in DB for audit/cleanup
-      const uploaded = uploadResult as {
-        public_id: string;
-        secure_url: string;
-        bytes: number;
-      };
-      // Narrow type to avoid editor errors before Prisma types regenerate
-      type SDClient = {
-        sellerDocument: {
-          create: (args: {
-            data: {
-              sellerId: string;
-              publicId: string;
-              url: string;
-              mime: string;
-              bytes: number;
-            };
-          }) => Promise<unknown>;
-        };
-      };
-      const sd = prisma as unknown as SDClient;
-      try {
-        await sd.sellerDocument.create({
-          data: {
-            sellerId: user.sellerProfile.id,
-            publicId: uploaded.public_id,
-            url: uploaded.secure_url,
-            mime: file.type,
-            bytes: uploaded.bytes,
-          },
-        });
-      } catch (e) {
-        // Best-effort: don’t fail the upload if audit table isn’t available yet
-        console.warn('Persist SellerDocument failed (non-fatal):', e);
-      }
-
-      return NextResponse.json({
-        success: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        url: (uploadResult as any).secure_url,
-        type: file.type,
-        size: file.size,
-        total: existing.length + 1,
-      });
+      assertDocumentCollectionEnabled();
+      assertDocumentProviderConfigured();
+      const { buffer, mime } = await readDocumentFile(request);
+      reservation = await reserveDocument(
+        user.sellerProfile.id,
+        mime,
+        buffer.length
+      );
+      await uploadPrivateDocument(
+        buffer,
+        mime,
+        reservation.sellerId,
+        reservation.id
+      );
+      await finalizeDocument(reservation.id, reservation.sellerId);
+      return privateJson(
+        {
+          success: true,
+          document: { id: reservation.id, mime, bytes: buffer.length },
+        },
+        { headers: { 'Cache-Control': 'private, no-store' } }
+      );
     } catch (error) {
-      console.error('Error uploading document:', error);
-      Sentry.captureException(error);
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+      if (reservation)
+        await failDocument(reservation.id, reservation.sellerId).catch(
+          () => {}
+        );
+      if (error instanceof SellerDocumentError)
+        return privateJson({ error: error.code }, { status: error.status });
+      return privateJson({ error: 'DOCUMENT_UNAVAILABLE' }, { status: 503 });
     }
   })
 );

@@ -260,6 +260,10 @@ model SellerDocument {
   mime      String
   bytes     Int
   createdAt DateTime      @default(now())
+  // Null classifies existing references as legacy; never silently public-deliver them.
+  resourceType String?
+  deliveryType String?
+  status       String?
   seller    SellerProfile @relation(fields: [sellerId], references: [id])
 
   @@index([sellerId])

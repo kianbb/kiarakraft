@@ -277,6 +277,9 @@ async function identityRoute(filename: string, env: Env) {
     '@/lib/identity-fingerprint': {},
     '@/lib/json-input': {},
     '@/lib/seller-onboarding-input': {},
+    '@/lib/seller-document-store': {},
+    '@/lib/seller-document-provider': {},
+    '@/lib/seller-documents': {},
     '@/lib/csrf': { withCSRF: (handler: unknown) => handler },
     '@/lib/rateLimit': {
       withRateLimit: (_config: unknown, handler: unknown) => handler,

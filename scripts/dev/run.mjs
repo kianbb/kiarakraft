@@ -82,6 +82,7 @@ async function main() {
         'dependency-adapters',
         'identity-fingerprint',
         'rate-limit-privacy',
+        'seller-documents',
       ]) {
         await run(
           process.execPath,
