@@ -1,0 +1,149 @@
+name: Anonymous staging connectivity
+
+on:
+  push:
+    branches: [task/staging-connectivity]
+    paths: [.github/workflows/staging-connectivity.yml]
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - name: Check anonymous HTTPS and an isolated browser
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import concurrent.futures, json, os, re, shutil, signal, ssl
+          import subprocess, tempfile, urllib.error, urllib.parse, urllib.request
+
+          HOSTS = (
+              'kiarakraft-staging.vercel.app',
+              'vercel.com',
+          )
+          ERRORS = {
+              'ERR_CONNECTION_RESET', 'ERR_CONNECTION_CLOSED',
+              'ERR_CONNECTION_TIMED_OUT', 'ERR_NAME_NOT_RESOLVED',
+              'ERR_CERT_AUTHORITY_INVALID', 'ERR_CERT_COMMON_NAME_INVALID',
+              'ERR_CERT_DATE_INVALID', 'ERR_SSL_PROTOCOL_ERROR',
+              'ERR_TUNNEL_CONNECTION_FAILED', 'ERR_CONNECTION_REFUSED',
+          }
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+
+          def sso_redirect(status, location):
+              try:
+                  p = urllib.parse.urlsplit(location)
+                  return (status == 302 and p.scheme == 'https' and
+                          p.hostname == 'vercel.com' and p.path == '/sso-api' and
+                          not p.username and not p.password and p.port in (None, 443))
+              except (TypeError, ValueError):
+                  return False
+
+          def error_code(error):
+              reason = getattr(error, 'reason', error)
+              if isinstance(reason, ssl.SSLCertVerificationError):
+                  return 'TLS_CERTIFICATE_VERIFICATION_FAILED'
+              if isinstance(reason, ssl.SSLError):
+                  return 'TLS_FAILED'
+              if isinstance(reason, TimeoutError):
+                  return 'TIMEOUT'
+              return {104: 'ECONNRESET', 111: 'ECONNREFUSED',
+                      -2: 'DNS_FAILED', -3: 'DNS_TEMPORARY_FAILURE'}.get(
+                          getattr(reason, 'errno', None), 'NETWORK_FAILED')
+
+          def head(host):
+              # No proxy/credential handlers, redirects, cookies or response bodies.
+              opener = urllib.request.build_opener(
+                  urllib.request.ProxyHandler({}), NoRedirect(),
+                  urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+              try:
+                  request = urllib.request.Request('https://' + host + '/', method='HEAD')
+                  try:
+                      response = opener.open(request, timeout=10)
+                  except urllib.error.HTTPError as error:
+                      response = error
+                  with response:
+                      status = response.status
+                      protected = sso_redirect(status, response.headers.get('Location', ''))
+                      passed = status == 200 if host == 'vercel.com' else protected
+                      return {'host': host, 'http_status': status,
+                              'vercel_sso_redirect': protected, 'passed': passed,
+                              'tls_verification_enabled': True}
+              except Exception as error:
+                  return {'host': host, 'passed': False, 'error_code': error_code(error),
+                          'raw_details_withheld': True, 'tls_verification_enabled': True}
+
+          def browser():
+              executable = next((shutil.which(name, path='/usr/bin:/bin') for name in
+                  ('google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser')
+                  if shutil.which(name, path='/usr/bin:/bin')), None)
+              if not executable:
+                  return {'browser_verified': False, 'outcome': 'preinstalled-browser-unavailable'}
+              with tempfile.TemporaryDirectory(prefix='kiara-anonymous-browser-') as profile:
+                  os.chmod(profile, 0o700)
+                  args = [executable, '--headless', '--no-first-run', '--disable-sync',
+                      '--disable-extensions', '--disable-background-networking',
+                      '--user-data-dir=' + profile, '--disk-cache-dir=' + profile + '/cache',
+                      '--dump-dom', '--timeout=10000', 'https://' + HOSTS[0] + '/']
+                  environment = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8',
+                      'XDG_CONFIG_HOME': profile + '/config', 'XDG_CACHE_HOME': profile + '/xdg-cache'}
+                  process = None
+                  try:
+                      process = subprocess.Popen(args, env=environment,
+                          stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, start_new_session=True)
+                      out, err = process.communicate(timeout=15)
+                      # DOM/log text remains in memory and is never printed/uploaded.
+                      text = (out + err).decode('utf-8', errors='replace')
+                      codes = sorted(set(re.findall(r'\bERR_[A-Z_]+\b', text)) & ERRORS)
+                      marker = any(value in text.lower() for value in
+                          ('log in to vercel', 'sign in to vercel', 'login to vercel'))
+                      verified = process.returncode == 0 and not codes and marker
+                      return {'browser_verified': verified, 'process_exit': process.returncode,
+                          'outcome': 'known-signin-page' if verified else 'unverified',
+                          'error_codes': codes, 'sandbox_disabled': False}
+                  except subprocess.TimeoutExpired:
+                      return {'browser_verified': False, 'outcome': 'timeout',
+                              'sandbox_disabled': False}
+                  except Exception:
+                      return {'browser_verified': False, 'outcome': 'launch-unverified',
+                              'raw_details_withheld': True, 'sandbox_disabled': False}
+                  finally:
+                      if process is not None:
+                          try:
+                              os.killpg(process.pid, signal.SIGTERM)
+                          except ProcessLookupError:
+                              pass
+                          try:
+                              process.communicate(timeout=2)
+                          except subprocess.TimeoutExpired:
+                              os.killpg(process.pid, signal.SIGKILL)
+                              process.communicate(timeout=2)
+
+          # Pure guard regressions execute before any actual network request.
+          assert sso_redirect(302, 'https://vercel.com/sso-api?state=not-logged')
+          for location in ('http://vercel.com/sso-api', '/sso-api',
+                  'https://vercel.com.attacker.invalid/sso-api',
+                  'https://user:private@vercel.com/sso-api', 'https://vercel.com/other'):
+              assert not sso_redirect(302, location)
+          assert not sso_redirect(200, 'https://vercel.com/sso-api')
+          assert error_code(RuntimeError('private-message')) == 'NETWORK_FAILED'
+          assert error_code(ConnectionResetError(104, 'private-message')) == 'ECONNRESET'
+          print(json.dumps({'guard_selftests_passed': True, 'credentials_used': False}))
+          with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+              results = list(pool.map(head, HOSTS))
+          for result in results:
+              print(json.dumps({'anonymous_head': result}))
+          browser_result = browser()
+          print(json.dumps({'isolated_browser': browser_result}))
+          network_passed = all(result['passed'] for result in results)
+          print(json.dumps({'anonymous_network_gate_passed': network_passed,
+              'browser_check_verified': browser_result['browser_verified'],
+              'authenticated_acceptance_tested': False, 'token_revocation_tested': False}))
+          raise SystemExit(0 if network_passed else 1)
+          PY
