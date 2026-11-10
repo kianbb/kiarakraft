@@ -634,7 +634,12 @@
     "approvedNextSteps": "Your product is now live on the marketplace and visible to buyers.",
     "rejectionReasons": "Rejection Reasons",
     "whatToDo": "What to do",
-    "rejectedNextSteps": "Review the feedback and update your product to meet our handmade marketplace standards. You can edit and resubmit your product."
+    "rejectedNextSteps": "Review the feedback and update your product to meet our handmade marketplace standards. You can edit and resubmit your product.",
+    "documentUploaded": "Document uploaded securely.",
+    "documentsReconciliationRequired": "Your existing documents need a secure review before more can be uploaded. Please contact support.",
+    "documentsLimit": "A maximum of five documents can be submitted.",
+    "uploadedDocuments": "Uploaded documents",
+    "document": "Document"
   },
   "shop": {
     "verified": "Verified",
@@ -668,7 +673,6 @@
     "supportMessage": "Support Iranian artists and craftspeople by shopping at Kiara Kraft",
     "allRightsReserved": "All rights reserved"
   },
-
   "admin": {
     "dashboard": "Admin Dashboard",
     "welcomeBack": "Welcome back",
@@ -704,7 +708,6 @@
     "searchSellers": "Search sellers...",
     "ago": "ago",
     "days": "days",
-    "sellerVerification": "Seller Verification",
     "verificationDescription": "Review KYC details and approve or reject sellers.",
     "review": "Review",
     "documents": "Documents",
@@ -791,7 +794,11 @@
     "returnStatusUpdated": "Return status updated successfully",
     "errorUpdatingReturn": "Error updating return status",
     "noReturns": "No returns found",
-    "noReturnsInStatus": "No returns in this status"
+    "noReturnsInStatus": "No returns in this status",
+    "documentLabel": "Document {number}",
+    "documentUnavailable": "Document unavailable",
+    "documentsUnavailable": "Documents could not be loaded. Please try again.",
+    "documentsReconciliationRequired": "Some older documents need a secure review before they can be opened."
   },
   "reviews": {
     "leaveReview": "Leave a Review",

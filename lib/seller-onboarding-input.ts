@@ -35,6 +35,10 @@ export const sellerOnboardingSchema = z
       .max(32)
       .transform(normalizeNationalId)
       .pipe(z.string().regex(/^[0-9]{10}$/)),
-    uploadedDocs: z.array(z.string().max(2048).min(1)).max(5).optional(),
+    uploadedDocs: z
+      .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
+      .max(5)
+      .refine(ids => new Set(ids).size === ids.length)
+      .optional(),
   })
   .strict();

@@ -80,6 +80,10 @@ async function main() {
         },
         '@/lib/json-input': jsonInput,
         '@/lib/seller-onboarding-input': input,
+        '@/lib/seller-document-store': { ownedReadyDocuments: async () => [] },
+        '@/lib/seller-documents': {
+          SellerDocumentError: class extends Error {},
+        },
       }
     );
     const submit = (shopName: string, nationalId = '0123456789') =>

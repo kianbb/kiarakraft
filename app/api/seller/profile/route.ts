@@ -7,6 +7,13 @@ import { z } from 'zod';
 import * as Sentry from '@sentry/nextjs';
 import { withCSRF } from '@/lib/csrf';
 
+function withoutDocumentStorage<T extends { docsFolder: string | null }>(
+  profile: T
+) {
+  const { docsFolder: _docsFolder, ...safe } = profile;
+  return safe;
+}
+
 export const GET = withRateLimit(sellerRateLimit, async function GET() {
   try {
     const session = await auth();
@@ -33,7 +40,9 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
-      sellerProfile: user.sellerProfile,
+      sellerProfile: user.sellerProfile
+        ? withoutDocumentStorage(user.sellerProfile)
+        : null,
     };
 
     return NextResponse.json(profileData);
@@ -172,7 +181,7 @@ export const PUT = withRateLimit(
         email: user.email,
         name: data.displayName || user.name,
         createdAt: user.createdAt,
-        sellerProfile: updatedProfile,
+        sellerProfile: withoutDocumentStorage(updatedProfile),
       };
 
       return NextResponse.json(profileData);

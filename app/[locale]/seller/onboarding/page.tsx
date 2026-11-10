@@ -166,27 +166,33 @@ export default function SellerOnboardingPage() {
     setLoading(true);
     try {
       const arr = Array.from(files);
-      const baseCount = uploadedDocs.length;
       for (let i = 0; i < arr.length; i++) {
         const file = arr[i];
         const formData = new FormData();
         formData.append('file', file);
         formData.append('type', 'verification');
 
-        const response = await fetch(
-          `/api/seller/documents/upload?count=${baseCount + i}`,
-          {
-            method: 'POST',
-            body: formData,
-          }
-        );
+        const response = await fetch('/api/seller/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
         if (response.ok) {
           const result = await response.json();
-          setUploadedDocs(prev => [...prev, result.url]);
-          toast.success('Document uploaded successfully');
+          if (typeof result.document?.id !== 'string') throw new Error();
+          setUploadedDocs(prev => [...prev, result.document.id]);
+          toast.success(t('documentUploaded'));
         } else {
-          toast.error(t('documentUploadFailed'));
+          const failure = await response.json().catch(() => ({}));
+          toast.error(
+            t(
+              failure.error === 'DOCUMENT_RECONCILIATION_REQUIRED'
+                ? 'documentsReconciliationRequired'
+                : failure.error === 'DOCUMENT_LIMIT'
+                  ? 'documentsLimit'
+                  : 'documentUploadFailed'
+            )
+          );
         }
       }
     } catch {
