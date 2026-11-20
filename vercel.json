@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm ci --legacy-peer-deps",
+  "installCommand": "npm ci --legacy-peer-deps --ignore-scripts",
   "redirects": [
     {
       "source": "/",
