@@ -10,11 +10,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
-import {
-  OrderWithItems,
-  ProductWithRelations,
-  SellerStats,
-} from '@/types/database';
+import type { ProductWithRelations, SellerStats } from '@/types/database';
+import type { SellerOrder } from '@/lib/order-read';
 import {
   Package,
   ShoppingCart,
@@ -35,7 +32,7 @@ export default function SellerDashboard() {
   const _t = useTranslations('seller');
   const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const [stats, setStats] = useState<SellerStats | null>(null);
-  const [recentOrders, setRecentOrders] = useState<OrderWithItems[]>([]);
+  const [recentOrders, setRecentOrders] = useState<SellerOrder[]>([]);
   const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>(
     []
   );
@@ -288,7 +285,7 @@ export default function SellerDashboard() {
 
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
-                {recentOrders.map((order: OrderWithItems) => (
+                {recentOrders.map(order => (
                   <div
                     key={order.id}
                     className="flex items-center justify-between p-3 border rounded"
@@ -301,7 +298,13 @@ export default function SellerDashboard() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold">
-                        {formatPrice(order.totalToman)}
+                        {formatPrice(
+                          order.items.reduce(
+                            (sum, item) =>
+                              sum + item.unitPriceToman * item.quantity,
+                            0
+                          )
+                        )}
                       </div>
                       <Badge
                         variant={

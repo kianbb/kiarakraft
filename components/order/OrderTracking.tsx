@@ -3,14 +3,21 @@
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Truck, Package, CheckCircle, Clock, MapPin } from 'lucide-react';
-import { OrderShipping } from '@/types/database';
+import { buyerShippingTimeline, type BuyerShipping } from '@/lib/order-read';
 
 interface OrderTrackingProps {
-  shipping: OrderShipping;
+  shipping: BuyerShipping;
   locale: string;
+  orderStatus: string;
+  orderUpdatedAt: string;
 }
 
-export function OrderTracking({ shipping, locale }: OrderTrackingProps) {
+export function OrderTracking({
+  shipping,
+  locale,
+  orderStatus,
+  orderUpdatedAt,
+}: OrderTrackingProps) {
   const t = useTranslations('order');
 
   const getStatusInfo = (status: string) => {
@@ -93,40 +100,10 @@ export function OrderTracking({ shipping, locale }: OrderTrackingProps) {
   const statusInfo = getStatusInfo(shipping.status);
   const estimatedDelivery = getEstimatedDelivery();
 
-  // Define the timeline event interface
-  interface TimelineEvent {
-    status: string;
-    timestamp: string | Date;
-    trackingNo?: string;
-    notes?: string;
-  }
-
-  // Parse history from JSON if available
-  const history = shipping.history as { events?: Array<TimelineEvent> } | null;
-  const timeline: TimelineEvent[] = history?.events || [
-    {
-      status: 'PROCESSING',
-      timestamp: shipping.createdAt,
-    },
-  ];
-
-  // Add current status if not in timeline
-  const hasCurrentStatus = timeline.some(
-    (event: TimelineEvent) => event.status === shipping.status
-  );
-  if (!hasCurrentStatus && shipping.status !== 'PROCESSING') {
-    timeline.push({
-      status: shipping.status,
-      timestamp: shipping.updatedAt,
-      trackingNo: shipping.trackingNo || undefined,
-    });
-  }
-
-  // Sort timeline by timestamp
-  timeline.sort(
-    (a: TimelineEvent, b: TimelineEvent) =>
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  const timeline = buyerShippingTimeline(shipping, {
+    status: orderStatus,
+    updatedAt: orderUpdatedAt,
+  });
 
   return (
     <div className="space-y-6">
@@ -180,7 +157,7 @@ export function OrderTracking({ shipping, locale }: OrderTrackingProps) {
       <div>
         <h3 className="text-lg font-semibold mb-4">{t('shippingTimeline')}</h3>
         <div className="space-y-4">
-          {timeline.map((event: TimelineEvent, index: number) => {
+          {timeline.map((event, index) => {
             const eventStatusInfo = getStatusInfo(event.status);
             const isCompleted =
               index < timeline.length - 1 || shipping.status === event.status;
@@ -237,10 +214,6 @@ export function OrderTracking({ shipping, locale }: OrderTrackingProps) {
                       {t('trackingNumber')}:{' '}
                       <span className="font-mono">{event.trackingNo}</span>
                     </p>
-                  )}
-
-                  {event.notes && (
-                    <p className="text-sm text-gray-600 mt-1">{event.notes}</p>
                   )}
                 </div>
 

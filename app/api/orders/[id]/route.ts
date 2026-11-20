@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { publicProductSelect } from '@/lib/public-product';
+import {
+  buyerShippingSelect,
+  orderReceiptSelect,
+  toBuyerShipping,
+} from '@/lib/order-read';
 
 export async function GET(
   request: NextRequest,
@@ -17,6 +22,7 @@ export async function GET(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      select: { id: true },
     });
 
     if (!user) {
@@ -28,9 +34,10 @@ export async function GET(
         id: params.id,
         userId: user.id,
       },
-      include: {
+      select: {
+        ...orderReceiptSelect,
         address: true,
-        shipping: true,
+        shipping: { select: buyerShippingSelect },
         items: {
           include: {
             product: {
@@ -45,7 +52,11 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    return NextResponse.json(order);
+    const { shipping, ...receipt } = order;
+    return NextResponse.json(
+      { ...receipt, shipping: toBuyerShipping(shipping) },
+      { headers: { 'Cache-Control': 'private, no-store' } }
+    );
   } catch (error) {
     console.error('Error fetching order:', error);
     return NextResponse.json(

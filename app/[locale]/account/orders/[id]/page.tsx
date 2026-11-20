@@ -12,7 +12,6 @@ import {
   Phone,
   User,
   ArrowLeft,
-  Copy,
   CreditCard,
   Box,
   RotateCcw,
@@ -20,13 +19,20 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { CopyOrderIdButton } from '@/components/order/CopyOrderIdButton';
+import {
+  buyerShippingSelect,
+  buyerShippingTimeline,
+  toBuyerShipping,
+  type BuyerShipping,
+} from '@/lib/order-read';
 
 interface OrderDetailPageProps {
   params: Promise<{ locale: string; id: string }>;
 }
 
 async function getOrderById(orderId: string, userId: string) {
-  return await prisma.order.findFirst({
+  const order = await prisma.order.findFirst({
     where: {
       id: orderId,
       userId,
@@ -52,24 +58,24 @@ async function getOrderById(orderId: string, userId: string) {
         },
       },
       payment: true,
-      shipping: true,
+      shipping: { select: buyerShippingSelect },
       address: true,
     },
   });
+  if (!order) return null;
+  const { shipping, ...details } = order;
+  return { ...details, shipping: toBuyerShipping(shipping) };
 }
 
 interface OrderWithDetails {
   createdAt: Date;
+  updatedAt: Date;
+  status: string;
   payment?: {
     status: string;
     updatedAt: Date;
   } | null;
-  shipping?: {
-    status: string;
-    trackingNo?: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
+  shipping: BuyerShipping | null;
 }
 
 function getOrderTimeline(order: OrderWithDetails, t: (key: string) => string) {
@@ -104,40 +110,29 @@ function getOrderTimeline(order: OrderWithDetails, t: (key: string) => string) {
 
   // Shipping updates
   if (order.shipping) {
-    if (
-      order.shipping.status === 'PROCESSING' ||
-      order.shipping.status === 'SHIPPED' ||
-      order.shipping.status === 'DELIVERED'
-    ) {
+    const events = buyerShippingTimeline(order.shipping, {
+      status: order.status,
+      updatedAt: order.updatedAt.toISOString(),
+    });
+    const phases = [
+      { status: 'PROCESSING', label: 'preparingShipment', icon: Box },
+      { status: 'SHIPPED', label: 'shipped', icon: Truck },
+      { status: 'DELIVERED', label: 'delivered', icon: CheckCircle },
+      { status: 'RETURNED', label: 'returned', icon: RotateCcw },
+    ];
+    for (const phase of phases) {
+      const event = events.find(event => event.status === phase.status);
+      if (!event) continue;
+      const trackingNo =
+        phase.status === 'SHIPPED'
+          ? (order.shipping.trackingNo ?? event.trackingNo)
+          : undefined;
       timeline.push({
-        date: order.shipping.createdAt,
-        title: t('preparingShipment'),
+        date: new Date(event.timestamp),
+        title: t(phase.label),
+        subtitle: trackingNo ? `${t('tracking')}: ${trackingNo}` : undefined,
         status: 'completed',
-        icon: Box,
-      });
-    }
-
-    if (
-      order.shipping.status === 'SHIPPED' ||
-      order.shipping.status === 'DELIVERED'
-    ) {
-      timeline.push({
-        date: order.shipping.updatedAt,
-        title: t('shipped'),
-        subtitle: order.shipping.trackingNo
-          ? `${t('tracking')}: ${order.shipping.trackingNo}`
-          : undefined,
-        status: 'completed',
-        icon: Truck,
-      });
-    }
-
-    if (order.shipping.status === 'DELIVERED') {
-      timeline.push({
-        date: order.shipping.updatedAt,
-        title: t('delivered'),
-        status: 'completed',
-        icon: CheckCircle,
+        icon: phase.icon,
       });
     }
   }
@@ -192,14 +187,7 @@ export default async function OrderDetailPage({
                 {t('orderNumber')}:{' '}
                 <span className="font-mono">#{order.id.slice(-8)}</span>
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigator.clipboard.writeText(order.id)}
-              >
-                <Copy className="h-3 w-3 mr-1" />
-                {t('copyId')}
-              </Button>
+              <CopyOrderIdButton orderId={order.id} label={t('copyId')} />
             </div>
           </div>
           <div>

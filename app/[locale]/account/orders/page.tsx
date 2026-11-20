@@ -30,7 +30,7 @@ async function getUserOrders(userId: string) {
         },
       },
       payment: true,
-      shipping: true,
+      shipping: { select: { status: true, trackingNo: true } },
       address: true,
     },
     orderBy: { createdAt: 'desc' },

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import {
+  buyerShippingSelect,
+  orderReceiptSelect,
+  toBuyerShipping,
+} from '@/lib/order-read';
 
 /**
  * Export user data for privacy compliance (GDPR Article 20)
@@ -39,7 +44,8 @@ export async function GET() {
         // Order history
         db.order.findMany({
           where: { userId: session.user.id },
-          include: {
+          select: {
+            ...orderReceiptSelect,
             items: {
               include: {
                 product: {
@@ -47,7 +53,7 @@ export async function GET() {
                 },
               },
             },
-            shipping: true,
+            shipping: { select: buyerShippingSelect },
           },
         }),
 
@@ -125,7 +131,10 @@ export async function GET() {
       personalInfo: user,
       addresses: addresses || [],
       orderHistory: {
-        orders: orders || [],
+        orders: orders.map(({ shipping, ...receipt }) => ({
+          ...receipt,
+          shipping: toBuyerShipping(shipping),
+        })),
         totalOrders: orders?.length || 0,
         totalSpent:
           orders?.reduce((sum, order) => sum + order.totalToman, 0) || 0,

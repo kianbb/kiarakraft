@@ -14,9 +14,17 @@ const fixture = {
   seller: 'kk_local_seller',
   shop: 'kk_local_shop',
   product: 'kk_local_bowl',
+  address: 'kk_local_address',
 };
 const nonce = randomUUID();
 const privateSentinel = `private-http-smoke-${nonce}`;
+const orderFixture = {
+  id: `http-smoke-order-${nonce}`,
+  itemId: `http-smoke-order-item-${nonce}`,
+  shippingId: `http-smoke-shipping-${nonce}`,
+  trackingNo: `SYNTHETIC-${nonce}`,
+  shippedAt: '2026-05-02T12:00:00.000Z',
+};
 const clientIP = `127.${parseInt(nonce.slice(0, 2), 16)}.${parseInt(nonce.slice(2, 4), 16)}.${parseInt(nonce.slice(4, 6), 16)}`;
 const privateKeys = [
   'password',
@@ -194,6 +202,48 @@ async function run() {
           ]
         );
       }
+      const insertedOrder = await client.query(
+        `INSERT INTO "Order" (id, "userId", "addressId", status, "totalToman", "createdAt", "updatedAt")
+         SELECT $1, $2, id, 'SHIPPED', 260000, TIMESTAMP '2026-05-01 12:00:00', NOW()
+         FROM "Address" WHERE id=$3 AND "userId"=$2`,
+        [orderFixture.id, fixture.buyer, fixture.address]
+      );
+      assert.equal(
+        insertedOrder.rowCount,
+        1,
+        'Synthetic buyer address missing'
+      );
+      await client.query(
+        `INSERT INTO "OrderItem" (id, "orderId", "productId", quantity, "unitPriceToman")
+         VALUES ($1, $2, $3, 1, 250000)`,
+        [orderFixture.itemId, orderFixture.id, fixture.product]
+      );
+      await client.query(
+        `INSERT INTO "OrderShipping" (id, "orderId", method, "priceToman", "trackingNo", status, history, "createdAt", "updatedAt")
+         VALUES ($1, $2, 'STANDARD', 10000, $3, 'SHIPPED', $4::jsonb, NOW(), NOW())`,
+        [
+          orderFixture.shippingId,
+          orderFixture.id,
+          orderFixture.trackingNo,
+          JSON.stringify({
+            events: [
+              {
+                status: 'SHIPPED',
+                timestamp: orderFixture.shippedAt,
+                trackingNo: orderFixture.trackingNo,
+                updatedBy: `${privateSentinel}@example.invalid`,
+                notes: privateSentinel,
+              },
+              {
+                kind: 'metadata',
+                status: 'SHIPPED',
+                timestamp: '2026-05-03T12:00:00.000Z',
+                notes: privateSentinel,
+              },
+            ],
+          }),
+        ]
+      );
       await client.query('COMMIT');
       modified = true;
     } catch (error) {
@@ -288,10 +338,39 @@ async function run() {
     const missingOrder = `/api/orders/http-smoke-missing-${nonce}`;
     assert.equal((await buyer(missingOrder)).status, 404);
     assert.equal((await anonymous(missingOrder)).status, 401);
+    const orderPath = `/api/orders/${orderFixture.id}`;
+    assert.equal((await seller(orderPath)).status, 404);
+    assert.equal((await anonymous(orderPath)).status, 401);
+    const receipt = await buyer(orderPath);
+    assert.equal(receipt.status, 200);
+    assert.match(receipt.headers.get('cache-control'), /private, no-store/);
+    const receiptData = receipt.json();
+    assert.equal(receiptData.address.id, fixture.address);
+    assert.equal(receiptData.items[0].product.id, fixture.product);
+    assert.deepEqual(receiptData.shipping.history.events, [
+      {
+        status: 'SHIPPED',
+        timestamp: orderFixture.shippedAt,
+        trackingNo: orderFixture.trackingNo,
+      },
+    ]);
     for (const method of ['GET', 'POST'])
       assert.equal((await anonymous('/api/fx/update', { method })).status, 401);
 
     for (const locale of ['fa', 'en']) {
+      const buyerOrderPage = `/${locale}/account/orders/${orderFixture.id}`;
+      const orderHtml = await buyer(buyerOrderPage);
+      assert.equal(orderHtml.status, 200);
+      assert.match(orderHtml.headers.get('content-type'), /text\/html/);
+      assert.match(orderHtml.text, new RegExp(`<html[^>]*lang="${locale}"`));
+      assert.ok(orderHtml.text.includes(orderFixture.trackingNo));
+      const orderRsc = await buyer(`${buyerOrderPage}?_rsc=`, {
+        headers: { RSC: '1' },
+      });
+      assert.equal(orderRsc.status, 200);
+      assert.match(orderRsc.headers.get('content-type'), /text\/x-component/);
+      assert.ok(orderRsc.text.includes(orderFixture.trackingNo));
+
       const product = await anonymous(
         `/api/products/${fixture.product}?locale=${locale}`
       );
@@ -373,6 +452,21 @@ async function run() {
         );
         await client.query('BEGIN');
         try {
+          const shipment = await client.query(
+            'DELETE FROM "OrderShipping" WHERE id=$1 AND "orderId"=$2',
+            [orderFixture.shippingId, orderFixture.id]
+          );
+          const item = await client.query(
+            'DELETE FROM "OrderItem" WHERE id=$1 AND "orderId"=$2 AND "productId"=$3',
+            [orderFixture.itemId, orderFixture.id, fixture.product]
+          );
+          const order = await client.query(
+            'DELETE FROM "Order" WHERE id=$1 AND "userId"=$2 AND "addressId"=$3',
+            [orderFixture.id, fixture.buyer, fixture.address]
+          );
+          assert.equal(shipment.rowCount, 1);
+          assert.equal(item.rowCount, 1);
+          assert.equal(order.rowCount, 1);
           for (const role of ['buyer', 'seller']) {
             const oldCart = baseline.carts.find(
               cart => cart.userId === fixture[role]

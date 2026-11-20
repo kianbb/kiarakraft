@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { formatPrice, formatDate } from '@/lib/utils';
-import { OrderWithItems } from '@/types/database';
+import type { SellerOrder } from '@/lib/order-read';
 import { Search, Package, ArrowLeft, Calendar, User } from 'lucide-react';
 
 export default function SellerOrdersPage() {
@@ -22,7 +22,7 @@ export default function SellerOrdersPage() {
   useEffect(() => setIsHydrated(true), []);
   const _t = useTranslations('seller');
   const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
-  const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -104,12 +104,12 @@ export default function SellerOrdersPage() {
   };
 
   const filteredOrders = orders.filter(
-    (order: OrderWithItems) =>
+    order =>
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.address?.fullName
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      order.items.some((item: OrderWithItems['items'][0]) =>
+      order.items.some(item =>
         item.product.title.toLowerCase().includes(searchTerm.toLowerCase())
       )
   );
@@ -173,7 +173,7 @@ export default function SellerOrdersPage() {
         {/* Orders List */}
         {filteredOrders.length > 0 ? (
           <div className="space-y-6">
-            {filteredOrders.map((order: OrderWithItems) => (
+            {filteredOrders.map(order => (
               <div key={order.id} className="bg-white rounded-lg border p-6">
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
                   <div className="flex items-center gap-3">
@@ -195,7 +195,7 @@ export default function SellerOrdersPage() {
                       <div className="font-bold">
                         {formatPrice(
                           order.items.reduce(
-                            (sum: number, item: OrderWithItems['items'][0]) =>
+                            (sum, item) =>
                               sum + item.unitPriceToman * item.quantity,
                             0
                           )
@@ -203,8 +203,7 @@ export default function SellerOrdersPage() {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {order.items.reduce(
-                          (sum: number, item: OrderWithItems['items'][0]) =>
-                            sum + item.quantity,
+                          (sum, item) => sum + item.quantity,
                           0
                         )}{' '}
                         {t('items')}
@@ -223,7 +222,7 @@ export default function SellerOrdersPage() {
                 {/* Order Items */}
                 <div className="space-y-3">
                   <h4 className="font-medium">{t('orderItems')}:</h4>
-                  {order.items.map((item: OrderWithItems['items'][0]) => (
+                  {order.items.map(item => (
                     <div
                       key={item.id}
                       className="flex items-center gap-4 p-3 border rounded-lg"
