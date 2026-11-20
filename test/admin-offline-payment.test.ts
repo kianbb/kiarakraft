@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import * as fulfillment from '../lib/fulfillment';
 import * as orderClaim from '../lib/offline-payment-order';
 import * as orderStatus from '../lib/orderStatus';
 import * as orderStock from '../lib/orderStock';
@@ -45,6 +46,10 @@ function setup(
   };
   const tx = {
     $queryRaw: async (parts: TemplateStringsArray, value: string) => {
+      if (parts.join('?').includes('FROM "Order"')) {
+        assert.equal(value, orderId);
+        return [order];
+      }
       assert.match(parts.join('?'), /FROM "Payment" WHERE id = \? FOR UPDATE/);
       assert.equal(value, paymentId);
       events.push('lock');
@@ -56,7 +61,22 @@ function setup(
         payment.status = data.status;
       },
     },
+    orderShipping: { findUnique: async () => null },
     order: {
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { id: string; status: string };
+        data: { status: string };
+      }) => {
+        assert.equal(where.id, orderId);
+        assert.equal(where.status, options.observedOrderStatus ?? order.status);
+        if (where.status !== order.status) throw { code: 'P2025' };
+        events.push('transition');
+        order.status = data.status;
+        return order;
+      },
       updateMany: async ({
         where,
         data,
@@ -107,9 +127,12 @@ function setup(
     },
     '@/lib/notifications': {
       sendNotification: () => assert.fail('Provider may not run in this test'),
+      sendFulfillmentNotification: () =>
+        assert.fail('Provider may not run in this test'),
     },
     '@sentry/nextjs': { captureException: () => {}, setUser: () => {} },
     '@/lib/offline-payment-order': orderClaim,
+    '@/lib/fulfillment': fulfillment,
     '@/lib/orderStatus': orderStatus,
     '@/lib/orderStock': orderStock,
     '@/lib/validation': validation,
@@ -130,23 +153,6 @@ function setup(
             ...order,
             status: options.observedOrderStatus ?? order.status,
           }),
-          update: async ({
-            where,
-            data,
-          }: {
-            where: { id: string; status: string };
-            data: { status: string };
-          }) => {
-            assert.equal(where.id, orderId);
-            assert.equal(
-              where.status,
-              options.observedOrderStatus ?? order.status
-            );
-            if (where.status !== order.status) throw { code: 'P2025' };
-            events.push('transition');
-            order.status = data.status;
-            return order;
-          },
         },
         $transaction: async (
           callback: (client: typeof tx) => Promise<unknown>

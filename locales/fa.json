@@ -749,6 +749,14 @@
     "next": "بعدی",
     "updateFailed": "به‌روزرسانی ناموفق بود",
     "shippingManagement": "مدیریت ارسال",
+    "editShipment": "ویرایش ارسال",
+    "shippingUpdateConflict": "ارسال به‌روز نشد. وضعیت فعلی آن را بررسی کنید و دوباره تلاش کنید.",
+    "shippingStatus": {
+      "PROCESSING": "در حال آماده‌سازی",
+      "SHIPPED": "ارسال‌شده",
+      "DELIVERED": "تحویل‌شده",
+      "RETURNED": "برگشت‌خورده"
+    },
     "search": "جستجو",
     "searchPlaceholder": "جستجو با شماره پیگیری، شناسه سفارش یا ایمیل...",
     "status": "وضعیت",

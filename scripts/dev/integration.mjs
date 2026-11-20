@@ -27,6 +27,7 @@ try {
     env
   );
   for (const file of [
+    'fulfillment',
     'password-reset',
     'ai-budget',
     'identity-fingerprint',

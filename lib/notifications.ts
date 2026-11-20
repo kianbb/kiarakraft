@@ -559,6 +559,28 @@ export async function sendNotification(
   return results;
 }
 
+export function sendFulfillmentNotification(
+  order: { id: string; userId: string },
+  status: 'SHIPPED' | 'DELIVERED',
+  trackingNo?: string | null
+) {
+  setImmediate(async () => {
+    try {
+      await sendNotification({
+        userId: order.userId,
+        type: status === 'SHIPPED' ? 'order_shipped' : 'order_delivered',
+        data: {
+          orderId: order.id,
+          trackingNumber: trackingNo || undefined,
+          locale: 'fa',
+        },
+      });
+    } catch {
+      console.error('Failed to send fulfillment notification');
+    }
+  });
+}
+
 /**
  * Subscribe user to push notifications
  */

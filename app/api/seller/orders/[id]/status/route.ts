@@ -9,6 +9,7 @@ import {
   type SellerAction,
 } from '@/lib/orderStatus';
 import * as Sentry from '@sentry/nextjs';
+import { FulfillmentConflict, updateOrderFulfillment } from '@/lib/fulfillment';
 
 // Allowed transitions for sellers (whole-order level only when the order is single-seller)
 // - PAID -> SHIPPED
@@ -44,7 +45,8 @@ export const PATCH = withRateLimit(
 
       const { id } = params;
       const body = await request.json().catch(() => ({}));
-      const action = (body?.action as string | undefined)?.toLowerCase();
+      const action =
+        typeof body?.action === 'string' ? body.action.toLowerCase() : null;
 
       if (!action || !['mark_shipped', 'mark_delivered'].includes(action)) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -89,18 +91,22 @@ export const PATCH = withRateLimit(
         );
       }
 
-      const updated = await prisma.order.update({
-        where: { id, status: order.status },
-        data: { status: nextStatus },
-      });
-
-      return NextResponse.json(updated);
+      const updated = await updateOrderFulfillment(
+        prisma,
+        order,
+        nextStatus,
+        'SELLER'
+      );
+      return NextResponse.json(updated.order);
     } catch (error) {
+      if (error instanceof FulfillmentConflict) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
       if (
         error &&
         typeof error === 'object' &&
         'code' in error &&
-        error.code === 'P2025'
+        (error.code === 'P2025' || error.code === 'P2034')
       ) {
         return NextResponse.json(
           { error: 'Order status changed; refresh and retry' },

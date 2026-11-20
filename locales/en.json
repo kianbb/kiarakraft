@@ -749,6 +749,14 @@
     "next": "Next",
     "updateFailed": "Update failed",
     "shippingManagement": "Shipping Management",
+    "editShipment": "Edit shipment",
+    "shippingUpdateConflict": "The shipment could not be updated. Review its current status and try again.",
+    "shippingStatus": {
+      "PROCESSING": "Processing",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "RETURNED": "Returned"
+    },
     "search": "Search",
     "searchPlaceholder": "Search by tracking number, order ID, or email...",
     "status": "Status",

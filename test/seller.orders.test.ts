@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as orderStatus from '../lib/orderStatus';
+import * as fulfillment from '../lib/fulfillment';
 import { loadRoute } from './helpers/load-route';
 
 type Response = { status: number; data: unknown };
@@ -80,23 +81,30 @@ function setup(
               product: { sellerId },
             })),
           }),
-          update: async ({
-            where,
-            data,
-          }: {
-            where: { status: string };
-            data: unknown;
-          }) => {
-            assert.equal(
-              where.status,
-              'PAID',
-              'Fulfillment must compare the previously authorized state'
-            );
-            if (options.statusChanged) throw { code: 'P2025' };
-            writes++;
-            return { id: 'synthetic-order', ...(data as object) };
-          },
         },
+        $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
+          operation({
+            $queryRaw: async () => [
+              {
+                id: 'synthetic-order',
+                status: options.statusChanged ? 'CANCELED' : 'PAID',
+              },
+            ],
+            orderShipping: { findUnique: async () => null },
+            order: {
+              update: async ({
+                where,
+                data,
+              }: {
+                where: { status: string };
+                data: object;
+              }) => {
+                assert.equal(where.status, 'PAID');
+                writes++;
+                return { id: 'synthetic-order', ...data };
+              },
+            },
+          }),
       },
     },
     '@/lib/rateLimit': {
@@ -105,6 +113,7 @@ function setup(
     },
     '@/lib/csrf': { withCSRF: (handler: Handler) => handler },
     '@/lib/orderStatus': orderStatus,
+    '@/lib/fulfillment': fulfillment,
     '@sentry/nextjs': { setUser: () => {}, captureException: () => {} },
   };
   const list = loadRoute<{ GET: Handler }>(
