@@ -232,6 +232,15 @@ async function run() {
     let delivered = await getOrder(order.id);
     assert.equal(delivered.status, 'DELIVERED');
     assert.equal(delivered.shipping?.status, 'DELIVERED');
+    const deliveryHistory = delivered.shipping.history as {
+      events: { status: string; timestamp: string }[];
+    };
+    const deliveredAt = delivered.updatedAt.toISOString();
+    assert.equal(
+      deliveryHistory.events.find(event => event.status === 'DELIVERED')
+        ?.timestamp,
+      deliveredAt
+    );
     assert.deepEqual(delivered.payment, order.payment);
     assert.deepEqual(notifications, [
       [order.id, 'SHIPPED', shipment.trackingNo],
@@ -281,6 +290,14 @@ async function run() {
       delivered.updatedAt.getTime()
     );
     assert.equal(afterTracking.shipping?.trackingNo, 'SYNTHETIC-NEW');
+    const afterTrackingHistory = afterTracking.shipping.history as {
+      events: { status: string; timestamp: string; kind?: string }[];
+    };
+    assert.deepEqual(
+      afterTrackingHistory.events.slice(0, -1),
+      deliveryHistory.events
+    );
+    assert.equal(afterTrackingHistory.events.at(-1)?.kind, 'metadata');
     assert.ok(afterTracking.shipping);
     assert.equal((await edit(afterTracking.shipping, 'SHIPPED')).status, 409);
     assert.equal((await edit(afterTracking.shipping, 'RETURNED')).status, 200);
@@ -320,13 +337,34 @@ async function run() {
     const sellerDelivered = await getOrder(crossRoute.id);
     assert.equal(sellerDelivered.status, 'DELIVERED');
     assert.equal(sellerDelivered.shipping?.status, 'DELIVERED');
+    assert.deepEqual(
+      notifications
+        .filter(([id]) => id === crossRoute.id)
+        .map(([, status]) => status),
+      ['SHIPPED', 'DELIVERED']
+    );
+    assert.equal(
+      (
+        await request(seller.PATCH, crossRoute.id, 'PATCH', {
+          action: 'mark_delivered',
+        })
+      ).status,
+      400
+    );
+    assert.equal(
+      notifications.filter(([id]) => id === crossRoute.id).length,
+      2
+    );
     role = 'ADMIN';
 
     const legacyDelivered = await createOrder('DELIVERED');
     const knownDeliveryDate = new Date(Date.now() - 2 * 86_400_000);
     await prisma.order.update({
       where: { id: legacyDelivered.id },
-      data: { updatedAt: knownDeliveryDate },
+      data: {
+        createdAt: new Date(knownDeliveryDate.getTime() - 1000),
+        updatedAt: knownDeliveryDate,
+      },
     });
     assert.equal(
       (await edit(legacyDelivered.shipping, 'DELIVERED')).status,
@@ -335,9 +373,30 @@ async function run() {
     const caughtUp = await getOrder(legacyDelivered.id);
     assert.equal(caughtUp.shipping?.status, 'DELIVERED');
     assert.equal(caughtUp.updatedAt.getTime(), knownDeliveryDate.getTime());
+    assert.ok(caughtUp.shipping.updatedAt > knownDeliveryDate);
+    assert.deepEqual(caughtUp.shipping.history, {
+      events: [
+        {
+          status: 'DELIVERED',
+          timestamp: knownDeliveryDate.toISOString(),
+          updatedBy: 'ADMIN',
+        },
+      ],
+    });
     assert.equal(
       notifications.filter(([id]) => id === legacyDelivered.id).length,
       0
+    );
+
+    const impossible = await createOrder('DELIVERED');
+    await prisma.order.update({
+      where: { id: impossible.id },
+      data: { updatedAt: knownDeliveryDate },
+    });
+    assert.equal((await edit(impossible.shipping, 'DELIVERED')).status, 409);
+    assert.deepEqual(
+      await getShipping(impossible.shipping.id),
+      impossible.shipping
     );
 
     const ahead = await createOrder('SHIPPED');

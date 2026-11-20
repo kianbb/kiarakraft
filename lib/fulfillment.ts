@@ -6,12 +6,13 @@ import type {
 } from '@prisma/client';
 import type { OrderStatus, ShippingStatus } from './orderStatus';
 
-type OrderState = Pick<Order, 'id' | 'status'>;
+type OrderState = Pick<Order, 'id' | 'status' | 'createdAt' | 'updatedAt'>;
 type ShippingChange = {
   status: ShippingStatus;
   actor: 'ADMIN' | 'SELLER';
   trackingNo?: string;
   notes?: string;
+  occurredAt?: Date;
 };
 
 export class FulfillmentConflict extends Error {}
@@ -23,10 +24,20 @@ export async function lockFulfillmentOrder(
   // Keep the Order lock through the shipment/history write. Every fulfillment
   // entry point locks in this order, including tracking-only edits.
   const [order] = await tx.$queryRaw<OrderState[]>`
-    SELECT "id", "status" FROM "Order"
+    SELECT "id", "status", "createdAt", "updatedAt" FROM "Order"
     WHERE "id" = ${orderId} FOR UPDATE
   `;
   return order;
+}
+
+export function confirmedOrderStatusTime(
+  order: Pick<Order, 'createdAt' | 'updatedAt'>
+) {
+  const timestamp = order.updatedAt.getTime();
+  if (!(timestamp >= order.createdAt.getTime() && timestamp <= Date.now())) {
+    throw new FulfillmentConflict('Order status timestamp needs review');
+  }
+  return order.updatedAt;
 }
 
 export async function writeShipment(
@@ -51,7 +62,7 @@ export async function writeShipment(
   ) {
     throw new FulfillmentConflict('Shipping history needs review');
   }
-  const timestamp = new Date(
+  const updatedAt = new Date(
     Math.max(Date.now(), shipping.updatedAt.getTime() + 1)
   );
   return tx.orderShipping.update({
@@ -59,14 +70,15 @@ export async function writeShipment(
     data: {
       status: change.status,
       trackingNo,
-      updatedAt: timestamp,
+      updatedAt,
       history: {
         ...history,
         events: [
           ...(history.events ?? []),
           {
             status: change.status,
-            timestamp: timestamp.toISOString(),
+            timestamp: (change.occurredAt ?? updatedAt).toISOString(),
+            ...(change.status === shipping.status && { kind: 'metadata' }),
             updatedBy: change.actor,
             ...(change.trackingNo && { trackingNo: change.trackingNo }),
             ...(change.notes && { notes: change.notes }),
@@ -109,7 +121,11 @@ export async function updateOrderFulfillment(
     });
     const shipment =
       fulfillmentStatus && shipping
-        ? await writeShipment(tx, shipping, { status, actor })
+        ? await writeShipment(tx, shipping, {
+            status,
+            actor,
+            occurredAt: confirmedOrderStatusTime(updated),
+          })
         : shipping;
     return {
       order: updated,

@@ -32,6 +32,7 @@ function setup(
   };
   let listQuery: ListQuery | undefined;
   let writes = 0;
+  let notifications = 0;
   const dependencies = {
     'next/server': {
       NextResponse: {
@@ -114,6 +115,11 @@ function setup(
     '@/lib/csrf': { withCSRF: (handler: Handler) => handler },
     '@/lib/orderStatus': orderStatus,
     '@/lib/fulfillment': fulfillment,
+    '@/lib/notifications': {
+      sendFulfillmentNotification: () => {
+        notifications++;
+      },
+    },
     '@sentry/nextjs': { setUser: () => {}, captureException: () => {} },
   };
   const list = loadRoute<{ GET: Handler }>(
@@ -138,6 +144,7 @@ function setup(
       return listQuery;
     },
     writes: () => writes,
+    notifications: () => notifications,
   };
 }
 
@@ -167,6 +174,7 @@ async function run() {
     'Profile owner must be able to fulfill own order'
   );
   assert.equal(owner.writes(), 1);
+  assert.equal(owner.notifications(), 1);
 
   for (const sellerIds of [
     ['other-profile'],
@@ -180,6 +188,7 @@ async function run() {
       'Wrong owner/mixed order must not be writable'
     );
     assert.equal(other.writes(), 0);
+    assert.equal(other.notifications(), 0);
   }
   const noProfile = setup({ hasProfile: false });
   assert.equal((await noProfile.list()).status, 403);
@@ -194,6 +203,7 @@ async function run() {
     'Concurrent cancellation must not be overwritten'
   );
   assert.equal(changed.writes(), 0);
+  assert.equal(changed.notifications(), 0);
   console.log('✓ seller order ownership/projection handler regressions passed');
 }
 

@@ -9,6 +9,7 @@ import {
   type SellerAction,
 } from '@/lib/orderStatus';
 import * as Sentry from '@sentry/nextjs';
+import { sendFulfillmentNotification } from '@/lib/notifications';
 import { FulfillmentConflict, updateOrderFulfillment } from '@/lib/fulfillment';
 
 // Allowed transitions for sellers (whole-order level only when the order is single-seller)
@@ -97,6 +98,13 @@ export const PATCH = withRateLimit(
         nextStatus,
         'SELLER'
       );
+      if (updated.notification) {
+        sendFulfillmentNotification(
+          updated.order,
+          updated.notification,
+          updated.shipment?.trackingNo
+        );
+      }
       return NextResponse.json(updated.order);
     } catch (error) {
       if (error instanceof FulfillmentConflict) {
