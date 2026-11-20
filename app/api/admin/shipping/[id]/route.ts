@@ -6,7 +6,7 @@ import { sendFulfillmentNotification } from '@/lib/notifications';
 import { withCSRF } from '@/lib/csrf';
 import { JsonInputError, readJsonInput } from '@/lib/json-input';
 import {
-  confirmedOrderStatusTime,
+  legacyOrderStatusTime,
   FulfillmentConflict,
   lockFulfillmentOrder,
   writeShipment,
@@ -92,10 +92,12 @@ export const PUT = withCSRF(async function (
         : order;
       // A catch-up reuses the confirmed order timestamp. Tracking/notes edits
       // preserve the original fulfillment events even though the row changes.
-      const occurredAt =
-        action && change.status !== shipping.status
-          ? confirmedOrderStatusTime(currentOrder)
-          : undefined;
+      let occurredAt: Date | undefined;
+      if (action && change.status !== shipping.status) {
+        occurredAt = nextStatus
+          ? currentOrder.updatedAt
+          : legacyOrderStatusTime(order);
+      }
       await writeShipment(tx, shipping, {
         ...change,
         actor: 'ADMIN',

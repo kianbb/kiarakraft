@@ -228,7 +228,21 @@ async function run() {
     shipment = await getShipping(shipment.id);
     assert.equal(shipment.status, 'SHIPPED');
     assert.equal((await getOrder(order.id)).status, 'SHIPPED');
-    assert.equal((await edit(shipment, 'DELIVERED')).status, 200);
+    // The application clock can momentarily lag the timestamp returned by
+    // Prisma. A fresh transition still uses its newly persisted event time.
+    const readClock = Date.now;
+    let delivery: Response;
+    Date.now = () => readClock() - 1_000;
+    try {
+      delivery = await edit(shipment, 'DELIVERED');
+    } finally {
+      Date.now = readClock;
+    }
+    assert.equal(
+      delivery.status,
+      200,
+      delivery.status === 409 ? (await delivery.json()).error : undefined
+    );
     let delivered = await getOrder(order.id);
     assert.equal(delivered.status, 'DELIVERED');
     assert.equal(delivered.shipping?.status, 'DELIVERED');

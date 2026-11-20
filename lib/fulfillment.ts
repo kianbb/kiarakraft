@@ -30,7 +30,7 @@ export async function lockFulfillmentOrder(
   return order;
 }
 
-export function confirmedOrderStatusTime(
+export function legacyOrderStatusTime(
   order: Pick<Order, 'createdAt' | 'updatedAt'>
 ) {
   const timestamp = order.updatedAt.getTime();
@@ -63,7 +63,11 @@ export async function writeShipment(
     throw new FulfillmentConflict('Shipping history needs review');
   }
   const updatedAt = new Date(
-    Math.max(Date.now(), shipping.updatedAt.getTime() + 1)
+    Math.max(
+      Date.now(),
+      shipping.updatedAt.getTime() + 1,
+      change.occurredAt?.getTime() ?? 0
+    )
   );
   return tx.orderShipping.update({
     where: { id: shipping.id },
@@ -124,7 +128,7 @@ export async function updateOrderFulfillment(
         ? await writeShipment(tx, shipping, {
             status,
             actor,
-            occurredAt: confirmedOrderStatusTime(updated),
+            occurredAt: updated.updatedAt,
           })
         : shipping;
     return {
