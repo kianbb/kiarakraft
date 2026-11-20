@@ -5,23 +5,31 @@ import assert from 'node:assert/strict';
 import { cancelOrderAndRestoreCart, MinimalTx } from '../lib/paymentsPreflight';
 
 async function run() {
-  const calls: any[] = [];
+  const calls: string[] = [];
+  let orderStatus = 'PENDING';
   const mockTx: MinimalTx = {
     order: {
-      update: async args => {
-        calls.push(['order.update', args]);
-        return {};
+      updateMany: async args => {
+        calls.push('order.updateMany');
+        assert.deepEqual(args.where, {
+          id: 'order-1',
+          userId: 'user-1',
+          status: 'PENDING',
+        });
+        if (orderStatus !== args.where.status) return { count: 0 };
+        orderStatus = args.data.status;
+        return { count: 1 };
       },
     },
     cart: {
-      upsert: async args => {
-        calls.push(['cart.upsert', args]);
-        return { id: 'cart-1' } as any;
+      upsert: async () => {
+        calls.push('cart.upsert');
+        return { id: 'cart-1' };
       },
     },
     cartItem: {
-      upsert: async args => {
-        calls.push(['cartItem.upsert', args]);
+      upsert: async () => {
+        calls.push('cartItem.upsert');
         return {};
       },
     },
@@ -36,12 +44,27 @@ async function run() {
   assert.equal(flags.cartRestored, true, 'cartRestored flag should be true');
 
   // Basic call shape assertions
-  const hasOrderUpdate = calls.some(([name]) => name === 'order.update');
-  assert.ok(hasOrderUpdate, 'should update order to CANCELED');
-  const upserts = calls.filter(([name]) => name === 'cartItem.upsert');
+  assert.equal(orderStatus, 'CANCELED');
+  const upserts = calls.filter(name => name === 'cartItem.upsert');
   assert.equal(upserts.length, 2, 'should upsert two cart items');
 
-  console.log('✓ payments preflight helper test passed');
+  for (const state of ['CANCELED', 'PAID']) {
+    orderStatus = state;
+    calls.length = 0;
+    const result = await cancelOrderAndRestoreCart(
+      mockTx,
+      'user-1',
+      'order-1',
+      [{ productId: 'p1', quantity: 2 }]
+    );
+    assert.deepEqual(result, { orderCanceled: false, cartRestored: false });
+    assert.equal(orderStatus, state);
+    assert.deepEqual(calls, ['order.updateMany']);
+  }
+
+  console.log(
+    '✓ Payment preflight leaves already processed orders and carts alone'
+  );
 }
 
 run();

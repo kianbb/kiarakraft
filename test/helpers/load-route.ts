@@ -11,6 +11,7 @@ export function loadRoute<T>(
   options: {
     console?: Console;
     env?: Record<string, string | undefined>;
+    setImmediate?: (callback: () => void) => void;
     globals?: Record<string, unknown>;
   } = {}
 ): T {
@@ -33,6 +34,7 @@ export function loadRoute<T>(
       return dependencies[name];
     },
     console: options.console || console,
+    setImmediate: options.setImmediate,
     process: { env: options.env ?? {} },
     URL,
     URLSearchParams,

@@ -206,7 +206,7 @@ export const POST = withRateLimit(
         data: {
           orderId,
           gateway: adapter.gateway,
-          status: 'INITIATED',
+          status: adapter.gateway === 'OFFLINE' ? 'PENDING' : 'INITIATED',
           amountToman: order.totalToman,
           authority: result.authority || null,
         },

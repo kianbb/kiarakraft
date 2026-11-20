@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import { decrementOrderableStock } from '@/lib/orderStock';
+import {
+  claimOfflinePaymentOrder,
+  OfflinePaymentOrderConflict,
+} from '@/lib/offline-payment-order';
 
 export async function GET(request: NextRequest) {
   try {
@@ -144,32 +148,34 @@ export const PATCH = withRateLimit(
             include: {
               order: {
                 include: {
-                  user: { select: { email: true, name: true } },
-                  items: { include: { product: true } },
+                  user: { select: { email: true } },
+                  items: { select: { productId: true, quantity: true } },
                 },
               },
             },
           });
 
           if (!payment) {
-            throw new Error('Payment not found');
+            return { error: 'Payment not found', status: 404 };
           }
 
           if (payment.gateway !== 'OFFLINE') {
-            throw new Error(
-              'Only offline payments can be manually marked as paid'
-            );
+            return {
+              error: 'Only offline payments can be manually marked as paid',
+              status: 400,
+            };
           }
 
           if (payment.status === 'PAID') {
-            throw new Error('Payment is already marked as paid');
+            return { error: 'Payment is already marked as paid', status: 409 };
           }
 
           // Only allow marking when in expected pre-paid states
           if (payment.status !== 'INITIATED' && payment.status !== 'PENDING') {
-            throw new Error(
-              'Payment is not in a valid state to be marked as paid'
-            );
+            return {
+              error: 'Payment is not in a valid state to be marked as paid',
+              status: 409,
+            };
           }
 
           // Security check: prevent marking very old payments without additional verification
@@ -177,23 +183,24 @@ export const PATCH = withRateLimit(
           const maxAgeMs = 30 * 24 * 60 * 60 * 1000; // 30 days
 
           if (paymentAge > maxAgeMs) {
-            throw new Error(
-              'Cannot mark payments older than 30 days without additional verification'
-            );
+            return {
+              error:
+                'Cannot mark payments older than 30 days without additional verification',
+              status: 400,
+            };
           }
 
           // Security check: prevent marking very large amounts without additional verification
           if (payment.amountToman > 50_000_000) {
             // 50M Toman = ~$1000
-            throw new Error(
-              'Cannot mark payments over 50M Toman without additional verification'
-            );
+            return {
+              error:
+                'Cannot mark payments over 50M Toman without additional verification',
+              status: 400,
+            };
           }
 
-          // Log the admin action for audit trail
-          console.log(
-            `Admin payment mark: ${user.email} marking payment ${payment.id} as paid. Order: ${payment.orderId}, Amount: ${payment.amountToman}, Reason: ${reason}`
-          );
+          await claimOfflinePaymentOrder(tx, payment);
 
           // Update payment status with detailed audit trail
           await tx.payment.update({
@@ -213,44 +220,46 @@ export const PATCH = withRateLimit(
             },
           });
 
-          // Update order status
-          await tx.order.update({
-            where: { id: payment.orderId },
-            data: { status: 'PAID' },
-          });
-
           // Decrement stock atomically for all ordered items (similar to gateway callback)
           await decrementOrderableStock(tx, payment.order.items);
 
-          return { paymentId: payment.id, orderId: payment.orderId };
+          return { data: { paymentId: payment.id, orderId: payment.orderId } };
         });
+
+        if ('error' in result) {
+          return NextResponse.json(
+            { error: result.error },
+            { status: result.status }
+          );
+        }
 
         return NextResponse.json({
           success: true,
           message: 'Payment marked as paid successfully',
-          data: result,
+          data: result.data,
         });
       }
 
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     } catch (error) {
-      console.error('Error updating payment:', error);
-
-      // Log security-relevant errors
-      if (error instanceof Error) {
-        if (
-          error.message.includes('verification') ||
-          error.message.includes('Cannot mark')
-        ) {
-          console.warn(`Admin payment security restriction: ${error.message}`);
-        }
+      if (
+        error instanceof OfflinePaymentOrderConflict ||
+        (error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          error.code === 'P2034')
+      ) {
+        return NextResponse.json(
+          {
+            error: 'Order or payment changed. Refresh and verify the payment.',
+          },
+          { status: 409 }
+        );
       }
 
+      console.error('Admin payment confirmation failed');
       return NextResponse.json(
-        {
-          error:
-            error instanceof Error ? error.message : 'Failed to update payment',
-        },
+        { error: 'Failed to update payment' },
         { status: 500 }
       );
     }

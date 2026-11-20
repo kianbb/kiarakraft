@@ -54,7 +54,7 @@ export const PATCH = withRateLimit(
       }
 
       const updated = await prisma.order.update({
-        where: { id },
+        where: { id, status: order.status },
         data: { status: nextStatus },
         include: {
           user: { select: { id: true, email: true } },
@@ -89,6 +89,17 @@ export const PATCH = withRateLimit(
 
       return NextResponse.json(updated);
     } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error.code === 'P2025' || error.code === 'P2034')
+      ) {
+        return NextResponse.json(
+          { error: 'Order status changed; refresh and retry' },
+          { status: 409 }
+        );
+      }
       console.error('Error updating order status (admin):', error);
       Sentry.captureException(error);
       return NextResponse.json(

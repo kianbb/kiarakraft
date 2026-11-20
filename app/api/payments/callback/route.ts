@@ -135,6 +135,24 @@ export const GET = withRateLimit(
         );
       }
 
+      // An offline redirect displays saved state. It has no evidence that
+      // money moved and must not rewrite a concurrent confirmation or refund.
+      if (payment.gateway === 'OFFLINE') {
+        const awaitingConfirmation =
+          payment.status === 'INITIATED' || payment.status === 'PENDING';
+        return NextResponse.redirect(
+          locUrl(
+            `/order/failed?orderId=${payment.orderId}&reason=${awaitingConfirmation ? 'manual' : 'verification_failed'}`
+          )
+        );
+      }
+
+      if (payment.gateway !== adapter.gateway) {
+        return NextResponse.redirect(
+          locUrl(`/order/failed?reason=verification_failed`)
+        );
+      }
+
       // Verify with gateway adapter
       const verifyResult = await adapter.verify({
         orderId: payment.orderId,

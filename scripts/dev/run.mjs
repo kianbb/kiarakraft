@@ -62,6 +62,8 @@ async function main() {
         'orderStatus',
         'preflight',
         'payments.preflight',
+        'offline-payment-redirect',
+        'admin-offline-payment',
         'translator',
         'checkout.shipping',
         'cron-auth',
