@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import NextAuth from 'next-auth';
+import NextAuth, { AuthError } from 'next-auth';
 import { NextRequest } from 'next/server';
 import { encode, decode, type JWT } from 'next-auth/jwt';
 import {
@@ -12,6 +12,7 @@ async function run() {
   // Exercise the installed Auth.js request/renewal path, without Prisma,
   // provider requests, or any application/hosted credentials.
   const secret = 'synthetic-session-regression-secret-only';
+  const replacementSecret = 'synthetic-replacement-session-secret-only';
   const cookieName = 'authjs.session-token';
   const started = Date.now() - 5_000;
   let account: VerifiedSessionUser | null = {
@@ -39,16 +40,21 @@ async function run() {
   };
   const encodeToken = (token: JWT) =>
     encode({ token, secret, salt: cookieName, maxAge: 86_400 });
-  async function request(token: string) {
+  async function request(token: string, key = secret) {
+    const errors: string[] = [];
     const { handlers } = NextAuth({
       ...authConfig,
-      secret,
+      secret: key,
       trustHost: true,
       basePath: '/api/auth',
       providers: [],
       callbacks: { ...authConfig.callbacks, jwt },
       logger: {
-        error: () => assert.fail('Auth.js should handle invalidation normally'),
+        error: error => {
+          if (key === secret)
+            assert.fail('Auth.js should handle invalidation normally');
+          errors.push(error instanceof AuthError ? error.type : error.name);
+        },
         warn: () => {},
         debug: () => {},
       },
@@ -59,7 +65,7 @@ async function run() {
       })
     );
     assert.equal(response.status, 200);
-    return { response, body: await response.json() };
+    return { response, body: await response.json(), errors };
   }
   function renewedCookie(response: Response) {
     const cookie = response.headers
@@ -70,7 +76,8 @@ async function run() {
   }
   async function deniedTwice(token: string) {
     for (let i = 0; i < 2; i++) {
-      const { response, body } = await request(token);
+      const { response, body, errors } = await request(token);
+      assert.deepEqual(errors, []);
       assert.equal(body, null);
       assert.equal(renewedCookie(response), '');
       assert.match(response.headers.get('set-cookie')!, /Max-Age=0/);
@@ -79,6 +86,7 @@ async function run() {
 
   const original = await encodeToken(initial);
   const healthy = await request(original);
+  assert.deepEqual(healthy.errors, []);
   assert.equal(healthy.body.user.role, 'ADMIN');
   const renewed = renewedCookie(healthy.response);
   const renewedPayload = await decode({
@@ -89,6 +97,27 @@ async function run() {
   assert.equal(renewedPayload!.authStartedAt, started);
   assert.equal(renewedPayload!.authVersion, 0);
   assert.ok(renewedPayload!.iat! * 1000 > started);
+
+  // Changing the configured key drops cookies issued by the previous key,
+  // including cookies Auth.js renewed immediately before the change.
+  const beforeKeyChangeLookups = lookups;
+  for (const previousCookie of [original, renewed]) {
+    const rejected = await request(previousCookie, replacementSecret);
+    assert.equal(rejected.body, null);
+    assert.equal(renewedCookie(rejected.response), '');
+    assert.match(rejected.response.headers.get('set-cookie')!, /Max-Age=0/);
+    assert.deepEqual(rejected.errors, ['JWTSessionError']);
+  }
+  assert.equal(lookups, beforeKeyChangeLookups);
+  const newCookie = await encode({
+    token: initial,
+    secret: replacementSecret,
+    salt: cookieName,
+    maxAge: 86_400,
+  });
+  const afterKeyChange = await request(newCookie, replacementSecret);
+  assert.equal(afterKeyChange.body.user.id, initial.sub);
+  assert.deepEqual(afterKeyChange.errors, []);
 
   // Middleware uses the shared callback without database access. Its renewal
   // must preserve the version that the authoritative Node callback checks.

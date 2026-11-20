@@ -3,10 +3,14 @@ import { auth } from '@/lib/auth';
 import { cloudinary, UPLOAD_FOLDER, type UploadResult } from '@/lib/cloudinary';
 import { validateCSRF } from '@/lib/csrf';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
-import { validateFile, performSecurityChecks } from '@/lib/file-validation';
+import { isStagingDeployment } from '@/lib/deployment-policy';
+import {
+  ProductImageInputError,
+  readImageMultipart,
+  readProductImage,
+} from '@/lib/product-image-input';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+export const runtime = 'nodejs';
 
 async function uploadHandler(request: NextRequest): Promise<NextResponse> {
   try {
@@ -36,64 +40,15 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    // Convert file to buffer for validation
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Validate file content using magic bytes
-    const fileValidation = validateFile(buffer, file.type, ALLOWED_TYPES);
-
-    if (!fileValidation.isValid) {
-      console.warn(`File validation failed: ${fileValidation.error}`);
+    const formData = await readImageMultipart(request);
+    const files = formData.getAll('file');
+    if (files.length !== 1) {
       return NextResponse.json(
-        {
-          error: fileValidation.error || 'Invalid file content detected',
-        },
+        { error: 'Exactly one image file is required' },
         { status: 400 }
       );
     }
-
-    // Perform additional security checks
-    const securityCheck = performSecurityChecks(buffer);
-    if (!securityCheck.isSafe) {
-      console.warn(
-        `Security threats detected: ${securityCheck.threats.join(', ')}`
-      );
-      return NextResponse.json(
-        {
-          error: 'Security threat detected in file content',
-          details: securityCheck.threats,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Log warnings if MIME type doesn't match detected type
-    if (fileValidation.warnings) {
-      console.warn(
-        'File validation warnings:',
-        fileValidation.warnings.join(', ')
-      );
-    }
-
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          error: 'File too large. Maximum size is 5MB.',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Buffer already created during validation
+    const buffer = await readProductImage(files[0]);
 
     // Upload to Cloudinary
     const uploadResult = await new Promise<UploadResult>((resolve, reject) => {
@@ -109,7 +64,6 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
           },
           (error, result) => {
             if (error) {
-              console.error('Cloudinary upload error:', error);
               reject(error);
             } else if (result) {
               resolve({
@@ -128,8 +82,6 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
         .end(buffer);
     });
 
-    console.log(`Image uploaded successfully: ${uploadResult.public_id}`);
-
     return NextResponse.json({
       success: true,
       url: uploadResult.secure_url,
@@ -140,7 +92,13 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
       size: uploadResult.bytes,
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    if (error instanceof ProductImageInputError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
+    console.error('Product image upload failed');
     return NextResponse.json(
       {
         error: 'Upload failed. Please try again.',
@@ -150,5 +108,14 @@ async function uploadHandler(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// Apply rate limiting to upload endpoint
-export const POST = withRateLimit(uploadRateLimit, uploadHandler);
+const limitedUpload = withRateLimit(uploadRateLimit, uploadHandler);
+
+export async function POST(request: NextRequest): Promise<Response> {
+  if (isStagingDeployment()) {
+    return NextResponse.json(
+      { error: 'Image uploads are disabled in staging' },
+      { status: 403 }
+    );
+  }
+  return limitedUpload(request);
+}

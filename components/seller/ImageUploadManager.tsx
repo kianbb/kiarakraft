@@ -50,10 +50,10 @@ export default function ImageUploadManager({
 
   const validateClientFile = (file: File): string | null => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const max = 5 * 1024 * 1024; // 5MB
-    if (!allowed.includes(file.type))
-      return 'Invalid file type. Only JPEG, PNG, and WebP are allowed.';
-    if (file.size > max) return 'File size too large. Maximum 5MB allowed.';
+    // Leave room for the multipart envelope under Next's 2 MiB action limit.
+    const max = 2 * 1024 * 1024 - 4096;
+    if (!allowed.includes(file.type)) return t('uploadImageInvalid');
+    if (file.size > max) return t('uploadImageTooLarge');
     return null;
   };
 
@@ -68,29 +68,36 @@ export default function ImageUploadManager({
 
     setUploading(true);
     setProgress(0);
+    let uploaded = images;
+    let rejected = false;
     try {
       for (let i = 0; i < list.length; i++) {
         const file = list[i];
         const err = validateClientFile(file);
         if (err) {
           toast.error(err);
-          continue;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('productId', productId);
-
-        const result = await uploadProductImage(formData);
-        if (result.success && result.image) {
-          updateImages([...images, result.image]);
+          rejected = true;
         } else {
-          toast.error(result.error || 'Upload failed');
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('productId', productId);
+
+          const result = await uploadProductImage(formData);
+          if (result.success && result.image) {
+            uploaded = [...uploaded, result.image];
+            updateImages(uploaded);
+          } else {
+            rejected = true;
+            if (result.status === 413) toast.error(t('uploadImageTooLarge'));
+            else if (result.status === 400 || result.status === 415)
+              toast.error(t('uploadImageInvalid'));
+            else toast.error(t('uploadFailed'));
+          }
         }
 
         setProgress(Math.round(((i + 1) / list.length) * 100));
       }
-      if (list.length > 0) toast.success(t('uploadComplete'));
+      if (!rejected) toast.success(t('uploadComplete'));
     } catch (error) {
       console.error('Upload error:', error);
       toast.error(t('uploadFailed'));

@@ -69,6 +69,7 @@ async function main() {
         'auth-redirect',
         'public-products',
         'product-image-order',
+        'product-image-input',
         'seller.orders',
         'commerce.orderability',
         'dynamic-routes',
