@@ -1,12 +1,193 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import '../scripts/dev/guard-test.mjs';
+import * as jsonInput from '../lib/json-input';
 import { prisma } from '../lib/prisma';
 import { decrementOrderableStock } from '../lib/orderStock';
 import {
   claimOfflinePaymentOrder,
   OfflinePaymentOrderConflict,
 } from '../lib/offline-payment-order';
+import { loadRoute } from './helpers/load-route';
+
+type ReturnHandler = (
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) => Promise<NextResponse>;
+type ReturnTransaction = Pick<Prisma.TransactionClient, 'returnRequest'> & {
+  notificationLog: Pick<Prisma.TransactionClient['notificationLog'], 'create'>;
+};
+
+async function checkReturnTransitions(
+  userId: string,
+  orderId: string,
+  productId: string
+) {
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'DELIVERED' },
+  });
+  const payment = await prisma.payment.create({
+    data: { orderId, amountToman: 1000, gateway: 'OFFLINE', status: 'PAID' },
+  });
+  const item = await prisma.orderItem.create({
+    data: { orderId, productId, unitPriceToman: 1000, quantity: 1 },
+  });
+  const fixture = await prisma.returnRequest.create({
+    data: { userId, orderId, orderItemId: item.id },
+  });
+  let role = 'ADMIN';
+  let failNotification = false;
+  let race: { arrivals: number; ready: PromiseWithResolvers<void> } | undefined;
+  const { PATCH } = loadRoute<{ PATCH: ReturnHandler }>(
+    'app/api/admin/returns/[id]/status/route.ts',
+    {
+      'next/server': { NextResponse },
+      zod: { z },
+      '@/lib/auth': { auth: async () => ({ user: { id: userId, role } }) },
+      '@/lib/csrf': { withCSRF: (handler: ReturnHandler) => handler },
+      '@/lib/json-input': jsonInput,
+      '@/lib/prisma': {
+        prisma: {
+          returnRequest: prisma.returnRequest,
+          notificationLog: prisma.notificationLog,
+          payment: prisma.payment,
+          product: prisma.product,
+          $transaction: async <T>(
+            operation: (tx: ReturnTransaction) => Promise<T>
+          ) => {
+            // The route only enters here after reading the observed state.
+            // Force both requests to observe that state before either writes.
+            if (race) {
+              if (++race.arrivals === 2) race.ready.resolve();
+              await race.ready.promise;
+            }
+            return prisma.$transaction(tx =>
+              operation({
+                returnRequest: tx.returnRequest,
+                notificationLog: failNotification
+                  ? {
+                      create: () => {
+                        throw new Error('Synthetic notification failure');
+                      },
+                    }
+                  : tx.notificationLog,
+              })
+            );
+          },
+        },
+      },
+    },
+    { env: { RESTOCK_ON_REFUND: 'true' } }
+  );
+  const getStatus = async () =>
+    (
+      await prisma.returnRequest.findUniqueOrThrow({
+        where: { id: fixture.id },
+      })
+    ).status;
+  const getNotifications = () =>
+    prisma.notificationLog.findMany({
+      where: { userId },
+      orderBy: { type: 'asc' },
+      select: { type: true, status: true, data: true },
+    });
+  const patch = (
+    status: string,
+    expectedStatus = 'REQUESTED',
+    id = fixture.id
+  ) =>
+    PATCH(
+      new NextRequest('http://127.0.0.1/api/admin/returns/synthetic/status', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          status,
+          ...(expectedStatus ? { expectedStatus } : {}),
+        }),
+      }),
+      { params: Promise.resolve({ id }) }
+    );
+
+  role = 'SELLER';
+  assert.equal((await patch('APPROVED')).status, 401);
+  role = 'ADMIN';
+  assert.equal((await patch('OPEN')).status, 400);
+  assert.equal((await patch('APPROVED', '')).status, 400);
+  assert.equal(
+    (await patch('APPROVED', 'REQUESTED', `missing-${fixture.id}`)).status,
+    404
+  );
+  assert.equal((await patch('RECEIVED')).status, 400);
+  assert.equal(await getStatus(), 'REQUESTED');
+  assert.deepEqual(await getNotifications(), []);
+
+  failNotification = true;
+  assert.equal((await patch('APPROVED')).status, 500);
+  failNotification = false;
+  assert.equal(
+    await getStatus(),
+    'REQUESTED',
+    'Notification failure rolls back the transition'
+  );
+  assert.deepEqual(await getNotifications(), []);
+
+  const ready = Promise.withResolvers<void>();
+  const deadline = setTimeout(
+    () => ready.reject(new Error('Return race did not reach both writes')),
+    5000
+  );
+  race = { arrivals: 0, ready };
+  try {
+    const results = await Promise.all([patch('APPROVED'), patch('APPROVED')]);
+    assert.deepEqual(results.map(result => result.status).sort(), [200, 409]);
+  } finally {
+    clearTimeout(deadline);
+    race = undefined;
+  }
+  assert.equal(await getStatus(), 'APPROVED');
+  assert.deepEqual(
+    (await getNotifications()).map(note => note.type),
+    ['return_approved']
+  );
+
+  // Another admin's older intent cannot reject the newly approved return.
+  assert.equal((await patch('REJECTED', 'REQUESTED')).status, 409);
+  assert.equal(await getStatus(), 'APPROVED');
+  assert.equal((await getNotifications()).length, 1);
+
+  assert.equal((await patch('RECEIVED', 'APPROVED')).status, 200);
+  assert.equal(await getStatus(), 'RECEIVED');
+  const notifications = await getNotifications();
+  assert.deepEqual(
+    notifications.map(note => note.type),
+    ['return_approved', 'return_received']
+  );
+  for (const note of notifications) {
+    assert.equal(note.status, 'pending');
+    assert.equal((note.data as Prisma.JsonObject).returnId, fixture.id);
+  }
+
+  const stock = async () =>
+    (
+      await prisma.product.findUniqueOrThrow({
+        where: { id: productId },
+        select: { stock: true },
+      })
+    ).stock;
+  const stockBefore = await stock();
+  assert.equal((await patch('REFUNDED', '')).status, 409);
+  assert.equal(await getStatus(), 'RECEIVED');
+  assert.deepEqual(await getNotifications(), notifications);
+  assert.equal(await stock(), stockBefore);
+  assert.deepEqual(
+    await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }),
+    payment
+  );
+}
 
 async function run() {
   const suffix = randomUUID();
@@ -206,8 +387,18 @@ async function run() {
     console.log(
       '✓ PostgreSQL orderability, rollback, stock contention, and offline order claims passed'
     );
+    await checkReturnTransitions(userId, orderId, product.id);
+    console.log(
+      '✓ PostgreSQL return transitions, replay conflict, rollback, and refund denial passed'
+    );
   } finally {
-    if (orderId) await prisma.order.delete({ where: { id: orderId } });
+    if (userId) await prisma.notificationLog.deleteMany({ where: { userId } });
+    if (orderId) {
+      await prisma.returnRequest.deleteMany({ where: { orderId } });
+      await prisma.orderItem.deleteMany({ where: { orderId } });
+      await prisma.payment.deleteMany({ where: { orderId } });
+      await prisma.order.delete({ where: { id: orderId } });
+    }
     if (addressId) await prisma.address.delete({ where: { id: addressId } });
     if (sellerId) {
       await prisma.product.deleteMany({ where: { sellerId } });

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -22,7 +22,6 @@ import {
   Check,
   X,
   PackageCheck,
-  DollarSign,
 } from 'lucide-react';
 import { formatDate, formatPrice } from '@/lib/utils';
 
@@ -52,11 +51,8 @@ interface ReturnRequest {
   };
 }
 
-export default function AdminReturnsPage({
-  params,
-}: {
-  params: { locale: string };
-}) {
+export default function AdminReturnsPage() {
+  const locale = useLocale();
   const { data: session, status } = useSession();
   const router = useRouter();
   const t = useTranslations('admin');
@@ -73,12 +69,12 @@ export default function AdminReturnsPage({
     if (status === 'loading') return;
 
     if (!session) {
-      router.push(`/${params.locale}/auth/login`);
+      router.push(`/${locale}/auth/login`);
       return;
     }
 
     if (session.user?.role !== 'ADMIN') {
-      router.push(`/${params.locale}`);
+      router.push(`/${locale}`);
       return;
     }
 
@@ -105,18 +101,19 @@ export default function AdminReturnsPage({
     };
 
     fetchReturns();
-  }, [session, status, router, selectedStatus, currentPage, params.locale]);
+  }, [session, status, router, selectedStatus, currentPage, locale]);
 
   const handleStatusUpdate = async (
     returnId: string,
-    newStatus: 'APPROVED' | 'REJECTED' | 'RECEIVED' | 'REFUNDED'
+    expectedStatus: string,
+    newStatus: 'APPROVED' | 'REJECTED' | 'RECEIVED'
   ) => {
     setUpdating(returnId);
     try {
       const response = await fetch(`/api/admin/returns/${returnId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, expectedStatus }),
       });
 
       if (response.ok) {
@@ -125,8 +122,13 @@ export default function AdminReturnsPage({
         setTotalCount(prev => Math.max(0, prev - 1));
         alert(t('returnStatusUpdated'));
       } else {
-        const error = await response.json();
-        alert(error.message || t('errorUpdatingReturn'));
+        alert(
+          t(
+            response.status === 409
+              ? 'returnStatusChanged'
+              : 'errorUpdatingReturn'
+          )
+        );
       }
     } catch (error) {
       console.error('Error updating return status:', error);
@@ -235,7 +237,11 @@ export default function AdminReturnsPage({
                         <Button
                           size="sm"
                           onClick={() =>
-                            handleStatusUpdate(returnRequest.id, 'APPROVED')
+                            handleStatusUpdate(
+                              returnRequest.id,
+                              returnRequest.status,
+                              'APPROVED'
+                            )
                           }
                           disabled={updating === returnRequest.id}
                         >
@@ -246,7 +252,11 @@ export default function AdminReturnsPage({
                           size="sm"
                           variant="destructive"
                           onClick={() =>
-                            handleStatusUpdate(returnRequest.id, 'REJECTED')
+                            handleStatusUpdate(
+                              returnRequest.id,
+                              returnRequest.status,
+                              'REJECTED'
+                            )
                           }
                           disabled={updating === returnRequest.id}
                         >
@@ -260,7 +270,11 @@ export default function AdminReturnsPage({
                         size="sm"
                         variant="outline"
                         onClick={() =>
-                          handleStatusUpdate(returnRequest.id, 'RECEIVED')
+                          handleStatusUpdate(
+                            returnRequest.id,
+                            returnRequest.status,
+                            'RECEIVED'
+                          )
                         }
                         disabled={updating === returnRequest.id}
                       >
@@ -269,16 +283,9 @@ export default function AdminReturnsPage({
                       </Button>
                     )}
                     {returnRequest.status === 'RECEIVED' && (
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          handleStatusUpdate(returnRequest.id, 'REFUNDED')
-                        }
-                        disabled={updating === returnRequest.id}
-                      >
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        {t('processRefund')}
-                      </Button>
+                      <p className="text-sm text-muted-foreground">
+                        {t('returnRefundUnavailable')}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -307,7 +314,7 @@ export default function AdminReturnsPage({
                       {returnRequest.orderItem.quantity} ×{' '}
                       {formatPrice(
                         returnRequest.orderItem.unitPriceToman,
-                        params.locale
+                        locale
                       )}
                     </div>
                   </div>
