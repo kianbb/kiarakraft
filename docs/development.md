@@ -1,6 +1,6 @@
 # Development
 
-Use Node 22, the committed npm lockfile, and PostgreSQL 16 with `pg_trgm` and `unaccent`. The local launcher manages a separate PostgreSQL instance; it does not require a shared system service. On macOS it detects the Homebrew PostgreSQL 16 installation. Set `KK_PG_BIN` when the binaries are installed elsewhere.
+Use Node 22.13 or newer within Node 22, the committed npm lockfile, and PostgreSQL 16 with `pg_trgm` and `unaccent`. The local launcher manages a separate PostgreSQL instance; it does not require a shared system service. On macOS it detects the Homebrew PostgreSQL 16 installation. Set `KK_PG_BIN` when the binaries are installed elsewhere.
 
 ## Setup
 
@@ -11,7 +11,7 @@ npm run setup
 npm run dev:local
 ```
 
-Dependencies must be installed before setup. Setup generates local settings, starts PostgreSQL on loopback, generates Prisma, and applies migrations and synthetic fixtures to the dedicated development and test databases. It does not use hosted service credentials. If prerequisites or database guards fail, correct the configuration rather than substituting a hosted URL.
+Dependencies must be installed before setup. Setup generates local settings and the Prisma Client, starts PostgreSQL on loopback, then applies migrations and synthetic fixtures to the dedicated development and test databases. Setup also works after a locked install with `--ignore-scripts`. It does not use hosted service credentials. If prerequisites or database guards fail, correct the configuration rather than substituting a hosted URL.
 
 Generated settings and fixture credentials are ignored by Git and protected with owner-only file permissions. Keep them local. Setup refuses to overwrite an unmanaged local environment file; resolve that conflict without copying secrets into a worker.
 

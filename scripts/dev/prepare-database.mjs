@@ -8,7 +8,6 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { localDir, safeEnvironment } from './environment.mjs';
 import { connectLocal, verifyIdentity } from './database.mjs';
@@ -22,6 +21,7 @@ export async function prepareDatabase(kind = 'test') {
   } finally {
     await client.end();
   }
+  const { PrismaClient } = await import('@prisma/client');
   await nodeTool('prisma/build/index.js', ['migrate', 'deploy'], env);
 
   mkdirSync(localDir, { recursive: true, mode: 0o700 });
