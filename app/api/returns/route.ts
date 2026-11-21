@@ -150,6 +150,7 @@ export const POST = withCSRF(async function (request: NextRequest) {
       include: {
         items: true,
         payment: true,
+        shipping: { select: { history: true } },
       },
     });
 
@@ -162,10 +163,16 @@ export const POST = withCSRF(async function (request: NextRequest) {
       const messages = {
         unpaid: 'Order must be paid to request return',
         undelivered: 'Order must be delivered to request return',
+        delivery_unconfirmed: 'Contact support to confirm the delivery date',
         expired: `Return window of ${RETURN_WINDOW_DAYS} days has expired`,
       };
       return NextResponse.json(
-        { error: messages[ineligibility] },
+        {
+          error: messages[ineligibility],
+          ...(ineligibility === 'delivery_unconfirmed' && {
+            code: ineligibility,
+          }),
+        },
         { status: 400 }
       );
     }

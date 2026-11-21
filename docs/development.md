@@ -94,10 +94,12 @@ Sentry 11 uses explicitly restricted collection settings and a static trace life
 
 ## Identity onboarding
 
+The manual pilot uses ordinary seller profile edits and admin approval. Leave `SELLER_IDENTITY_COLLECTION_ENABLED` unset or `false` for that workflow. Self-service identity submission requires `KK_DEPLOYMENT_MODE=production` and an explicit, server-only `SELLER_IDENTITY_COLLECTION_ENABLED=true`. Staging, Preview and isolated local mode block it. Document uploads additionally require their own opt-in.
+
 New seller identity fingerprints require independent `IDENTITY_HASH_KEY` and `IDENTITY_HASH_KEY_ID` settings. The key is the canonical unpadded base64url encoding of 32 cryptographically random bytes; the non-secret key ID is 1–32 ASCII letters, digits, underscores or hyphens. Generate and store it through the approved secret store; do not paste keys into chat, commands or repository files. Authentication secrets cannot substitute for this key. Missing/invalid configuration returns a generic unavailable response without a profile write.
 
 The fingerprint stores its algorithm/version/key ID in the existing private string field. Ordinary onboarding accepts only a first identity submission and atomically preserves every existing non-null fingerprint and profile state; changes need a separate reviewed re-verification flow. Ten-digit validation accepts Persian, Arabic and ASCII numerals but is format validation, not proof of identity. The raw number is not persisted by this route.
 
-Local launchers clear both identity settings, including inherited/configured values. Database-free and guarded integration tests supply synthetic keys explicitly; staging still rejects identity collection before reading its request. The new key must be provisioned separately before identity collection is enabled in an approved production release. Existing identity data, legacy treatment and credential rotation remain separate operational work.
+Local launchers disable collection and clear both identity key settings, including inherited/configured values. Database-free and guarded integration tests supply synthetic keys explicitly. The new key must be provisioned separately before identity collection is enabled in an approved production release. Existing identity data, legacy treatment and credential rotation remain separate operational work.
 
 The historical `npm run lhci` command now fails before loading a browser or network client. Its old live-site/public-upload configuration and unused CLI dependency were removed; historical Git revisions remain preserved. A reviewed protected synthetic performance runner is still needed.

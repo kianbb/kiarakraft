@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import * as identity from '../lib/identity-fingerprint';
 import * as input from '../lib/seller-onboarding-input';
 import * as jsonInput from '../lib/json-input';
+import { isSellerIdentityCollectionEnabled } from '../lib/deployment-policy';
 import { loadRoute } from './helpers/load-route';
 
 type Reply = { status: number; data: unknown };
@@ -69,7 +70,13 @@ async function main() {
         '@/lib/rateLimit': {
           withRateLimit: (_config: unknown, handler: unknown) => handler,
         },
-        '@/lib/deployment-policy': { isStagingDeployment: () => false },
+        '@/lib/deployment-policy': {
+          isSellerIdentityCollectionEnabled: () =>
+            isSellerIdentityCollectionEnabled({
+              KK_DEPLOYMENT_MODE: 'production',
+              SELLER_IDENTITY_COLLECTION_ENABLED: 'true',
+            }),
+        },
         '@/lib/identity-fingerprint': {
           ...identity,
           fingerprintNationalId: (id: string) =>

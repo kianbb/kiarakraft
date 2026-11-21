@@ -15,6 +15,7 @@ import * as jsonInput from '../lib/json-input';
 import { z } from 'zod';
 import * as docs from '../lib/seller-documents';
 import * as sellerProfileRead from '../lib/seller-profile-read';
+import { isSellerDocumentCollectionEnabled } from '../lib/deployment-policy';
 import { loadRoute } from './helpers/load-route';
 
 const id = '1d41dba8-d51a-4b22-a8bf-65eb5343ba3b';
@@ -188,6 +189,8 @@ async function main() {
         NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: 'synthetic-cloud',
         CLOUDINARY_API_KEY: '123',
         CLOUDINARY_API_SECRET: 'test-only-not-a-provider-key',
+        KK_DEPLOYMENT_MODE: 'production',
+        SELLER_IDENTITY_COLLECTION_ENABLED: 'true',
         SELLER_DOCUMENT_COLLECTION_ENABLED: 'true',
         ...extraEnv,
       };
@@ -202,6 +205,8 @@ async function main() {
             assertProviderAllowed: () => {
               if (mode === 'stage') throw Error('disabled');
             },
+            isSellerDocumentCollectionEnabled: () =>
+              isSellerDocumentCollectionEnabled(env),
           },
           './cloudinary': {
             cloudinary: {
@@ -413,44 +418,18 @@ async function main() {
     assert.equal(image.extension, 'png');
     groups++;
 
-    for (const flag of [undefined, 'false', 'TRUE', '1', 'true']) {
-      for (const isolated of [undefined, '1']) {
-        const gate = loadRoute<
-          typeof import('../lib/seller-document-provider')
-        >(
-          'lib/seller-document-provider.ts',
-          {
-            './cloudinary': { cloudinary: {} },
-            'node:https': { Agent: https.Agent },
-            './deployment-policy': { assertProviderAllowed: () => {} },
-            './seller-documents': docs,
-          },
-          {
-            globals: {
-              ...globals,
-              process: {
-                env: {
-                  SELLER_DOCUMENT_COLLECTION_ENABLED: flag,
-                  KK_ISOLATED: isolated,
-                },
-              },
-              fetch: () => {
-                throw Error('Network forbidden');
-              },
-            },
-          }
-        );
-        if (flag === 'true' && isolated !== '1')
-          assert.doesNotThrow(() => gate.assertDocumentCollectionEnabled());
-        else assert.throws(() => gate.assertDocumentCollectionEnabled());
-      }
-    }
+    assert.doesNotThrow(() =>
+      provider().module.assertDocumentCollectionEnabled()
+    );
     groups++;
 
     for (const extraEnv of [
       { SELLER_DOCUMENT_COLLECTION_ENABLED: undefined },
       { SELLER_DOCUMENT_COLLECTION_ENABLED: 'false' },
-      { SELLER_DOCUMENT_COLLECTION_ENABLED: 'true', KK_ISOLATED: '1' },
+      { SELLER_DOCUMENT_COLLECTION_ENABLED: 'TRUE' },
+      { SELLER_DOCUMENT_COLLECTION_ENABLED: '1' },
+      { SELLER_IDENTITY_COLLECTION_ENABLED: undefined },
+      { KK_ISOLATED: '1' },
     ]) {
       const denied = provider('normal', extraEnv);
       await assert.rejects(() =>
@@ -543,7 +522,10 @@ async function main() {
         {
           './cloudinary': { cloudinary: sdk },
           'node:https': { Agent: https.Agent },
-          './deployment-policy': { assertProviderAllowed: () => {} },
+          './deployment-policy': {
+            assertProviderAllowed: () => {},
+            isSellerDocumentCollectionEnabled: () => true,
+          },
           './seller-documents': docs,
         },
         {
@@ -556,7 +538,6 @@ async function main() {
                 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: 'synthetic-cloud',
                 CLOUDINARY_API_KEY: '123',
                 CLOUDINARY_API_SECRET: 'test-only-scoped-key',
-                SELLER_DOCUMENT_COLLECTION_ENABLED: 'true',
               },
             },
             fetch: () => {
@@ -937,7 +918,9 @@ async function main() {
           },
           '@/lib/csrf': { withCSRF: (h: unknown) => h },
           '@/lib/rateLimit': { withRateLimit: (_: unknown, h: unknown) => h },
-          '@/lib/deployment-policy': { isStagingDeployment: () => false },
+          '@/lib/deployment-policy': {
+            isSellerIdentityCollectionEnabled: () => true,
+          },
           '@/lib/identity-fingerprint': {
             fingerprintNationalId: () => {
               fingerprinted++;

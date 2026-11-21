@@ -65,7 +65,11 @@ async function getOrderById(orderId: string, userId: string) {
   });
   if (!order) return null;
   const { shipping, ...details } = order;
-  return { ...details, shipping: toBuyerShipping(shipping) };
+  return {
+    ...details,
+    shipping: toBuyerShipping(shipping),
+    returnIneligibility: returnIneligibility(order),
+  };
 }
 
 interface OrderWithDetails {
@@ -153,7 +157,10 @@ export default async function OrderDetailPage({
     redirect('/auth/login');
   }
 
-  const t = await getTranslations('orders');
+  const [t, tReturns] = await Promise.all([
+    getTranslations('orders'),
+    getTranslations('returns'),
+  ]);
   const order = await getOrderById(id, session.user.id);
   const isRTL = locale === 'fa';
 
@@ -162,7 +169,7 @@ export default async function OrderDetailPage({
   }
 
   const canRequestReturn =
-    returnIneligibility(order) === null &&
+    order.returnIneligibility === null &&
     order.items.some(item => !item.returnRequest);
   const timeline = getOrderTimeline(order, t);
   const subtotal = order.items.reduce(
@@ -450,6 +457,19 @@ export default async function OrderDetailPage({
                   {t('requestReturn')}
                 </Button>
               </Link>
+            )}
+            {order.returnIneligibility === 'delivery_unconfirmed' && (
+              <div className="rounded-lg border p-4 text-sm">
+                <p className="mb-2 text-muted-foreground">
+                  {tReturns('deliveryUnconfirmed')}
+                </p>
+                <Link
+                  href={`/${locale}/contact`}
+                  className="text-primary underline"
+                >
+                  {tReturns('contactSupport')}
+                </Link>
+              </div>
             )}
             {order.status === 'DELIVERED' && (
               <Link href={`/${locale}/account/orders/${order.id}/review`}>

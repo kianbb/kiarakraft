@@ -1,6 +1,9 @@
 import { cloudinary } from './cloudinary';
 import { Agent } from 'node:https';
-import { assertProviderAllowed } from './deployment-policy';
+import {
+  assertProviderAllowed,
+  isSellerDocumentCollectionEnabled,
+} from './deployment-policy';
 import {
   DOCUMENT_MAX_BYTES,
   DocumentMime,
@@ -15,10 +18,7 @@ const API_ORIGIN = 'https://api.cloudinary.com';
 const TIMEOUT_MS = 20_000;
 export function assertDocumentCollectionEnabled() {
   assertProviderAllowed('uploads');
-  if (
-    process.env.KK_ISOLATED === '1' ||
-    process.env.SELLER_DOCUMENT_COLLECTION_ENABLED !== 'true'
-  )
+  if (!isSellerDocumentCollectionEnabled())
     throw new SellerDocumentError('DOCUMENT_UNAVAILABLE', 503);
 }
 export function assertDocumentProviderConfigured() {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -27,6 +28,7 @@ interface OrderItem {
 interface Order {
   id: string;
   returnEligible: boolean;
+  returnNeedsSupport: boolean;
   items: OrderItem[];
 }
 
@@ -106,7 +108,11 @@ export default function ReturnRequestPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to submit return request');
+        if (error.code === 'delivery_unconfirmed') {
+          router.push(`/${locale}/account/orders/${orderId}`);
+          return;
+        }
+        throw new Error('Failed to submit return request');
       }
 
       alert(t('returnRequestSubmitted'));
@@ -140,6 +146,19 @@ export default function ReturnRequestPage() {
             </h1>
             {order.returnEligible && order.items.length > 0 && (
               <p className="text-muted-foreground">{t('allItemsReturned')}</p>
+            )}
+            {order.returnNeedsSupport && (
+              <>
+                <p className="mb-2 text-muted-foreground">
+                  {t('deliveryUnconfirmed')}
+                </p>
+                <Link
+                  href={`/${locale}/contact`}
+                  className="text-primary underline"
+                >
+                  {t('contactSupport')}
+                </Link>
+              </>
             )}
           </div>
           <div>

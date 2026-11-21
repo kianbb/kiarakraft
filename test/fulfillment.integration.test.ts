@@ -249,14 +249,14 @@ async function run() {
     assert.equal(delivered.status, 'DELIVERED');
     assert.equal(delivered.shipping?.status, 'DELIVERED');
     const deliveryHistory = delivered.shipping.history as {
-      events: { status: string; timestamp: string }[];
+      events: { status: string; timestamp: string; kind: string }[];
     };
     const deliveredAt = delivered.updatedAt.toISOString();
-    assert.equal(
-      deliveryHistory.events.find(event => event.status === 'DELIVERED')
-        ?.timestamp,
-      deliveredAt
+    const deliveryEvent = deliveryHistory.events.find(
+      event => event.status === 'DELIVERED'
     );
+    assert.equal(deliveryEvent?.timestamp, deliveredAt);
+    assert.equal(deliveryEvent?.kind, 'transition');
     assert.deepEqual(delivered.payment, order.payment);
     assert.deepEqual(notifications, [
       [order.id, 'SHIPPED', shipment.trackingNo],
@@ -273,6 +273,16 @@ async function run() {
       returned.status,
       201,
       'Admin shipping delivery must enable buyer returns'
+    );
+    const duplicate = await request(buyer.POST, order.id, 'POST', {
+      orderId: order.id,
+      orderItemId: order.items[0].id,
+      reason: 'Another synthetic return request',
+    });
+    assert.equal(duplicate.status, 400);
+    assert.equal(
+      (await duplicate.json()).error,
+      'Return request already exists for this item'
     );
     role = 'ADMIN';
     assert.ok(delivered.shipping);
@@ -382,6 +392,20 @@ async function run() {
         updatedAt: knownDeliveryDate,
       },
     });
+    const historicalReturn = () =>
+      request(buyer.POST, legacyDelivered.id, 'POST', {
+        orderId: legacyDelivered.id,
+        orderItemId: legacyDelivered.items[0].id,
+        reason: 'Synthetic request for an order without recorded delivery',
+      });
+    const assertDeliveryNeedsSupport = async () => {
+      role = 'BUYER';
+      const response = await historicalReturn();
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).code, 'delivery_unconfirmed');
+      role = 'ADMIN';
+    };
+    await assertDeliveryNeedsSupport();
     assert.equal(
       (await edit(legacyDelivered.shipping, 'DELIVERED')).status,
       200
@@ -395,6 +419,7 @@ async function run() {
         {
           status: 'DELIVERED',
           timestamp: knownDeliveryDate.toISOString(),
+          kind: 'legacy-inferred',
           updatedBy: 'ADMIN',
         },
       ],
@@ -403,6 +428,7 @@ async function run() {
       notifications.filter(([id]) => id === legacyDelivered.id).length,
       0
     );
+    await assertDeliveryNeedsSupport();
 
     const impossible = await createOrder('DELIVERED');
     await prisma.order.update({

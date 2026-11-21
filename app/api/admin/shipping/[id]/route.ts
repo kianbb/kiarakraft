@@ -90,8 +90,8 @@ export const PUT = withCSRF(async function (
             data: { status: nextStatus },
           })
         : order;
-      // A catch-up reuses the confirmed order timestamp. Tracking/notes edits
-      // preserve the original fulfillment events even though the row changes.
+      // Catch-up uses a legacy order timestamp for the timeline only.
+      // Tracking/notes edits preserve the original fulfillment events.
       let occurredAt: Date | undefined;
       if (action && change.status !== shipping.status) {
         occurredAt = nextStatus
@@ -102,6 +102,7 @@ export const PUT = withCSRF(async function (
         ...change,
         actor: 'ADMIN',
         occurredAt,
+        legacyInferred: !!action && !nextStatus,
       });
 
       const updated = await tx.orderShipping.findUniqueOrThrow({

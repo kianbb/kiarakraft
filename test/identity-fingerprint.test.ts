@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto';
 import * as identity from '../lib/identity-fingerprint';
 import * as input from '../lib/seller-onboarding-input';
 import * as jsonInput from '../lib/json-input';
+import { isSellerIdentityCollectionEnabled } from '../lib/deployment-policy';
 import { loadRoute } from './helpers/load-route';
 
 // Synthetic vectors, never provider keys or personal identifiers.
@@ -79,7 +80,7 @@ function harness(
     existing?: string;
     noSession?: boolean;
     role?: string;
-    stage?: boolean;
+    collectionEnv?: Record<string, string | undefined>;
     missingKey?: boolean;
     failure?: boolean;
   } = {}
@@ -88,6 +89,7 @@ function harness(
   const state = {
     hash: options.existing ?? (null as string | null),
     writes: [] as Record<string, unknown>[],
+    authentications: 0,
     reads: 0,
     fingerprints: 0,
   };
@@ -108,10 +110,12 @@ function harness(
         },
       },
       '@/lib/auth': {
-        auth: async () =>
-          options.noSession
+        auth: async () => {
+          state.authentications++;
+          return options.noSession
             ? null
-            : { user: { email: 'synthetic@example.invalid' } },
+            : { user: { email: 'synthetic@example.invalid' } };
+        },
       },
       '@/lib/prisma': {
         prisma: {
@@ -156,7 +160,14 @@ function harness(
         authRateLimit: {},
         withRateLimit: (_: unknown, handler: Handler) => handler,
       },
-      '@/lib/deployment-policy': { isStagingDeployment: () => !!options.stage },
+      '@/lib/deployment-policy': {
+        isSellerIdentityCollectionEnabled: () =>
+          isSellerIdentityCollectionEnabled({
+            KK_DEPLOYMENT_MODE: 'production',
+            SELLER_IDENTITY_COLLECTION_ENABLED: 'true',
+            ...options.collectionEnv,
+          }),
+      },
       '@/lib/identity-fingerprint': {
         ...identity,
         fingerprintNationalId: (value: string) => {
@@ -265,14 +276,30 @@ async function main() {
     assert.ok(!JSON.stringify(h.logs).includes(nationalId));
     assert.ok(!JSON.stringify(h.logs).includes(fingerprint));
   }
-  const stage = harness({ stage: true });
-  const bodyDenied = new Request('http://127.0.0.1', {
-    method: 'POST',
-    body: 'unreadable',
-  });
-  assert.equal((await stage.route.POST(bodyDenied)).status, 403);
-  assert.equal(stage.state.reads, 0);
-  assert.equal(bodyDenied.bodyUsed, false);
+  for (const collectionEnv of [
+    { SELLER_IDENTITY_COLLECTION_ENABLED: undefined },
+    { SELLER_IDENTITY_COLLECTION_ENABLED: 'false' },
+    { SELLER_IDENTITY_COLLECTION_ENABLED: 'TRUE' },
+    { KK_DEPLOYMENT_MODE: undefined },
+    { KK_DEPLOYMENT_MODE: 'local' },
+    { KK_DEPLOYMENT_MODE: 'staging' },
+    { VERCEL_ENV: 'preview' },
+    { KK_ISOLATED: '1' },
+  ]) {
+    const denied = harness({ collectionEnv });
+    const body = new Request('http://127.0.0.1', {
+      method: 'POST',
+      body: 'unreadable',
+    });
+    const response = await denied.route.POST(body);
+    assert.equal(response.status, 403);
+    assert.equal(response.data.error, 'IDENTITY_COLLECTION_DISABLED');
+    assert.equal(denied.state.authentications, 0);
+    assert.equal(denied.state.reads, 0);
+    assert.equal(denied.state.fingerprints, 0);
+    assert.equal(denied.state.writes.length, 0);
+    assert.equal(body.bodyUsed, false);
+  }
   const size = harness();
   assert.equal(
     (await size.submit({ ...valid, bio: 'x'.repeat(17000) })).status,

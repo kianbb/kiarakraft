@@ -33,6 +33,26 @@ export function isStagingDeployment(
   return env.KK_DEPLOYMENT_MODE === 'staging' || env.VERCEL_ENV === 'preview';
 }
 
+export function isSellerIdentityCollectionEnabled(
+  env: DeploymentEnvironment = process.env
+): boolean {
+  return (
+    env.SELLER_IDENTITY_COLLECTION_ENABLED === 'true' &&
+    env.KK_DEPLOYMENT_MODE === 'production' &&
+    env.KK_ISOLATED !== '1' &&
+    !isStagingDeployment(env)
+  );
+}
+
+export function isSellerDocumentCollectionEnabled(
+  env: DeploymentEnvironment = process.env
+): boolean {
+  return (
+    isSellerIdentityCollectionEnabled(env) &&
+    env.SELLER_DOCUMENT_COLLECTION_ENABLED === 'true'
+  );
+}
+
 function required(env: DeploymentEnvironment, key: string): string {
   const value = env[key];
   if (!value || value.trim() !== value)

@@ -164,6 +164,7 @@ async function run() {
   const day = 24 * 60 * 60 * 1000;
   const paidReceipt = {
     ...receipt,
+    createdAt: new Date(now - 40 * day),
     updatedAt,
     payment: {
       status: 'PAID',
@@ -171,20 +172,106 @@ async function run() {
     },
   };
   const delivered = { ...paidReceipt, status: 'DELIVERED' };
+
+  // Delivery at 23:55 on January 2 in Tehran. Day 31 begins at the
+  // following UTC instant, not 30 or 31 elapsed 24-hour periods.
+  const deliveryTime = '2026-01-02T20:25:00Z';
+  const day31 = Date.parse('2026-02-01T20:30:00Z');
+  const transition = { status: 'DELIVERED', kind: 'transition' };
+  const recorded = {
+    ...delivered,
+    createdAt: new Date('2026-01-01T10:00:00Z'),
+    updatedAt: new Date(day31),
+    shipping: {
+      history: {
+        events: [
+          { ...transition, timestamp: '2026-01-20T12:00:00Z' },
+          { ...transition, timestamp: deliveryTime },
+          {
+            ...transition,
+            kind: 'metadata',
+            timestamp: '2026-01-01T12:00:00Z',
+          },
+        ],
+      },
+    },
+  };
   assert.equal(
-    returnEligibility.returnIneligibility(
-      { ...delivered, updatedAt: new Date(now - 31 * day + 1) },
-      now
-    ),
-    null,
-    'Retain the existing rounded day boundary for POST eligibility'
+    returnEligibility.returnIneligibility(recorded, day31 - 1),
+    null
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility(recorded, day31),
+    'expired',
+    'Later tracking, delivery entries and order updates never restart the clock'
   );
   assert.equal(
     returnEligibility.returnIneligibility(
-      { ...delivered, updatedAt: new Date(now - 31 * day) },
-      now
+      recorded,
+      Date.parse(deliveryTime) - 1
     ),
+    'delivery_unconfirmed'
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility(recorded, Date.parse(deliveryTime)),
+    null
+  );
+  const legacySeller = {
+    ...recorded,
+    shipping: {
+      history: {
+        events: [
+          {
+            status: 'DELIVERED',
+            updatedBy: 'SELLER',
+            timestamp: '2026-01-02T23:55:00+03:30',
+          },
+        ],
+      },
+    },
+  };
+  assert.equal(
+    returnEligibility.returnIneligibility(legacySeller, day31 - 1),
+    null
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility(legacySeller, day31),
     'expired'
+  );
+
+  const unconfirmed = {
+    ...recorded,
+    shipping: {
+      history: {
+        events: [
+          null,
+          [],
+          { status: 'DELIVERED', updatedBy: 'ADMIN', timestamp: deliveryTime },
+          { status: 'DELIVERED', timestamp: deliveryTime },
+          { ...transition, kind: 'legacy-inferred', timestamp: deliveryTime },
+          { ...transition, kind: 'metadata', timestamp: deliveryTime },
+          { ...transition, timestamp: '2026-01-02T20:25:00' },
+          { ...transition, timestamp: '2026-01-02T24:00:00Z' },
+          { ...transition, timestamp: '2025-12-31T12:00:00Z' },
+          { ...transition, timestamp: '2026-02-30T12:00:00Z' },
+          { ...transition, timestamp: '2027-01-03T12:00:00Z' },
+        ],
+      },
+    },
+  };
+  assert.equal(
+    returnEligibility.returnIneligibility(
+      unconfirmed,
+      Date.parse('2026-03-05T10:00:00Z')
+    ),
+    'delivery_unconfirmed'
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility(
+      { ...recorded, shipping: null },
+      day31
+    ),
+    'delivery_unconfirmed'
   );
   assert.equal(
     returnEligibility.returnIneligibility({ ...delivered, payment: null }),
@@ -275,20 +362,51 @@ async function run() {
                   shipping: null,
                 };
               }
-              if (query.where.id === 'eligible-order')
+              if (
+                query.where.id === 'eligible-order' ||
+                query.where.id === 'expired-order'
+              ) {
+                const eligible = query.where.id === 'eligible-order';
                 return {
                   ...delivered,
-                  id: 'eligible-order',
+                  id: query.where.id,
                   address,
-                  updatedAt: new Date(now - day),
-                  items: [item, requestedItem],
+                  updatedAt: new Date(now),
+                  shipping: {
+                    ...shipping,
+                    history: {
+                      events: [
+                        {
+                          ...transition,
+                          timestamp: new Date(
+                            now - (eligible ? day : 32 * day)
+                          ).toISOString(),
+                        },
+                      ],
+                    },
+                  },
+                  ...(eligible && { items: [item, requestedItem] }),
                 };
-              if (query.where.id === 'expired-order')
+              }
+              if (query.where.id === 'unconfirmed-delivery')
                 return {
                   ...delivered,
-                  id: 'expired-order',
+                  id: query.where.id,
                   address,
-                  updatedAt: new Date(now - 31 * day),
+                  updatedAt: new Date(now),
+                  shipping: {
+                    ...shipping,
+                    history: {
+                      events: [
+                        {
+                          status: 'DELIVERED',
+                          updatedBy: 'ADMIN',
+                          timestamp: new Date(now - day).toISOString(),
+                        },
+                      ],
+                    },
+                  },
+                  items: [requestedItem],
                 };
               return null;
             },
@@ -303,6 +421,7 @@ async function run() {
     ['unshipped-order', 200],
     ['eligible-order', 200],
     ['expired-order', 200],
+    ['unconfirmed-delivery', 200],
     ['other-order', 404],
   ] as const) {
     const response = await orderRoute.GET(
@@ -319,6 +438,7 @@ async function run() {
     assert.deepEqual(payload.address, address);
     const returnEligible = id === 'eligible-order';
     assert.equal(payload.returnEligible, returnEligible);
+    assert.equal(payload.returnNeedsSupport, id === 'unconfirmed-delivery');
     assert.equal('payment' in payload, false);
     assert.deepEqual(
       payload.items,
@@ -327,7 +447,13 @@ async function run() {
             { ...item, returnEligible: true },
             { ...item, id: requestedItem.id, returnEligible: false },
           ]
-        : [{ ...item, returnEligible: false }]
+        : [
+            {
+              ...item,
+              ...(id === 'unconfirmed-delivery' && { id: requestedItem.id }),
+              returnEligible: false,
+            },
+          ]
     );
     assert.equal(payload.totalToman, receipt.totalToman);
     if (id === 'owned-order')
@@ -349,7 +475,7 @@ async function run() {
     ).status,
     401
   );
-  assert.equal(lookupCount, 6);
+  assert.equal(lookupCount, 7);
   signedIn = true;
 
   const review = { id: 'own-review', body: 'Buyer-authored review' };

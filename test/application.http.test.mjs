@@ -336,6 +336,22 @@ async function run() {
       undefined
     );
 
+    for (const locale of ['fa', 'en']) {
+      const page = await seller(`/${locale}/seller/onboarding`);
+      assert.equal(page.status, 200);
+      const messages = JSON.parse(
+        readFileSync(
+          new URL(`../locales/${locale}.json`, import.meta.url),
+          'utf8'
+        )
+      );
+      assert.ok(
+        page.text.includes(messages.seller.manualVerificationDescription)
+      );
+      assert.ok(page.text.includes(`href="/${locale}/seller/profile"`));
+      assert.doesNotMatch(page.text, /\s(?:name="nationalId"|type="file")/);
+    }
+
     let missingPrivateCartHeader = false;
     for (const [request, quantity] of [
       [buyer, 1],

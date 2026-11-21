@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { NextRequest, NextResponse } from 'next/server';
+import type { ReactElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import SellerVerificationEmail from '../lib/email-templates/SellerVerificationEmail';
 import { loadRoute } from './helpers/load-route';
 
 type Handler = (request: NextRequest) => Promise<Response>;
-type Notification = { to: string; react: { notes: string } };
+type Notification = { to: string; subject: string; react: ReactElement };
 type UpdateData = {
   verified: boolean;
   verificationNotes: string;
@@ -63,9 +66,7 @@ async function checkVerification(
           return { success: true };
         },
       },
-      '@/lib/email-templates/SellerVerificationEmail': (input: {
-        notes: string;
-      }) => input,
+      '@/lib/email-templates/SellerVerificationEmail': SellerVerificationEmail,
       '@/lib/csrf': { withCSRF: (handler: Handler) => handler },
       '@/lib/rateLimit': {
         adminRateLimit: {},
@@ -118,8 +119,30 @@ async function checkVerification(
   assert.equal(update.verificationNotes, notes.trim());
   assert.equal(update.verifiedBy, approved ? admin : null);
   assert.equal(productsActivated, approved);
-  assert.equal(notification?.to, seller);
-  assert.equal(notification?.react.notes, notes);
+  assert.ok(notification);
+  assert.deepEqual(Object.keys(notification).sort(), [
+    'react',
+    'subject',
+    'to',
+  ]);
+  assert.equal(notification.to, seller);
+  assert.equal(
+    notification.subject,
+    approved
+      ? 'تایید فروشندگی شما در کیارا کرافت'
+      : 'نتیجه بررسی فروشندگی در کیارا کرافت'
+  );
+  const email = renderToStaticMarkup(notification.react);
+  assert.ok(email.includes(approved ? 'تأیید فروشنده' : 'رد تأیید فروشنده'));
+  assert.ok(
+    email.includes(
+      approved ? 'Seller Verification Approved' : 'Seller Verification Rejected'
+    )
+  );
+  assert.ok(email.includes('https://www.kiarakraft.com/fa/seller'));
+  assert.ok(!email.includes(notes.trim()));
+  assert.ok(!email.includes('Admin notes:'));
+  assert.ok(!email.includes('یادداشت مدیر:'));
   assert.deepEqual(entries, [
     [
       approved

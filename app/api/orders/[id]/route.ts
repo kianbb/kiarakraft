@@ -56,13 +56,18 @@ export async function GET(
     }
 
     const { shipping, payment, items, ...receipt } = order;
-    const returnEligible =
-      returnIneligibility({ ...receipt, payment }) === null;
+    const ineligibility = returnIneligibility({
+      ...receipt,
+      payment,
+      shipping,
+    });
+    const returnEligible = ineligibility === null;
     return NextResponse.json(
       {
         ...receipt,
         shipping: toBuyerShipping(shipping),
         returnEligible,
+        returnNeedsSupport: ineligibility === 'delivery_unconfirmed',
         items: items.map(({ returnRequest, ...item }) => ({
           ...item,
           returnEligible: returnEligible && !returnRequest,

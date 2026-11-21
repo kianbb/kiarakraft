@@ -115,7 +115,6 @@ export const POST = withRateLimit(
               sellerProfile.user.name || sellerProfile.user.email.split('@')[0],
             shopName: updatedProfile.shopName,
             action: action as 'verify' | 'reject',
-            notes: notes,
             locale: emailLocale,
             dashboardUrl: 'https://www.kiarakraft.com/fa/seller',
           }),

@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
-import { isStagingDeployment } from '@/lib/deployment-policy';
+import { isSellerIdentityCollectionEnabled } from '@/lib/deployment-policy';
 import {
   fingerprintNationalId,
   IdentityKeyError,
@@ -16,9 +16,9 @@ import { SellerDocumentError } from '@/lib/seller-documents';
 export const POST = withRateLimit(
   authRateLimit,
   withCSRF(async function (request: NextRequest) {
-    if (isStagingDeployment())
+    if (!isSellerIdentityCollectionEnabled())
       return NextResponse.json(
-        { error: 'Identity collection is disabled in staging' },
+        { error: 'IDENTITY_COLLECTION_DISABLED' },
         { status: 403 }
       );
     try {

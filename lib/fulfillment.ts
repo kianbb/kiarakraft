@@ -13,6 +13,7 @@ type ShippingChange = {
   trackingNo?: string;
   notes?: string;
   occurredAt?: Date;
+  legacyInferred?: boolean;
 };
 
 export class FulfillmentConflict extends Error {}
@@ -69,6 +70,12 @@ export async function writeShipment(
       change.occurredAt?.getTime() ?? 0
     )
   );
+  const kind =
+    change.status === shipping.status
+      ? 'metadata'
+      : change.legacyInferred
+        ? 'legacy-inferred'
+        : 'transition';
   return tx.orderShipping.update({
     where: { id: shipping.id },
     data: {
@@ -82,7 +89,7 @@ export async function writeShipment(
           {
             status: change.status,
             timestamp: (change.occurredAt ?? updatedAt).toISOString(),
-            ...(change.status === shipping.status && { kind: 'metadata' }),
+            kind,
             updatedBy: change.actor,
             ...(change.trackingNo && { trackingNo: change.trackingNo }),
             ...(change.notes && { notes: change.notes }),

@@ -308,6 +308,115 @@ function renderedElements(value: unknown): Element[] {
   return [element as Element, ...renderedElements(element.props.children)];
 }
 
+async function sellerOnboardingRendering() {
+  const jsx = (type: unknown, props: Record<string, unknown>) => ({
+    type,
+    props,
+  });
+  const flags = {
+    SELLER_IDENTITY_COLLECTION_ENABLED: 'true',
+    SELLER_DOCUMENT_COLLECTION_ENABLED: 'true',
+  };
+  const production = { KK_DEPLOYMENT_MODE: 'production' };
+  for (const locale of ['en', 'fa']) {
+    const messages: { seller: Record<string, string> } = JSON.parse(
+      readFileSync(
+        new URL(`../locales/${locale}.json`, import.meta.url),
+        'utf8'
+      )
+    );
+    const props = { params: Promise.resolve({ locale }) };
+    for (const [env, identityEnabled, documentsEnabled] of [
+      [production, false, false],
+      [
+        {
+          ...production,
+          ...flags,
+          SELLER_IDENTITY_COLLECTION_ENABLED: 'false',
+        },
+        false,
+        false,
+      ],
+      [
+        {
+          ...production,
+          ...flags,
+          SELLER_DOCUMENT_COLLECTION_ENABLED: 'false',
+        },
+        true,
+        false,
+      ],
+      [{ ...production, ...flags }, true, true],
+      [{ ...production, ...flags, VERCEL_ENV: 'preview' }, false, false],
+      [{ ...flags, KK_DEPLOYMENT_MODE: 'staging' }, false, false],
+      [{ ...production, ...flags, KK_ISOLATED: '1' }, false, false],
+    ] as const) {
+      const runtime = { jsx, jsxs: jsx };
+      const onboarding = load<{ default: (props: object) => Promise<Element> }>(
+        'app/[locale]/seller/onboarding/page.tsx',
+        env,
+        {
+          'react/jsx-runtime': runtime,
+          'next/link': 'Link',
+          'next/navigation': {
+            redirect: () => assert.fail('Unexpected redirect'),
+          },
+          'next-intl/server': {
+            getTranslations: async ({
+              locale: requestedLocale,
+            }: {
+              locale: string;
+            }) => {
+              assert.equal(requestedLocale, locale);
+              return (key: string) => messages.seller[key];
+            },
+          },
+          '@/lib/auth': { auth: async () => ({ user: { role: 'SELLER' } }) },
+          './onboarding-form': 'IdentityForm',
+        }
+      );
+      const tree = await onboarding.default(props);
+      if (identityEnabled) {
+        assert.equal(tree.type, 'IdentityForm');
+        assert.equal(tree.props.documentsEnabled, documentsEnabled);
+      } else {
+        const elements = renderedElements(tree);
+        const guidance = messages.seller.manualVerificationDescription;
+        assert.ok(guidance);
+        assert.ok(
+          elements.some(
+            ({ type, props }) => type === 'p' && props.children === guidance
+          )
+        );
+        assert.ok(
+          elements.some(
+            ({ props }) => props.href === `/${locale}/seller/profile`
+          )
+        );
+        assert.ok(
+          !elements.some(
+            ({ type }) => type === 'IdentityForm' || type === 'input'
+          )
+        );
+      }
+
+      const dashboard = load<{ default: () => Promise<Element> }>(
+        'app/[locale]/seller/page.tsx',
+        env,
+        {
+          'react/jsx-runtime': runtime,
+          'next/server': { connection: async () => {} },
+          './seller-dashboard': 'SellerDashboard',
+        }
+      );
+      assert.equal(
+        (await dashboard.default()).props.identityCollectionEnabled,
+        identityEnabled
+      );
+    }
+  }
+}
+
 const renderingOrigin = 'https://layout.example.invalid';
 function renderedResourceUrls(elements: Element[]): URL[] {
   return elements.flatMap(({ props }) => {
@@ -405,6 +514,7 @@ async function rendering(env: Env) {
 }
 
 async function run() {
+  await sellerOnboardingRendering();
   const notice = {
     userId: 'synthetic-buyer',
     type: 'order_paid',
@@ -416,7 +526,12 @@ async function run() {
     { VERCEL_ENV: 'preview' },
     { KK_DEPLOYMENT_MODE: 'production', VERCEL_ENV: 'preview' },
   ]) {
-    const env: Env = { ...accidentalKeys, ...mode };
+    const env: Env = {
+      ...accidentalKeys,
+      ...mode,
+      SELLER_IDENTITY_COLLECTION_ENABLED: 'true',
+      SELLER_DOCUMENT_COLLECTION_ENABLED: 'true',
+    };
     const paymentAdapters = {
       './adapters/offline': { OfflineAdapter: 'synthetic-offline' },
       './adapters/zarinpalStub': { ZarinpalStub: 'synthetic-gateway' },
