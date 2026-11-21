@@ -212,12 +212,15 @@ export default function SellerOrdersPage() {
                   </div>
                 </div>
 
-                {/* Customer Info */}
-                <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('customer')}:</span>
-                  <span className="text-sm">{order.address?.fullName}</span>
-                </div>
+                {order.address && (
+                  <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      {t('customer')}:
+                    </span>
+                    <span className="text-sm">{order.address.fullName}</span>
+                  </div>
+                )}
 
                 {/* Order Items */}
                 <div className="space-y-3">
@@ -264,24 +267,27 @@ export default function SellerOrdersPage() {
                   ))}
                 </div>
 
-                {/* Shipping Address */}
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
-                  <div className="text-sm text-muted-foreground">
-                    <div>{order.address?.fullName}</div>
-                    <div>
-                      {order.address?.line1}{' '}
-                      {order.address?.line2 ? `, ${order.address.line2}` : ''}
-                    </div>
-                    <div>
-                      {order.address?.city}, {order.address?.province}{' '}
-                      {order.address?.postal}
-                    </div>
-                    <div>
-                      {t('phone')}: {order.address?.phone}
+                {order.address && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <h4 className="font-medium mb-2">
+                      {t('shippingAddress')}:
+                    </h4>
+                    <div className="text-sm text-muted-foreground">
+                      <div>{order.address.fullName}</div>
+                      <div>
+                        {order.address.line1}
+                        {order.address.line2 ? `, ${order.address.line2}` : ''}
+                      </div>
+                      <div>
+                        {order.address.city}, {order.address.province}{' '}
+                        {order.address.postal}
+                      </div>
+                      <div>
+                        {t('phone')}: {order.address.phone}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Actions */}
                 <div className="mt-4 flex gap-2 justify-end">

@@ -105,7 +105,20 @@ export const PATCH = withRateLimit(
           updated.shipment?.trackingNo
         );
       }
-      return NextResponse.json(updated.order);
+      const {
+        id: orderId,
+        status,
+        totalToman,
+        createdAt,
+        updatedAt,
+      } = updated.order;
+      return NextResponse.json({
+        id: orderId,
+        status,
+        totalToman,
+        createdAt,
+        updatedAt,
+      });
     } catch (error) {
       if (error instanceof FulfillmentConflict) {
         return NextResponse.json({ error: error.message }, { status: 409 });

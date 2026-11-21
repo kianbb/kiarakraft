@@ -152,6 +152,27 @@ export const sellerOrderSelect = {
 type SellerOrderRecord = Prisma.OrderGetPayload<{
   select: typeof sellerOrderSelect;
 }>;
-export type SellerOrder = Omit<SellerOrderRecord, 'createdAt'> & {
+
+const sellerDeliveryStatuses = new Set([
+  'PAID',
+  'PROCESSING',
+  'SHIPPED',
+  'DELIVERED',
+]);
+
+export function toSellerOrder(order: SellerOrderRecord) {
+  return {
+    id: order.id,
+    status: order.status,
+    createdAt: order.createdAt,
+    address: sellerDeliveryStatuses.has(order.status) ? order.address : null,
+    items: order.items,
+  };
+}
+
+export type SellerOrder = Omit<
+  ReturnType<typeof toSellerOrder>,
+  'createdAt'
+> & {
   createdAt: string;
 };

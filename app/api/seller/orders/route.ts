@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { sellerOrderSelect } from '@/lib/order-read';
+import { sellerOrderSelect, toSellerOrder } from '@/lib/order-read';
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    return NextResponse.json(orders, {
+    return NextResponse.json(orders.map(toSellerOrder), {
       headers: { 'Cache-Control': 'private, no-store' },
     });
   } catch (error) {

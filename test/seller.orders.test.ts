@@ -51,8 +51,10 @@ const sampleOrder = {
   id: 'synthetic-order',
   status: 'PAID',
   createdAt: '2026-05-01T12:00:00.000Z',
+  updatedAt: '2026-05-02T12:00:00.000Z',
   totalToman: 1_950_000,
   userId: 'private-buyer-account-id',
+  addressId: 'private-address-id',
   user: {
     email: 'private-buyer@example.invalid',
     name: 'Private account name',
@@ -90,6 +92,7 @@ function pickSelected(
 function setup(
   options: {
     sellerIds?: string[];
+    listStatuses?: string[];
     hasProfile?: boolean;
     role?: string;
     statusChanged?: boolean;
@@ -139,6 +142,11 @@ function setup(
             const orders = [
               sampleOrder,
               { ...sampleOrder, id: 'other-order', items: [otherItem] },
+              ...(options.listStatuses ?? []).map(status => ({
+                ...sampleOrder,
+                id: `${status.toLowerCase()}-order`,
+                status,
+              })),
             ];
             return orders
               .filter(order =>
@@ -195,7 +203,15 @@ function setup(
               }) => {
                 assert.equal(where.status, 'PAID');
                 writes++;
-                return { id: 'synthetic-order', ...data };
+                return {
+                  id: sampleOrder.id,
+                  userId: sampleOrder.userId,
+                  addressId: sampleOrder.addressId,
+                  totalToman: sampleOrder.totalToman,
+                  createdAt: sampleOrder.createdAt,
+                  updatedAt: sampleOrder.updatedAt,
+                  ...data,
+                };
               },
             },
           }),
@@ -292,11 +308,42 @@ async function run() {
     assert.equal(order.items.length, 1);
     assert.equal(order.items[0].id, otherItem.id);
   }
+  const hiddenStatuses = ['PENDING', 'CANCELED', 'UNKNOWN'];
+  const deliveryStatuses = ['PROCESSING', 'SHIPPED', 'DELIVERED'];
+  const statusList = await setup({
+    listStatuses: [...hiddenStatuses, ...deliveryStatuses],
+  }).list();
+  assert.equal(statusList.status, 200);
+  const ordersByStatus = new Map(
+    (statusList.data as orderRead.SellerOrder[]).map(order => [
+      order.status,
+      order,
+    ])
+  );
+  for (const status of [...hiddenStatuses, ...deliveryStatuses]) {
+    const order = ordersByStatus.get(status);
+    assert.ok(order, `${status} orders must remain visible`);
+    assert.deepEqual(
+      order.address,
+      hiddenStatuses.includes(status) ? null : address
+    );
+    assert.equal(order.items.length, 1);
+    assert.equal(order.items[0].id, firstItem.id);
+  }
+
+  const updated = await owner.update();
   assert.equal(
-    (await owner.update()).status,
+    updated.status,
     200,
     'Profile owner must be able to fulfill own order'
   );
+  assert.deepEqual(JSON.parse(JSON.stringify(updated.data)), {
+    id: sampleOrder.id,
+    status: 'SHIPPED',
+    totalToman: sampleOrder.totalToman,
+    createdAt: sampleOrder.createdAt,
+    updatedAt: sampleOrder.updatedAt,
+  });
   assert.equal(owner.writes(), 1);
   assert.equal(owner.notifications(), 1);
 
