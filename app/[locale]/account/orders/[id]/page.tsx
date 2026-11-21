@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { formatPrice, formatDate } from '@/lib/utils';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 import {
   Package,
@@ -151,6 +151,7 @@ export default async function OrderDetailPage({
   params,
 }: OrderDetailPageProps) {
   const { locale, id } = await params;
+  setRequestLocale(locale);
   const session = await auth();
 
   if (!session) {
@@ -158,8 +159,8 @@ export default async function OrderDetailPage({
   }
 
   const [t, tReturns] = await Promise.all([
-    getTranslations('orders'),
-    getTranslations('returns'),
+    getTranslations({ locale, namespace: 'orders' }),
+    getTranslations({ locale, namespace: 'returns' }),
   ]);
   const order = await getOrderById(id, session.user.id);
   const isRTL = locale === 'fa';

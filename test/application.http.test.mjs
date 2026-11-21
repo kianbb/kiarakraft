@@ -21,6 +21,7 @@ const privateSentinel = `private-http-smoke-${nonce}`;
 const orderFixture = {
   id: `http-smoke-order-${nonce}`,
   itemId: `http-smoke-order-item-${nonce}`,
+  paymentId: `http-smoke-payment-${nonce}`,
   shippingId: `http-smoke-shipping-${nonce}`,
   trackingNo: `SYNTHETIC-${nonce}`,
   shippedAt: '2026-05-02T12:00:00.000Z',
@@ -43,6 +44,22 @@ function assertPrivateJSON(value) {
     assert.ok(!privateKeys.includes(key), `Private JSON field exposed: ${key}`);
     assertPrivateJSON(child);
   }
+}
+
+function assertReceiptMarkup(response, locale, receiptTitle) {
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/);
+  assert.match(response.text, new RegExp(`<html[^>]*lang="${locale}"`));
+  // The serialized translation dictionary can contain text never rendered.
+  const markup = response.text.replace(
+    /<script\b[^>]*>[\s\S]*?<\/script>/gi,
+    ''
+  );
+  assert.ok(
+    markup.includes(`>${receiptTitle}</h1>`),
+    `Missing visible ${locale} receipt title`
+  );
+  return markup;
 }
 
 function browser() {
@@ -236,6 +253,11 @@ async function run() {
         `INSERT INTO "OrderItem" (id, "orderId", "productId", quantity, "unitPriceToman")
          VALUES ($1, $2, $3, 1, 250000)`,
         [orderFixture.itemId, orderFixture.id, fixture.product]
+      );
+      await client.query(
+        `INSERT INTO "Payment" (id, "orderId", gateway, status, "amountToman", "createdAt", "updatedAt")
+         VALUES ($1, $2, 'OFFLINE', 'PAID', 260000, NOW(), NOW())`,
+        [orderFixture.paymentId, orderFixture.id]
       );
       await client.query(
         `INSERT INTO "OrderShipping" (id, "orderId", method, "priceToman", "trackingNo", status, history, "createdAt", "updatedAt")
@@ -433,13 +455,16 @@ async function run() {
     for (const method of ['GET', 'POST'])
       assert.equal((await anonymous('/api/fx/update', { method })).status, 401);
 
+    const receiptTitles = { fa: 'جزئیات سفارش', en: 'Order Details' };
     for (const locale of ['fa', 'en']) {
       const buyerOrderPage = `/${locale}/account/orders/${orderFixture.id}`;
       const orderHtml = await buyer(buyerOrderPage);
-      assert.equal(orderHtml.status, 200);
-      assert.match(orderHtml.headers.get('content-type'), /text\/html/);
-      assert.match(orderHtml.text, new RegExp(`<html[^>]*lang="${locale}"`));
-      assert.ok(orderHtml.text.includes(orderFixture.trackingNo));
+      const orderMarkup = assertReceiptMarkup(
+        orderHtml,
+        locale,
+        receiptTitles[locale]
+      );
+      assert.ok(orderMarkup.includes(orderFixture.trackingNo));
       const orderRsc = await buyer(`${buyerOrderPage}?_rsc=`, {
         headers: { RSC: '1' },
       });
@@ -512,6 +537,38 @@ async function run() {
       assert.equal(order.status, status);
       assert.equal(order.address, null);
     }
+    // The same owned fixture now represents a delivered order with no
+    // recorded delivery event. The receipt should show localized support.
+    const delivered = await client.query(
+      'UPDATE "Order" SET status=$1 WHERE id=$2 AND "userId"=$3',
+      ['DELIVERED', orderFixture.id, fixture.buyer]
+    );
+    assert.equal(delivered.rowCount, 1);
+    const deliveryHelp = {
+      fa: 'تاریخ تحویل سفارش قابل تأیید نیست. برای پیگیری مرجوعی با پشتیبانی تماس بگیرید.',
+      en: 'We could not confirm the delivery date. Contact support for help with a return.',
+    };
+    const supportLink = { fa: 'تماس با پشتیبانی', en: 'Contact support' };
+    for (const locale of ['fa', 'en']) {
+      const orderHtml = await buyer(
+        `/${locale}/account/orders/${orderFixture.id}`
+      );
+      const markup = assertReceiptMarkup(
+        orderHtml,
+        locale,
+        receiptTitles[locale]
+      );
+      assert.ok(
+        markup.includes(deliveryHelp[locale]),
+        `Missing visible ${locale} delivery help`
+      );
+      assert.match(
+        markup,
+        new RegExp(
+          `<a[^>]*href="/${locale}/contact"[^>]*>${supportLink[locale]}</a>`
+        )
+      );
+    }
     assert.ok(
       !missingPrivateCartHeader,
       'Authenticated cart response must be private/no-store'
@@ -547,12 +604,17 @@ async function run() {
             'DELETE FROM "OrderItem" WHERE id=$1 AND "orderId"=$2 AND "productId"=$3',
             [orderFixture.itemId, orderFixture.id, fixture.product]
           );
+          const payment = await client.query(
+            'DELETE FROM "Payment" WHERE id=$1 AND "orderId"=$2',
+            [orderFixture.paymentId, orderFixture.id]
+          );
           const order = await client.query(
             'DELETE FROM "Order" WHERE id=$1 AND "userId"=$2 AND "addressId"=$3',
             [orderFixture.id, fixture.buyer, fixture.address]
           );
           assert.equal(shipment.rowCount, 1);
           assert.equal(item.rowCount, 1);
+          assert.equal(payment.rowCount, 1);
           assert.equal(order.rowCount, 1);
           for (const role of ['buyer', 'seller']) {
             const oldCart = baseline.carts.find(
