@@ -49,9 +49,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const rateLimitCheck = await checkLoginRateLimit(email, clientIP);
 
         if (!rateLimitCheck.allowed) {
-          // Record the failed attempt
-          await recordLoginAttempt(email, clientIP, false);
-
           // Return specific error information (NextAuth will handle this)
           const error = new Error('Rate limit exceeded');
           if (rateLimitCheck.reason === 'account_locked') {

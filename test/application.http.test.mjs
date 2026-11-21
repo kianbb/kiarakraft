@@ -26,6 +26,7 @@ const orderFixture = {
   shippedAt: '2026-05-02T12:00:00.000Z',
 };
 const clientIP = `127.${parseInt(nonce.slice(0, 2), 16)}.${parseInt(nonce.slice(2, 4), 16)}.${parseInt(nonce.slice(4, 6), 16)}`;
+const loginRateIdentifier = `ip_attempts:${clientIP}`;
 const profileRateIdentifier = `user:${fixture.seller}:/api/seller/profile`;
 const privateKeys = [
   'password',
@@ -194,6 +195,11 @@ async function run() {
         [privateSentinel, fixture.shop, fixture.seller]
       );
       assert.equal(changed.rowCount, 1);
+      await client.query(
+        `INSERT INTO "RateLimit" (id, identifier, count, "resetTime", "createdAt", "updatedAt")
+         VALUES ($1, $2, 10, timezone('UTC', NOW()) - INTERVAL '2 minutes', timezone('UTC', NOW()), timezone('UTC', NOW()))`,
+        [`http-smoke-expired-login-${nonce}`, loginRateIdentifier]
+      );
       for (const [role, quantity] of [
         ['buyer', 1],
         ['seller', 2],
@@ -316,6 +322,15 @@ async function run() {
     }
     const buyer = await login('buyer');
     const seller = await login('seller');
+    const loginWindow = await client.query(
+      'SELECT count FROM "RateLimit" WHERE identifier=$1',
+      [loginRateIdentifier]
+    );
+    assert.deepEqual(
+      loginWindow.rows,
+      [{ count: 2 }],
+      'Expired login counter must restart for the two valid sign-ins'
+    );
     assert.equal(
       (await anonymous('/api/auth/session')).json()?.user,
       undefined
@@ -554,7 +569,7 @@ async function run() {
             }
           }
           await client.query('DELETE FROM "RateLimit" WHERE identifier=$1', [
-            `ip_attempts:${clientIP}`,
+            loginRateIdentifier,
           ]);
           await client.query('DELETE FROM "RateLimit" WHERE identifier=$1', [
             profileRateIdentifier,

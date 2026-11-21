@@ -29,6 +29,7 @@ try {
   for (const file of [
     'fulfillment',
     'password-reset',
+    'auth-rate-window',
     'ai-budget',
     'identity-fingerprint',
     'seller-documents',
