@@ -26,10 +26,12 @@ const orderFixture = {
   shippedAt: '2026-05-02T12:00:00.000Z',
 };
 const clientIP = `127.${parseInt(nonce.slice(0, 2), 16)}.${parseInt(nonce.slice(2, 4), 16)}.${parseInt(nonce.slice(4, 6), 16)}`;
+const profileRateIdentifier = `user:${fixture.seller}:/api/seller/profile`;
 const privateKeys = [
   'password',
   'passwordChangedAt',
   'verificationNotes',
+  'verifiedBy',
   'nationalIdHash',
   'docsFolder',
 ];
@@ -101,6 +103,12 @@ function browser() {
 
 async function run() {
   const client = await connectLocal(env.DATABASE_URL, env.KK_DATABASE_KIND);
+  const readProfileRate = async () =>
+    (
+      await client.query('SELECT * FROM "RateLimit" WHERE identifier=$1', [
+        profileRateIdentifier,
+      ])
+    ).rows[0];
   let baseline;
   let modified = false;
   try {
@@ -122,7 +130,7 @@ async function run() {
     }
     const shops = (
       await client.query(
-        'SELECT id, "userId", handle, "verificationNotes", "docsFolder", "nationalIdHash" FROM "SellerProfile" WHERE id = $1 AND "userId" = $2',
+        'SELECT id, "userId", handle, "verificationNotes", "docsFolder", "nationalIdHash", "verifiedBy" FROM "SellerProfile" WHERE id = $1 AND "userId" = $2',
         [fixture.shop, fixture.seller]
       )
     ).rows;
@@ -158,7 +166,12 @@ async function run() {
         [[fixture.buyer, fixture.seller], fixture.product]
       )
     ).rows;
-    baseline = { shop: shops[0], carts, cartItems };
+    baseline = {
+      shop: shops[0],
+      carts,
+      cartItems,
+      profileRate: await readProfileRate(),
+    };
 
     const credentialPath = path.join(localDir, 'credentials.json');
     const credentialStat = statSync(credentialPath);
@@ -177,7 +190,7 @@ async function run() {
     await client.query('BEGIN');
     try {
       const changed = await client.query(
-        'UPDATE "SellerProfile" SET "verificationNotes"=$1, "docsFolder"=$1, "nationalIdHash"=$1 WHERE id=$2 AND "userId"=$3',
+        'UPDATE "SellerProfile" SET "verificationNotes"=$1, "docsFolder"=$1, "nationalIdHash"=$1, "verifiedBy"=$1 WHERE id=$2 AND "userId"=$3',
         [privateSentinel, fixture.shop, fixture.seller]
       );
       assert.equal(changed.rowCount, 1);
@@ -335,6 +348,38 @@ async function run() {
       (await buyer(`/api/seller/products/${fixture.product}/get`)).status,
       401
     );
+    const ownProfile = await seller('/api/seller/profile');
+    assert.equal(ownProfile.status, 200);
+    assert.match(ownProfile.headers.get('cache-control') ?? '', /no-store/);
+    assert.equal(ownProfile.json().sellerProfile.id, fixture.shop);
+    assertPrivateJSON(ownProfile.json());
+
+    const ownExport = await seller('/api/account/data/export');
+    assert.equal(ownExport.status, 200);
+    assert.match(ownExport.headers.get('cache-control') ?? '', /no-store/);
+    assertPrivateJSON(ownExport.json());
+    const exportedProfile = ownExport.json().sellerData.profile;
+    assert.equal(exportedProfile.id, fixture.shop);
+    assert.ok(
+      exportedProfile.products.some(product => product.id === fixture.product)
+    );
+
+    async function readOwnSellerOrder() {
+      const response = await seller('/api/seller/orders');
+      assert.equal(response.status, 200);
+      assert.match(
+        response.headers.get('cache-control') ?? '',
+        /private, no-store/
+      );
+      const order = response.json().find(row => row.id === orderFixture.id);
+      assert.ok(order, 'Synthetic order must remain visible to its seller');
+      assert.equal(order.items[0].id, orderFixture.itemId);
+      return order;
+    }
+
+    const shippedOrder = await readOwnSellerOrder();
+    assert.equal(shippedOrder.status, 'SHIPPED');
+    assert.ok(shippedOrder.address?.phone);
     const missingOrder = `/api/orders/http-smoke-missing-${nonce}`;
     assert.equal((await buyer(missingOrder)).status, 404);
     assert.equal((await anonymous(missingOrder)).status, 401);
@@ -426,6 +471,16 @@ async function run() {
         // rather than generic words such as "password", detect actual leakage.
       }
     }
+    for (const status of ['PENDING', 'CANCELED']) {
+      const changed = await client.query(
+        'UPDATE "Order" SET status=$1 WHERE id=$2 AND "userId"=$3',
+        [status, orderFixture.id, fixture.buyer]
+      );
+      assert.equal(changed.rowCount, 1);
+      const order = await readOwnSellerOrder();
+      assert.equal(order.status, status);
+      assert.equal(order.address, null);
+    }
     assert.ok(
       !missingPrivateCartHeader,
       'Authenticated cart response must be private/no-store'
@@ -436,11 +491,12 @@ async function run() {
         // Restore verification data independently, even if a concurrent cart
         // change makes the later cart cleanup refuse to delete anything.
         const restored = await client.query(
-          'UPDATE "SellerProfile" SET "verificationNotes"=$1, "docsFolder"=$2, "nationalIdHash"=$3 WHERE id=$4 AND "userId"=$5',
+          'UPDATE "SellerProfile" SET "verificationNotes"=$1, "docsFolder"=$2, "nationalIdHash"=$3, "verifiedBy"=$4 WHERE id=$5 AND "userId"=$6',
           [
             baseline.shop.verificationNotes,
             baseline.shop.docsFolder,
             baseline.shop.nationalIdHash,
+            baseline.shop.verifiedBy,
             fixture.shop,
             fixture.seller,
           ]
@@ -500,6 +556,22 @@ async function run() {
           await client.query('DELETE FROM "RateLimit" WHERE identifier=$1', [
             `ip_attempts:${clientIP}`,
           ]);
+          await client.query('DELETE FROM "RateLimit" WHERE identifier=$1', [
+            profileRateIdentifier,
+          ]);
+          const previousRate = baseline.profileRate;
+          if (previousRate)
+            await client.query(
+              'INSERT INTO "RateLimit" (id, identifier, count, "resetTime", "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6)',
+              [
+                previousRate.id,
+                profileRateIdentifier,
+                previousRate.count,
+                previousRate.resetTime,
+                previousRate.createdAt,
+                previousRate.updatedAt,
+              ]
+            );
           await client.query('COMMIT');
         } catch (error) {
           await client.query('ROLLBACK');
@@ -507,7 +579,7 @@ async function run() {
         }
         const shop = (
           await client.query(
-            'SELECT id, "userId", handle, "verificationNotes", "docsFolder", "nationalIdHash" FROM "SellerProfile" WHERE id=$1 AND "userId"=$2',
+            'SELECT id, "userId", handle, "verificationNotes", "docsFolder", "nationalIdHash", "verifiedBy" FROM "SellerProfile" WHERE id=$1 AND "userId"=$2',
             [fixture.shop, fixture.seller]
           )
         ).rows[0];
@@ -524,8 +596,12 @@ async function run() {
           )
         ).rows;
         assert.ok(
-          JSON.stringify({ shop, carts, cartItems }) ===
-            JSON.stringify(baseline),
+          JSON.stringify({
+            shop,
+            carts,
+            cartItems,
+            profileRate: await readProfileRate(),
+          }) === JSON.stringify(baseline),
           'Synthetic fixture baseline was not restored exactly'
         );
       }
@@ -534,7 +610,7 @@ async function run() {
     }
   }
   console.log(
-    '✓ local HTTP auth, ownership, cart isolation, and fa/en HTML/RSC privacy smoke passed; fixture baseline restored'
+    '✓ local HTTP auth, ownership, cart isolation, seller profile/export and order contact, and fa/en HTML/RSC privacy smoke passed; fixture baseline restored'
   );
 }
 

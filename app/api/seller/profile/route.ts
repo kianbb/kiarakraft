@@ -45,7 +45,9 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
       sellerProfile: user.sellerProfile,
     };
 
-    return NextResponse.json(profileData);
+    return NextResponse.json(profileData, {
+      headers: { 'Cache-Control': 'private, no-store' },
+    });
   } catch (error) {
     console.error('Error fetching seller profile:', error);
     Sentry.captureException(error);
@@ -185,7 +187,9 @@ export const PUT = withRateLimit(
         sellerProfile: updatedProfile,
       };
 
-      return NextResponse.json(profileData);
+      return NextResponse.json(profileData, {
+        headers: { 'Cache-Control': 'private, no-store' },
+      });
     } catch (error) {
       console.error('Error updating seller profile:', error);
       Sentry.captureException(error);
