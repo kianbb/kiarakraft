@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -37,23 +37,7 @@ export default function SellerProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status === 'loading') return;
-
-    if (!session) {
-      router.push(`/${locale}/auth/login`);
-      return;
-    }
-
-    if (session.user?.role !== 'SELLER') {
-      router.push(`/${locale}`);
-      return;
-    }
-
-    fetchProducts();
-  }, [session, status, router, locale]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       // Use /list endpoint to avoid 500 error from heavy imports in main route
       const response = await fetch('/api/seller/products/list', {
@@ -69,7 +53,23 @@ export default function SellerProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    if (!session) {
+      router.push(`/${locale}/auth/login`);
+      return;
+    }
+
+    if (session.user?.role !== 'SELLER') {
+      router.push(`/${locale}`);
+      return;
+    }
+
+    fetchProducts();
+  }, [session, status, router, locale, fetchProducts]);
 
   const deleteProduct = async (productId: string) => {
     if (!confirm(t('confirmDeleteProduct'))) return;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   createDocumentReviewLoader,
   documentReviewForSeller,
@@ -89,23 +89,7 @@ export default function AdminSellersPage() {
   }, [documentLoader, selectedSeller?.id, selectedSeller?.hasDocuments]);
   const [notesDraft, setNotesDraft] = useState('');
 
-  useEffect(() => {
-    if (status === 'loading') return;
-
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-
-    if (session.user?.role !== 'ADMIN') {
-      router.push('/');
-      return;
-    }
-
-    fetchSellers();
-  }, [session, status, router]);
-
-  const fetchSellers = async () => {
+  const fetchSellers = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/sellers');
       if (response.ok) {
@@ -120,7 +104,23 @@ export default function AdminSellersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    if (!session) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (session.user?.role !== 'ADMIN') {
+      router.push('/');
+      return;
+    }
+
+    fetchSellers();
+  }, [session, status, router, fetchSellers]);
 
   const handleVerifyAction = async (
     sellerId: string,

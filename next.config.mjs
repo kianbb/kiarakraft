@@ -188,10 +188,6 @@ const nextConfig = {
       ],
     },
   ],
-  eslint: {
-    // Enforce ESLint checks during builds for better code quality
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     // Enforce TypeScript checks during builds to prevent runtime errors
     ignoreBuildErrors: false,

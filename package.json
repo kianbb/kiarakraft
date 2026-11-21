@@ -14,8 +14,8 @@
     "build": "node scripts/dev/run.mjs build",
     "vercel-build": "node scripts/staging/build.mjs",
     "start": "next start",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint app components lib middleware.ts types --ext .js,.jsx,.ts,.tsx",
-    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint --fix . && prettier --write .",
+    "lint": "eslint app components lib middleware.ts types",
+    "lint:fix": "eslint --fix \"**/*.{js,jsx,ts,tsx}\" && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
@@ -118,8 +118,8 @@
     "@typescript-eslint/eslint-plugin": "8.73.0",
     "@typescript-eslint/parser": "8.73.0",
     "dotenv": "^17.2.3",
-    "eslint": "9.39.4",
-    "eslint-config-next": "15.5.3",
+    "eslint": "10.15.0",
+    "eslint-config-next": "16.4.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.1.7",
@@ -139,7 +139,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "bash -c 'ESLINT_USE_FLAT_CONFIG=false eslint --fix \"$@\"' _",
+      "eslint --fix",
       "prettier --write"
     ],
     "*.{json,css,md}": [

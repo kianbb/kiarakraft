@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -26,6 +26,20 @@ export default function SellerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const fetchOrders = useCallback(async () => {
+    try {
+      const response = await fetch('/api/seller/orders');
+      if (response.ok) {
+        const data = await response.json();
+        setOrders(data);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (status === 'loading') return;
 
@@ -40,21 +54,7 @@ export default function SellerOrdersPage() {
     }
 
     fetchOrders();
-  }, [session, status, router, locale]);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch('/api/seller/orders');
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [session, status, router, locale, fetchOrders]);
 
   const handleAction = async (
     orderId: string,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -26,15 +26,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!session) {
-      router.push(`/${locale}/auth/login`);
-      return;
-    }
-    fetchCart();
-  }, [session, locale, router]);
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       const response = await fetch('/api/cart');
       if (response.ok) {
@@ -46,7 +38,15 @@ export default function CartPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      router.push(`/${locale}/auth/login`);
+      return;
+    }
+    fetchCart();
+  }, [session, locale, router, fetchCart]);
 
   const updateQuantity = async (itemId: string, newQuantity: number) => {
     setUpdating(itemId);

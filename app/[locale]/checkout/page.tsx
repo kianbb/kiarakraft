@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -56,15 +56,7 @@ export default function CheckoutPage() {
     }>
   >([]);
 
-  useEffect(() => {
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-    fetchCart();
-  }, [session, router]);
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       const response = await fetch('/api/cart');
       if (response.ok) {
@@ -76,7 +68,15 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      router.push('/auth/login');
+      return;
+    }
+    fetchCart();
+  }, [session, router, fetchCart]);
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total: number, item: CartItemWithProduct) => {
