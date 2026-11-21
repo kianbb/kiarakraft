@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { loadRoute } from './helpers/load-route';
 import { publicProductSelect } from '../lib/public-product';
 import * as orderRead from '../lib/order-read';
+import * as sellerProfileRead from '../lib/seller-profile-read';
 
 type Handler = (
   request: NextRequest,
@@ -13,7 +14,8 @@ type Handler = (
 async function run() {
   const buyer = { id: 'buyer', email: 'buyer@example.invalid', role: 'BUYER' };
   let signedIn = true;
-  const auth = async () => (signedIn ? { user: buyer } : null);
+  let role = buyer.role;
+  const auth = async () => (signedIn ? { user: { ...buyer, role } } : null);
   const createdAt = new Date('2026-05-01T12:00:00Z');
   const updatedAt = new Date('2026-05-02T12:00:00Z');
   const operator = 'private-operator@example.invalid';
@@ -267,6 +269,31 @@ async function run() {
     id: 'own-return',
     reason: 'Buyer-authored return reason',
   };
+  const sellerProduct = {
+    id: 'owned-product',
+    title: 'Handmade bowl',
+    slug: 'handmade-bowl',
+    priceToman: 250_000,
+    stock: 2,
+    active: true,
+    createdAt: createdAt.toISOString(),
+  };
+  const sellerProfile = {
+    id: 'owned-profile',
+    userId: buyer.id,
+    shopName: 'Synthetic shop',
+    phone: '000',
+    verified: true,
+    verifiedAt: updatedAt.toISOString(),
+  };
+  const storedProfile = {
+    ...sellerProfile,
+    docsFolder: 'private-seller-document-folder',
+    nationalIdHash: 'private-identity-fingerprint',
+    verificationNotes: 'private-review-notes',
+    verifiedBy: operator,
+  };
+  let sellerProfileLookups = 0;
   const ownRows =
     <T>(rows: T[]) =>
     async ({ where }: { where: { userId: string } }) => {
@@ -279,12 +306,13 @@ async function run() {
       'next/server': { NextResponse },
       '@/lib/auth': { auth },
       '@/lib/order-read': orderRead,
+      '@/lib/seller-profile-read': sellerProfileRead,
       '@/lib/db': {
         db: {
           user: {
             findUnique: async ({ where }: { where: { id: string } }) => {
               assert.equal(where.id, buyer.id);
-              return buyer;
+              return { ...buyer, role };
             },
           },
           address: { findMany: ownRows([address]) },
@@ -304,6 +332,41 @@ async function run() {
           review: { findMany: ownRows([review]) },
           wishlistItem: { findMany: ownRows([wishlistItem]) },
           returnRequest: { findMany: ownRows([returnRequest]) },
+          sellerProfile: {
+            findUnique: async ({
+              where,
+              select: { products, ...profileSelect },
+            }: {
+              where: { userId: string };
+              select: Record<
+                string,
+                boolean | { select: Record<string, boolean> }
+              > & {
+                products: { select: Record<string, boolean> };
+              };
+            }) => {
+              sellerProfileLookups++;
+              assert.equal(where.userId, buyer.id);
+              assert.deepEqual(
+                Object.entries(profileSelect).sort(),
+                Object.entries(sellerProfileRead.sellerSelfProfileSelect).sort()
+              );
+              assert.deepEqual(
+                Object.entries(products.select).sort(),
+                Object.keys(sellerProduct)
+                  .sort()
+                  .map(key => [key, true])
+              );
+              return {
+                ...Object.fromEntries(
+                  Object.entries(storedProfile).filter(
+                    ([key]) => profileSelect[key]
+                  )
+                ),
+                products: [sellerProduct],
+              };
+            },
+          },
         },
       },
     }
@@ -326,6 +389,18 @@ async function run() {
   assert.deepEqual(download.reviews.reviews, [review]);
   assert.deepEqual(download.wishlist.items, [wishlistItem]);
   assert.deepEqual(download.returns.requests, [returnRequest]);
+  assert.equal(Object.hasOwn(download, 'sellerData'), false);
+  assert.equal(sellerProfileLookups, 0);
+  role = 'SELLER';
+  const sellerExport = await exportRoute.GET();
+  assert.equal(sellerExport.status, 200);
+  const sellerDownload = await sellerExport.json();
+  assert.deepEqual(sellerDownload.sellerData, {
+    profile: { ...sellerProfile, products: [sellerProduct] },
+    totalProducts: 1,
+  });
+  assert.equal(sellerProfileLookups, 1);
+  role = buyer.role;
   signedIn = false;
   assert.equal((await exportRoute.GET()).status, 401);
   signedIn = true;

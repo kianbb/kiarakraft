@@ -6,13 +6,14 @@ import { revalidateSeller, revalidateProductsForSeller } from '@/lib/cache';
 import { z } from 'zod';
 import * as Sentry from '@sentry/nextjs';
 import { withCSRF } from '@/lib/csrf';
+import { sellerSelfProfileSelect } from '@/lib/seller-profile-read';
 
-function withoutDocumentStorage<T extends { docsFolder: string | null }>(
-  profile: T
-) {
-  const { docsFolder: _docsFolder, ...safe } = profile;
-  return safe;
-}
+const profileUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  createdAt: true,
+} as const;
 
 export const GET = withRateLimit(sellerRateLimit, async function GET() {
   try {
@@ -25,8 +26,9 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      include: {
-        sellerProfile: true,
+      select: {
+        ...profileUserSelect,
+        sellerProfile: { select: sellerSelfProfileSelect },
       },
     });
 
@@ -40,9 +42,7 @@ export const GET = withRateLimit(sellerRateLimit, async function GET() {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
-      sellerProfile: user.sellerProfile
-        ? withoutDocumentStorage(user.sellerProfile)
-        : null,
+      sellerProfile: user.sellerProfile,
     };
 
     return NextResponse.json(profileData);
@@ -69,9 +69,7 @@ export const PUT = withRateLimit(
 
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
-        include: {
-          sellerProfile: true,
-        },
+        select: profileUserSelect,
       });
 
       if (!user) {
@@ -118,6 +116,7 @@ export const PUT = withRateLimit(
       if (data.handle) {
         const existingHandle = await prisma.sellerProfile.findUnique({
           where: { handle: data.handle },
+          select: { userId: true },
         });
 
         if (existingHandle && existingHandle.userId !== user.id) {
@@ -132,6 +131,7 @@ export const PUT = withRateLimit(
       if (data.displayName) {
         await prisma.user.update({
           where: { id: user.id },
+          select: { id: true },
           data: {
             name: data.displayName,
           },
@@ -142,6 +142,7 @@ export const PUT = withRateLimit(
       const fallbackHandle = `shop-${user.id.slice(0, 8)}`;
       const updatedProfile = await prisma.sellerProfile.upsert({
         where: { userId: user.id },
+        select: sellerSelfProfileSelect,
         create: {
           userId: user.id,
           handle: data.handle || fallbackHandle,
@@ -181,7 +182,7 @@ export const PUT = withRateLimit(
         email: user.email,
         name: data.displayName || user.name,
         createdAt: user.createdAt,
-        sellerProfile: withoutDocumentStorage(updatedProfile),
+        sellerProfile: updatedProfile,
       };
 
       return NextResponse.json(profileData);

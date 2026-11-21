@@ -6,6 +6,7 @@ import {
   orderReceiptSelect,
   toBuyerShipping,
 } from '@/lib/order-read';
+import { sellerSelfProfileSelect } from '@/lib/seller-profile-read';
 
 /**
  * Export user data for privacy compliance (GDPR Article 20)
@@ -98,7 +99,8 @@ export async function GET() {
         session.user.role === 'SELLER'
           ? db.sellerProfile.findUnique({
               where: { userId: session.user.id },
-              include: {
+              select: {
+                ...sellerSelfProfileSelect,
                 products: {
                   select: {
                     id: true,

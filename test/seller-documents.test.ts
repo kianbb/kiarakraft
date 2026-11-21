@@ -14,6 +14,7 @@ import * as onboardingInput from '../lib/seller-onboarding-input';
 import * as jsonInput from '../lib/json-input';
 import { z } from 'zod';
 import * as docs from '../lib/seller-documents';
+import * as sellerProfileRead from '../lib/seller-profile-read';
 import { loadRoute } from './helpers/load-route';
 
 const id = '1d41dba8-d51a-4b22-a8bf-65eb5343ba3b';
@@ -1035,11 +1036,50 @@ async function main() {
     reviewLoader.dispose();
     groups++;
 
-    const storedProfile = {
+    const verifiedAt = new Date('2026-10-01T12:00:00Z').toISOString();
+    const sellerProfile = {
       id: sellerId,
       userId: 'synthetic-user',
-      docsFolder: 'private-preserved-folder',
+      handle: 'synthetic-shop',
       shopName: 'Synthetic shop',
+      displayName: 'Synthetic seller',
+      bio: 'Handmade bowls and vases',
+      region: 'Synthetic region',
+      avatarUrl: 'https://example.invalid/avatar.jpg',
+      bannerUrl: null,
+      createdAt: verifiedAt,
+      updatedAt: verifiedAt,
+      phone: '000',
+      address: 'Synthetic studio',
+      website: 'https://example.invalid',
+      city: 'Synthetic city',
+      province: 'Synthetic province',
+      verified: true,
+      verifiedAt,
+    };
+    const storedProfile = {
+      ...sellerProfile,
+      docsFolder: 'private-preserved-folder',
+      nationalIdHash: 'private-identity-fingerprint',
+      verificationNotes: 'private-review-notes',
+      verifiedBy: 'reviewer@example.invalid',
+    };
+    const projectProfile = (select: Record<string, boolean>) => {
+      assert.deepEqual(
+        Object.entries(select).sort(),
+        Object.keys(sellerProfile)
+          .sort()
+          .map(key => [key, true])
+      );
+      return Object.fromEntries(
+        Object.entries(storedProfile).filter(([key]) => select[key])
+      );
+    };
+    const profileUser = {
+      id: 'synthetic-user',
+      name: 'Synthetic seller',
+      email: 'synthetic@example.invalid',
+      createdAt: verifiedAt,
     };
     const profileRoute = loadRoute<{
       GET: () => Promise<Response>;
@@ -1050,22 +1090,42 @@ async function main() {
         'next/server': { NextResponse: { json } },
         '@/lib/auth': {
           auth: async () => ({
-            user: { email: 'synthetic@example.invalid', role: 'SELLER' },
+            user: { email: profileUser.email, role: 'SELLER' },
           }),
         },
         '@/lib/prisma': {
           prisma: {
             user: {
-              findUnique: async () => ({
-                id: 'synthetic-user',
-                name: 'Synthetic seller',
-                email: 'synthetic@example.invalid',
-                createdAt: new Date(),
-                sellerProfile: storedProfile,
-              }),
+              findUnique: async (query: {
+                where: { email: string };
+                select: { sellerProfile?: { select: Record<string, boolean> } };
+              }) => {
+                assert.equal(query.where.email, profileUser.email);
+                const { sellerProfile, ...userSelect } = query.select;
+                assert.deepEqual(Object.keys(userSelect).sort(), [
+                  'createdAt',
+                  'email',
+                  'id',
+                  'name',
+                ]);
+                return {
+                  ...profileUser,
+                  ...(sellerProfile && {
+                    sellerProfile: projectProfile(sellerProfile.select),
+                  }),
+                };
+              },
               update: async () => ({}),
             },
-            sellerProfile: { upsert: async () => storedProfile },
+            sellerProfile: {
+              upsert: async (query: {
+                where: { userId: string };
+                select: Record<string, boolean>;
+              }) => {
+                assert.equal(query.where.userId, profileUser.id);
+                return projectProfile(query.select);
+              },
+            },
           },
         },
         '@/lib/rateLimit': { withRateLimit: (_: unknown, h: unknown) => h },
@@ -1076,6 +1136,7 @@ async function main() {
         zod: { z },
         '@sentry/nextjs': { setUser: () => {} },
         '@/lib/csrf': { withCSRF: (h: unknown) => h },
+        '@/lib/seller-profile-read': sellerProfileRead,
       },
       { globals }
     );
@@ -1090,9 +1151,7 @@ async function main() {
       ),
     ]) {
       assert.equal(result.status, 200);
-      const body = await result.json();
-      assert.equal(body.sellerProfile.id, sellerId);
-      assert.equal(Object.hasOwn(body.sellerProfile, 'docsFolder'), false);
+      assert.deepEqual(await result.json(), { ...profileUser, sellerProfile });
     }
     assert.equal(storedProfile.docsFolder, 'private-preserved-folder');
     groups++;
