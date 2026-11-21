@@ -520,43 +520,48 @@ async function run() {
     type: 'order_paid',
     data: { orderId: 'synthetic-order', locale: 'en' },
   };
-  for (const mode of [
+  const stagingModes = [
     { KK_DEPLOYMENT_MODE: 'staging' },
     { KK_DEPLOYMENT_MODE: 'staging', VERCEL_ENV: 'production' },
     { VERCEL_ENV: 'preview' },
     { KK_DEPLOYMENT_MODE: 'production', VERCEL_ENV: 'preview' },
+  ];
+  for (const mode of [
+    {},
+    { KK_DEPLOYMENT_MODE: 'production' },
+    ...stagingModes,
   ]) {
+    const paymentAdapters = {
+      './adapters/offline': { OfflineAdapter: 'synthetic-offline' },
+    };
+    for (const gateway of [undefined, 'OFFLINE']) {
+      assert.equal(
+        load<{ getOfflinePaymentAdapter: () => string }>(
+          'lib/payments/index.ts',
+          { ...mode, PAYMENT_GATEWAY: gateway },
+          paymentAdapters
+        ).getOfflinePaymentAdapter(),
+        'synthetic-offline'
+      );
+    }
+    for (const gateway of ['ZARINPAL', 'IDPAY', 'unexpected', '']) {
+      assert.equal(
+        load<{ getOfflinePaymentAdapter: () => null }>(
+          'lib/payments/index.ts',
+          { ...mode, PAYMENT_GATEWAY: gateway },
+          paymentAdapters
+        ).getOfflinePaymentAdapter(),
+        null
+      );
+    }
+  }
+  for (const mode of stagingModes) {
     const env: Env = {
       ...accidentalKeys,
       ...mode,
       SELLER_IDENTITY_COLLECTION_ENABLED: 'true',
       SELLER_DOCUMENT_COLLECTION_ENABLED: 'true',
     };
-    const paymentAdapters = {
-      './adapters/offline': { OfflineAdapter: 'synthetic-offline' },
-      './adapters/zarinpalStub': { ZarinpalStub: 'synthetic-gateway' },
-    };
-    for (const gateway of [undefined, 'OFFLINE']) {
-      assert.equal(
-        load<{ adapter: string }>(
-          'lib/payments/index.ts',
-          { ...env, PAYMENT_GATEWAY: gateway },
-          paymentAdapters
-        ).adapter,
-        'synthetic-offline'
-      );
-    }
-    for (const gateway of ['ZARINPAL', 'unexpected']) {
-      assert.throws(
-        () =>
-          load(
-            'lib/payments/index.ts',
-            { ...env, PAYMENT_GATEWAY: gateway },
-            paymentAdapters
-          ),
-        /disabled in staging/
-      );
-    }
     const upload = cloudinary(env);
     assert.equal(upload.calls.config, 0);
     await assert.rejects(

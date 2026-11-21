@@ -19,7 +19,7 @@ const fixture = {
 const nonce = randomUUID();
 const privateSentinel = `private-http-smoke-${nonce}`;
 const orderFixture = {
-  id: `http-smoke-order-${nonce}`,
+  id: 'httpSmokeOrder' + nonce.replaceAll('-', ''),
   itemId: `http-smoke-order-item-${nonce}`,
   paymentId: `http-smoke-payment-${nonce}`,
   shippingId: `http-smoke-shipping-${nonce}`,
@@ -28,6 +28,8 @@ const orderFixture = {
 };
 const clientIP = `127.${parseInt(nonce.slice(0, 2), 16)}.${parseInt(nonce.slice(2, 4), 16)}.${parseInt(nonce.slice(4, 6), 16)}`;
 const loginRateIdentifier = `ip_attempts:${clientIP}`;
+const paymentCallback = '/api/payments/callback';
+const paymentRateIdentifier = `ip:${clientIP}:${paymentCallback}`;
 const profileRateIdentifier = `user:${fixture.seller}:/api/seller/profile`;
 const privateKeys = [
   'password',
@@ -85,7 +87,7 @@ function browser() {
       response = await fetch(target, {
         ...options,
         headers,
-        redirect: 'error',
+        redirect: options.redirect ?? 'error',
         signal: AbortSignal.timeout(20000),
       });
     } catch {
@@ -131,6 +133,11 @@ async function run() {
   let modified = false;
   try {
     await verifyIdentity(client, env.KK_DATABASE_KIND);
+    const previousPaymentRate = await client.query(
+      'SELECT id FROM "RateLimit" WHERE identifier=$1',
+      [paymentRateIdentifier]
+    );
+    assert.equal(previousPaymentRate.rowCount, 0);
     const users = (
       await client.query(
         'SELECT id, email, role FROM "User" WHERE id = ANY($1::text[]) ORDER BY id',
@@ -452,6 +459,39 @@ async function run() {
         trackingNo: orderFixture.trackingNo,
       },
     ]);
+    const callbackPath = paymentCallback + '?orderId=' + orderFixture.id;
+    const callbackOptions = {
+      redirect: 'manual',
+      headers: { referer: origin + '/en/checkout' },
+    };
+    const ownerReturn = await buyer(callbackPath, callbackOptions);
+    assert.equal(ownerReturn.status, 307);
+    assert.match(ownerReturn.headers.get('cache-control'), /private, no-store/);
+    const ownerPath = ownerReturn.headers.get('location');
+    assert.match(ownerPath, /^\/en\/order\//);
+    const ownerLocation = new URL(ownerPath, origin);
+    assert.equal(ownerLocation.origin, origin);
+    assert.equal(ownerLocation.pathname, '/en/order/success');
+    assert.equal(ownerLocation.searchParams.get('orderId'), orderFixture.id);
+    for (const request of [seller, anonymous]) {
+      const denied = await request(callbackPath, callbackOptions);
+      assert.equal(denied.status, 307);
+      assert.match(denied.headers.get('cache-control'), /private, no-store/);
+      const deniedPath = denied.headers.get('location');
+      assert.match(deniedPath, /^\/en\/order\//);
+      const location = new URL(deniedPath, origin);
+      assert.equal(location.origin, origin);
+      assert.equal(location.pathname, '/en/order/failed');
+      assert.equal(location.searchParams.get('reason'), 'payment_not_found');
+      assert.equal(location.searchParams.get('orderId'), null);
+    }
+    const savedCommerce = await client.query(
+      'SELECT o.status AS "orderStatus", p.status AS "paymentStatus" FROM "Order" o JOIN "Payment" p ON p."orderId"=o.id WHERE o.id=$1 AND p.id=$2',
+      [orderFixture.id, orderFixture.paymentId]
+    );
+    assert.deepEqual(savedCommerce.rows, [
+      { orderStatus: 'SHIPPED', paymentStatus: 'PAID' },
+    ]);
     for (const method of ['GET', 'POST'])
       assert.equal((await anonymous('/api/fx/update', { method })).status, 401);
 
@@ -650,6 +690,9 @@ async function run() {
             loginRateIdentifier,
           ]);
           await client.query('DELETE FROM "RateLimit" WHERE identifier=$1', [
+            paymentRateIdentifier,
+          ]);
+          await client.query('DELETE FROM "RateLimit" WHERE identifier=$1', [
             profileRateIdentifier,
           ]);
           const previousRate = baseline.profileRate;
@@ -688,6 +731,11 @@ async function run() {
             [[fixture.buyer, fixture.seller], fixture.product]
           )
         ).rows;
+        const callbackRate = await client.query(
+          'SELECT id FROM "RateLimit" WHERE identifier=$1',
+          [paymentRateIdentifier]
+        );
+        assert.equal(callbackRate.rowCount, 0);
         assert.ok(
           JSON.stringify({
             shop,
