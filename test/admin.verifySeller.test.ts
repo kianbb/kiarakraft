@@ -1,43 +1,147 @@
 import assert from 'node:assert/strict';
+import { NextRequest, NextResponse } from 'next/server';
+import { loadRoute } from './helpers/load-route';
 
-// This is a lightweight unit-style test that validates our update payload logic
-// for the admin verify endpoint: verifiedBy should only be set when action === 'verify'.
+type Handler = (request: NextRequest) => Promise<Response>;
+type Notification = { to: string; react: { notes: string } };
+type UpdateData = {
+  verified: boolean;
+  verificationNotes: string;
+  verifiedAt: Date | null;
+  verifiedBy: string | null;
+};
 
-function buildUpdateData(
+const admin = 'admin-verify@example.invalid';
+const seller = 'seller-verify@example.invalid';
+const shopName = 'Synthetic private shop name';
+const notes = '  Synthetic sensitive verification note  ';
+const sellerId = 'synthetic-seller';
+
+async function checkVerification(
   action: 'verify' | 'reject',
-  notes: string,
-  adminEmail: string
+  failure?: 'email' | 'update'
 ) {
-  return {
-    verified: action === 'verify',
-    verificationNotes: notes.trim(),
-    verifiedAt:
-      action === 'verify' ? new Date('2025-01-01T00:00:00.000Z') : null,
-    verifiedBy: action === 'verify' ? adminEmail : null,
-  };
+  let update: UpdateData | undefined;
+  let productsActivated = false;
+  let notification: Notification | undefined;
+  const entries: unknown[][] = [];
+  const capture = (...args: unknown[]) => entries.push(args);
+  const route = loadRoute<{ POST: Handler }>(
+    'app/api/admin/sellers/verify/route.ts',
+    {
+      'next/server': { NextResponse },
+      '@/lib/auth': { auth: async () => ({ user: { email: admin } }) },
+      '@/lib/prisma': {
+        prisma: {
+          user: {
+            findUnique: async () => ({ email: admin, role: 'ADMIN' }),
+          },
+          sellerProfile: {
+            findUnique: async () => ({
+              shopName,
+              user: { email: seller, name: 'Synthetic seller' },
+            }),
+            update: async (query: { data: UpdateData }) => {
+              if (failure === 'update')
+                throw new Error(`Synthetic database exception: ${admin}`);
+              update = query.data;
+              return { id: sellerId, shopName, ...query.data };
+            },
+          },
+          product: {
+            updateMany: async () => {
+              productsActivated = true;
+            },
+          },
+        },
+      },
+      '@/lib/email': {
+        sendEmail: async (input: Notification) => {
+          notification = input;
+          if (failure === 'email')
+            throw new Error(`Synthetic email provider exception: ${seller}`);
+          return { success: true };
+        },
+      },
+      '@/lib/email-templates/SellerVerificationEmail': (input: {
+        notes: string;
+      }) => input,
+      '@/lib/csrf': { withCSRF: (handler: Handler) => handler },
+      '@/lib/rateLimit': {
+        adminRateLimit: {},
+        withRateLimit: (_config: unknown, handler: Handler) => handler,
+      },
+    },
+    {
+      console: {
+        ...console,
+        debug: capture,
+        info: capture,
+        log: capture,
+        warn: capture,
+        error: capture,
+      },
+    }
+  );
+
+  const response = await route.POST(
+    new NextRequest('http://127.0.0.1/api/admin/sellers/verify', {
+      method: 'POST',
+      body: JSON.stringify({ sellerId, action, notes }),
+    })
+  );
+  const body = await response.json();
+  if (failure === 'update') {
+    assert.equal(response.status, 500);
+    assert.deepEqual(body, { error: 'Failed to update seller verification' });
+    assert.equal(notification, undefined);
+    assert.deepEqual(entries, [['Seller verification update failed']]);
+    return;
+  }
+
+  const approved = action === 'verify';
+  assert.ok(update);
+  const verifiedAt = update.verifiedAt?.toISOString() ?? null;
+  assert.equal(verifiedAt !== null, approved);
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, {
+    success: true,
+    message: `Seller ${action}ed successfully`,
+    seller: {
+      id: sellerId,
+      shopName,
+      verified: approved,
+      verifiedAt,
+    },
+  });
+  assert.equal(update.verified, approved);
+  assert.equal(update.verificationNotes, notes.trim());
+  assert.equal(update.verifiedBy, approved ? admin : null);
+  assert.equal(productsActivated, approved);
+  assert.equal(notification?.to, seller);
+  assert.equal(notification?.react.notes, notes);
+  assert.deepEqual(entries, [
+    [
+      approved
+        ? 'Seller verification approved and products activated'
+        : 'Seller verification rejected',
+    ],
+    ...(failure === 'email'
+      ? [['Seller verification notification failed']]
+      : []),
+  ]);
 }
 
 async function run() {
-  try {
-    const admin = 'admin@example.com';
-
-    const verifyPayload = buildUpdateData('verify', 'Looks good', admin);
-    assert.equal(verifyPayload.verified, true);
-    assert.equal(verifyPayload.verificationNotes, 'Looks good');
-    assert.ok(verifyPayload.verifiedAt instanceof Date);
-    assert.equal(verifyPayload.verifiedBy, admin);
-
-    const rejectPayload = buildUpdateData('reject', 'Insufficient docs', admin);
-    assert.equal(rejectPayload.verified, false);
-    assert.equal(rejectPayload.verificationNotes, 'Insufficient docs');
-    assert.equal(rejectPayload.verifiedAt, null);
-    assert.equal(rejectPayload.verifiedBy, null);
-
-    console.log('🎉 Admin seller verify/reject payload rules passed');
-  } catch (err) {
-    console.error('❌ Admin seller verify/reject payload rules failed:', err);
-    process.exit(1);
-  }
+  await checkVerification('verify');
+  await checkVerification('reject', 'email');
+  await checkVerification('verify', 'update');
+  console.log(
+    'Admin seller verification response, notification, and log privacy checks passed'
+  );
 }
 
-run();
+run().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

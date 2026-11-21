@@ -8,6 +8,7 @@ import * as fulfillment from '../lib/fulfillment';
 import * as jsonInput from '../lib/json-input';
 import * as orderStatus from '../lib/orderStatus';
 import { prisma } from '../lib/prisma';
+import * as returnEligibility from '../lib/return-eligibility';
 import { loadRoute } from './helpers/load-route';
 
 type Handler = (
@@ -109,6 +110,7 @@ async function run() {
         auth: async () => ({ user: { id: user.id, email: user.email, role } }),
       },
       '@/lib/prisma': { prisma },
+      '@/lib/return-eligibility': returnEligibility,
       '@/lib/csrf': { withCSRF },
       '@/lib/json-input': jsonInput,
       '@/lib/fulfillment': fulfillment,

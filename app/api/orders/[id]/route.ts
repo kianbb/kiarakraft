@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { publicProductSelect } from '@/lib/public-product';
+import { returnIneligibility } from '@/lib/return-eligibility';
 import {
   buyerShippingSelect,
   orderReceiptSelect,
@@ -37,9 +38,11 @@ export async function GET(
       select: {
         ...orderReceiptSelect,
         address: true,
+        payment: { select: { status: true } },
         shipping: { select: buyerShippingSelect },
         items: {
           include: {
+            returnRequest: { select: { id: true } },
             product: {
               select: publicProductSelect,
             },
@@ -52,9 +55,19 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    const { shipping, ...receipt } = order;
+    const { shipping, payment, items, ...receipt } = order;
+    const returnEligible =
+      returnIneligibility({ ...receipt, payment }) === null;
     return NextResponse.json(
-      { ...receipt, shipping: toBuyerShipping(shipping) },
+      {
+        ...receipt,
+        shipping: toBuyerShipping(shipping),
+        returnEligible,
+        items: items.map(({ returnRequest, ...item }) => ({
+          ...item,
+          returnEligible: returnEligible && !returnRequest,
+        })),
+      },
       { headers: { 'Cache-Control': 'private, no-store' } }
     );
   } catch (error) {

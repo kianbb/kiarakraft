@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,42 +20,28 @@ interface OrderItem {
   id: string;
   unitPriceToman: number;
   quantity: number;
-  product: {
-    id: string;
-    title: string;
-    images: { url: string; alt?: string }[];
-  };
-  returnRequest?: {
-    id: string;
-    status: string;
-    reason?: string;
-    createdAt: string;
-  };
+  product: { title: string };
+  returnEligible: boolean;
 }
 
 interface Order {
   id: string;
-  status: string;
-  totalToman: number;
-  createdAt: string;
+  returnEligible: boolean;
   items: OrderItem[];
-  payment?: {
-    status: string;
-  };
 }
 
-export default function ReturnRequestPage({
-  params,
-}: {
-  params: { locale: string; id: string };
-}) {
+export default function ReturnRequestPage() {
+  const { locale, id: orderId } = useParams<{ locale: string; id: string }>();
   const { data: session, status } = useSession();
+  const buyerId = session?.user?.id;
   const router = useRouter();
   const t = useTranslations('returns');
-  const isRTL = params.locale === 'fa';
+  const isRTL = locale === 'fa';
 
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState<{
+    buyerId: string;
+    order: Order;
+  } | null>(null);
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -63,31 +49,45 @@ export default function ReturnRequestPage({
   useEffect(() => {
     if (status === 'loading') return;
 
-    if (!session) {
-      router.push(`/${params.locale}/auth/login`);
+    if (!buyerId) {
+      router.push(`/${locale}/auth/login`);
       return;
     }
 
+    const controller = new AbortController();
+    setSelectedItem('');
+    setReason('');
     const fetchOrder = async () => {
       try {
-        const response = await fetch(`/api/orders/${params.id}`);
+        const response = await fetch(`/api/orders/${orderId}`, {
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error('Failed to fetch order');
 
-        const data = await response.json();
-        setOrder(data);
-      } catch (error) {
-        console.error('Error fetching order:', error);
-        router.push(`/${params.locale}/account/orders`);
-      } finally {
-        setLoading(false);
+        const order: Order = await response.json();
+        if (!controller.signal.aborted) setLoaded({ buyerId, order });
+      } catch {
+        if (!controller.signal.aborted) {
+          router.push(`/${locale}/account/orders`);
+        }
       }
     };
 
     fetchOrder();
-  }, [session, status, params.id, params.locale, router]);
+    return () => controller.abort();
+  }, [buyerId, status, orderId, locale, router]);
+
+  const order =
+    status === 'authenticated' &&
+    loaded?.buyerId === buyerId &&
+    loaded?.order.id === orderId
+      ? loaded.order
+      : null;
+  const returnableItems =
+    order?.items.filter(item => item.returnEligible) ?? [];
 
   const handleSubmit = async () => {
-    if (!selectedItem || !reason) {
+    if (!returnableItems.some(item => item.id === selectedItem) || !reason) {
       alert(t('fillAllFields'));
       return;
     }
@@ -98,7 +98,7 @@ export default function ReturnRequestPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: params.id,
+          orderId,
           orderItemId: selectedItem,
           reason,
         }),
@@ -110,7 +110,7 @@ export default function ReturnRequestPage({
       }
 
       alert(t('returnRequestSubmitted'));
-      router.push(`/${params.locale}/account/orders/${params.id}`);
+      router.push(`/${locale}/account/orders/${orderId}`);
     } catch (error) {
       console.error('Error submitting return:', error);
       alert(t('errorSubmittingReturn'));
@@ -119,7 +119,7 @@ export default function ReturnRequestPage({
     }
   };
 
-  if (loading || !order) {
+  if (!order) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse space-y-4">
@@ -130,9 +130,6 @@ export default function ReturnRequestPage({
     );
   }
 
-  // Filter out items that already have return requests
-  const returnableItems = order.items.filter(item => !item.returnRequest);
-
   if (returnableItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -141,12 +138,14 @@ export default function ReturnRequestPage({
             <h1 className="text-xl font-semibold mb-2">
               {t('noReturnableItems')}
             </h1>
-            <p className="text-muted-foreground">{t('allItemsReturned')}</p>
+            {order.returnEligible && order.items.length > 0 && (
+              <p className="text-muted-foreground">{t('allItemsReturned')}</p>
+            )}
           </div>
           <div>
             <Button
               onClick={() =>
-                router.push(`/${params.locale}/account/orders/${params.id}`)
+                router.push(`/${locale}/account/orders/${orderId}`)
               }
               variant="outline"
             >
@@ -162,9 +161,7 @@ export default function ReturnRequestPage({
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <Button
-        onClick={() =>
-          router.push(`/${params.locale}/account/orders/${params.id}`)
-        }
+        onClick={() => router.push(`/${locale}/account/orders/${orderId}`)}
         variant="ghost"
         className="mb-6"
       >
@@ -194,7 +191,7 @@ export default function ReturnRequestPage({
                       <span>{item.product.title}</span>
                       <Badge variant="secondary">
                         {item.quantity} ×{' '}
-                        {formatPrice(item.unitPriceToman, params.locale)}
+                        {formatPrice(item.unitPriceToman, locale)}
                       </Badge>
                     </div>
                   </SelectItem>
@@ -226,7 +223,7 @@ export default function ReturnRequestPage({
             </Button>
             <Button
               onClick={() =>
-                router.push(`/${params.locale}/account/orders/${params.id}`)
+                router.push(`/${locale}/account/orders/${orderId}`)
               }
               variant="outline"
               disabled={submitting}

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { loadRoute } from './helpers/load-route';
 import { publicProductSelect } from '../lib/public-product';
 import * as orderRead from '../lib/order-read';
+import * as returnEligibility from '../lib/return-eligibility';
 import * as sellerProfileRead from '../lib/seller-profile-read';
 
 type Handler = (
@@ -159,6 +160,46 @@ async function run() {
     ],
     'A catch-up shipment must not appear to prepare an already delivered order'
   );
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const paidReceipt = {
+    ...receipt,
+    updatedAt,
+    payment: {
+      status: 'PAID',
+      providerReference: 'private-provider-reference',
+    },
+  };
+  const delivered = { ...paidReceipt, status: 'DELIVERED' };
+  assert.equal(
+    returnEligibility.returnIneligibility(
+      { ...delivered, updatedAt: new Date(now - 31 * day + 1) },
+      now
+    ),
+    null,
+    'Retain the existing rounded day boundary for POST eligibility'
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility(
+      { ...delivered, updatedAt: new Date(now - 31 * day) },
+      now
+    ),
+    'expired'
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility({ ...delivered, payment: null }),
+    'unpaid'
+  );
+  assert.equal(
+    returnEligibility.returnIneligibility(paidReceipt),
+    'undelivered'
+  );
+
+  const requestedItem = {
+    ...item,
+    id: 'requested-item',
+    returnRequest: { id: 'private-return-id', notes: 'private-review-notes' },
+  };
   let lookupCount = 0;
   const orderRoute = loadRoute<{ GET: Handler }>(
     'app/api/orders/[id]/route.ts',
@@ -167,6 +208,7 @@ async function run() {
       '@/lib/auth': { auth },
       '@/lib/public-product': { publicProductSelect },
       '@/lib/order-read': orderRead,
+      '@/lib/return-eligibility': returnEligibility,
       '@/lib/prisma': {
         prisma: {
           user: { findUnique: async () => ({ id: 'buyer' }) },
@@ -175,11 +217,30 @@ async function run() {
               where: { id: string; userId: string };
               select: {
                 shipping: { select: unknown };
-                items: { include: { product: { select: unknown } } };
+                payment: { select: unknown };
+                items: {
+                  include: {
+                    product: { select: unknown };
+                    returnRequest: { select: unknown };
+                  };
+                };
               };
             }) => {
               lookupCount++;
               assert.equal(query.where.userId, 'buyer');
+              assert.deepEqual(
+                { ...(query.select.payment.select as object) },
+                {
+                  status: true,
+                }
+              );
+              assert.deepEqual(
+                {
+                  ...(query.select.items.include.returnRequest
+                    .select as object),
+                },
+                { id: true }
+              );
               assert.equal(
                 query.select.shipping.select,
                 orderRead.buyerShippingSelect
@@ -197,10 +258,10 @@ async function run() {
                 'A promised route ID must not be silently omitted'
               );
               if (query.where.id === 'owned-order')
-                return { ...receipt, address };
+                return { ...paidReceipt, address };
               if (query.where.id === 'legacy-order') {
                 return {
-                  ...receipt,
+                  ...paidReceipt,
                   id: 'legacy-order',
                   address,
                   shipping: { ...shipping, history: { events: [null, []] } },
@@ -208,12 +269,27 @@ async function run() {
               }
               if (query.where.id === 'unshipped-order') {
                 return {
-                  ...receipt,
+                  ...paidReceipt,
                   id: 'unshipped-order',
                   address,
                   shipping: null,
                 };
               }
+              if (query.where.id === 'eligible-order')
+                return {
+                  ...delivered,
+                  id: 'eligible-order',
+                  address,
+                  updatedAt: new Date(now - day),
+                  items: [item, requestedItem],
+                };
+              if (query.where.id === 'expired-order')
+                return {
+                  ...delivered,
+                  id: 'expired-order',
+                  address,
+                  updatedAt: new Date(now - 31 * day),
+                };
               return null;
             },
           },
@@ -225,6 +301,8 @@ async function run() {
     ['owned-order', 200],
     ['legacy-order', 200],
     ['unshipped-order', 200],
+    ['eligible-order', 200],
+    ['expired-order', 200],
     ['other-order', 404],
   ] as const) {
     const response = await orderRoute.GET(
@@ -239,7 +317,18 @@ async function run() {
     );
     const payload = await response.json();
     assert.deepEqual(payload.address, address);
-    assert.deepEqual(payload.items, [item]);
+    const returnEligible = id === 'eligible-order';
+    assert.equal(payload.returnEligible, returnEligible);
+    assert.equal('payment' in payload, false);
+    assert.deepEqual(
+      payload.items,
+      returnEligible
+        ? [
+            { ...item, returnEligible: true },
+            { ...item, id: requestedItem.id, returnEligible: false },
+          ]
+        : [{ ...item, returnEligible: false }]
+    );
     assert.equal(payload.totalToman, receipt.totalToman);
     if (id === 'owned-order')
       assert.deepEqual(payload.shipping, expectedShipping);
@@ -260,7 +349,7 @@ async function run() {
     ).status,
     401
   );
-  assert.equal(lookupCount, 4);
+  assert.equal(lookupCount, 6);
   signedIn = true;
 
   const review = { id: 'own-review', body: 'Buyer-authored review' };

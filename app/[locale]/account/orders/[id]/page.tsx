@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { CopyOrderIdButton } from '@/components/order/CopyOrderIdButton';
+import { returnIneligibility } from '@/lib/return-eligibility';
 import {
   buyerShippingSelect,
   buyerShippingTimeline,
@@ -54,7 +55,7 @@ async function getOrderById(orderId: string, userId: string) {
               },
             },
           },
-          returnRequest: true,
+          returnRequest: { select: { status: true } },
         },
       },
       payment: true,
@@ -160,6 +161,9 @@ export default async function OrderDetailPage({
     notFound();
   }
 
+  const canRequestReturn =
+    returnIneligibility(order) === null &&
+    order.items.some(item => !item.returnRequest);
   const timeline = getOrderTimeline(order, t);
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.unitPriceToman * item.quantity,
@@ -439,7 +443,7 @@ export default async function OrderDetailPage({
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            {order.payment?.status === 'PAID' && (
+            {canRequestReturn && (
               <Link href={`/${locale}/account/orders/${order.id}/return`}>
                 <Button variant="outline" className="w-full">
                   <RotateCcw className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />

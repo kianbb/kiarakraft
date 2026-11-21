@@ -93,14 +93,12 @@ export const POST = withRateLimit(
             active: true,
           },
         });
-        console.log(
-          `Activated all products for newly verified seller ${sellerProfile.shopName}`
-        );
       }
 
-      // Log the action for audit trail
-      console.log(
-        `Admin verification action: ${adminUser.email} ${action}ed seller ${sellerProfile.user.email} (${sellerProfile.shopName}). Notes: ${notes}`
+      console.info(
+        action === 'verify'
+          ? 'Seller verification approved and products activated'
+          : 'Seller verification rejected'
       );
 
       // Notify seller via email (best-effort)
@@ -122,8 +120,8 @@ export const POST = withRateLimit(
             dashboardUrl: 'https://www.kiarakraft.com/fa/seller',
           }),
         });
-      } catch (mailErr) {
-        console.error('Failed to send seller verification email:', mailErr);
+      } catch {
+        console.error('Seller verification notification failed');
       }
 
       return NextResponse.json({
@@ -136,8 +134,8 @@ export const POST = withRateLimit(
           verifiedAt: updatedProfile.verifiedAt,
         },
       });
-    } catch (error) {
-      console.error('Error verifying seller:', error);
+    } catch {
+      console.error('Seller verification update failed');
       return NextResponse.json(
         { error: 'Failed to update seller verification' },
         { status: 500 }
