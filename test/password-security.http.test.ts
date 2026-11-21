@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import { safeEnvironment } from '../scripts/dev/environment.mjs';
-import { connectLocal, verifyIdentity } from '../scripts/dev/database.mjs';
+import {
+  connectLocal,
+  localPrismaPoolOptions,
+  verifyIdentity,
+} from '../scripts/dev/database.mjs';
 
 let phase = 'local identity verification';
 
@@ -28,13 +32,16 @@ async function run() {
   }
 
   // No Prisma runtime/client or writable fixture is created before the marked
-  // local database is verified. Explicit constructor URL also prevents fallback
-  // to an inherited environment/legacy dotenv connection.
+  // local database is verified. Explicit adapter fields prevent connection
+  // fallback to inherited or legacy dotenv settings.
   const { PrismaClient: Client } = await import('@prisma/client');
+  const { PrismaPg } = await import('@prisma/adapter-pg');
   const { issuePasswordReset } = await import('../lib/password-reset');
   const bcrypt = await import('bcryptjs');
   const database: PrismaClient = new Client({
-    datasourceUrl: env.DATABASE_URL,
+    adapter: new PrismaPg(
+      localPrismaPoolOptions(env.DATABASE_URL, env.KK_DATABASE_KIND)
+    ),
   });
   const id = `password-http-${randomUUID()}`;
   const email = `${id}@example.invalid`;

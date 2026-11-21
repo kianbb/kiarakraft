@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as zod from 'zod';
-import crypto from 'node:crypto';
 
 type Env = Record<string, string | undefined>;
 type Response = { status: number; data: Record<string, unknown> };
@@ -147,51 +146,21 @@ function captcha(env: Env) {
   return { module: loadedModule, requestCount: () => requests };
 }
 
-function seed(env: Env, admin = true, providedToken = env.SEED_TOKEN) {
-  const calls = { auth: 0, headers: 0, imports: 0, seed: 0 };
-  const dependencies = {
-    'next/server': {
-      NextResponse: {
-        json: (data: Response['data'], options?: { status: number }) => ({
-          data,
-          status: options?.status ?? 200,
-        }),
-      },
-    },
-    '@/lib/auth': {
-      auth: async () => {
-        calls.auth++;
-        return admin ? { user: { role: 'ADMIN' } } : null;
-      },
-    },
-    crypto,
-    get '@/prisma/seed-production'() {
-      calls.imports++;
-      return {
-        seedProduction: async () => {
-          calls.seed++;
-          return {};
-        },
-      };
-    },
-  };
-  const route = load<{
-    POST(request: {
-      headers: { get(name: string): string | null };
-    }): Promise<Response>;
-  }>('app/api/admin/seed/route.ts', env, dependencies);
-  return {
-    route,
-    calls,
-    request: {
-      headers: {
-        get: (name: string) => {
-          calls.headers++;
-          return name === 'x-seed-token' ? providedToken || null : null;
+function seed(env: Env) {
+  return load<{ POST(): Promise<Response>; GET(): Promise<Response> }>(
+    'app/api/admin/seed/route.ts',
+    env,
+    {
+      'next/server': {
+        NextResponse: {
+          json: (data: Response['data'], options?: { status: number }) => ({
+            data,
+            status: options?.status ?? 200,
+          }),
         },
       },
-    },
-  };
+    }
+  );
 }
 
 function images(env: Env) {
@@ -291,8 +260,8 @@ async function run() {
     assert.equal(c.requestCount(), 0);
 
     const s = seed(env);
-    assert.equal((await s.route.POST(s.request)).status, 404);
-    assert.deepEqual(s.calls, { auth: 0, headers: 0, imports: 0, seed: 0 });
+    assert.equal((await s.POST()).status, 404);
+    assert.equal((await s.GET()).status, 405);
 
     const i = images(env);
     assert.equal(
@@ -324,24 +293,11 @@ async function run() {
   assert.equal((await c.module.verifyHumanUser(human)).isHuman, true);
   assert.equal(c.requestCount(), 1);
 
-  for (const [env, admin, status] of [
-    [{ ...standard, ENABLE_SEED_ENDPOINT: 'false' }, true, 404],
-    [standard, false, 401],
-    [{ ...standard, SEED_TOKEN: '' }, true, 500],
-  ] as const) {
-    const denied = seed(env, admin);
-    assert.equal((await denied.route.POST(denied.request)).status, status);
-    assert.equal(denied.calls.imports, 0);
-    assert.equal(denied.calls.seed, 0);
+  // Legacy settings cannot restore the unsafe application seed entry point.
+  for (const env of [standard, { ...liveKeys, NODE_ENV: 'development' }]) {
+    const s = seed(env);
+    assert.equal((await s.POST()).status, 404);
   }
-  const wrongToken = seed(standard, true, 'synthetic-wrong-token');
-  assert.equal((await wrongToken.route.POST(wrongToken.request)).status, 401);
-  assert.equal(wrongToken.calls.imports, 0);
-  assert.equal(wrongToken.calls.seed, 0);
-  const s = seed(standard);
-  assert.equal((await s.route.POST(s.request)).status, 200);
-  assert.equal(s.calls.imports, 1);
-  assert.equal(s.calls.seed, 1);
 
   const i = images(standard);
   assert.ok(

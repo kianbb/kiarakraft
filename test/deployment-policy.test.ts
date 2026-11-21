@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import pg from 'pg';
 import { spawnSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import {
   assertDeploymentPolicy,
   assertProviderAllowed,
@@ -10,11 +11,12 @@ import {
   type DeploymentEnvironment,
 } from '../lib/deployment-policy';
 import {
-  guardStagingPrisma,
+  guardPrismaDatabase,
   STAGING_IDENTITY_SQL,
   stagingConnectionOptions,
   verifyStagingDatabaseIdentity,
 } from '../lib/staging-database';
+import { runtimeDatabaseOptions } from '../lib/postgres-connection';
 
 function fixture(): DeploymentEnvironment {
   const url = new URL(
@@ -130,8 +132,8 @@ async function run() {
   const policy = assertDeploymentPolicy(fixture());
   assert.equal(policy.mode, 'staging');
   if (policy.mode !== 'staging') throw new Error('Expected staging fixture');
-  assert.equal(policy.databaseUrl.searchParams.get('sslaccept'), 'strict');
-  assert.equal(policy.directUrl.searchParams.get('sslaccept'), 'strict');
+  assert.equal(policy.databaseUrl.searchParams.has('sslaccept'), false);
+  assert.equal(policy.directUrl.searchParams.has('sslaccept'), false);
   const verifiedUrl = new URL(fixture().DATABASE_URL!);
   verifiedUrl.searchParams.set('sslmode', 'verify-full');
   const verifiedPolicy = assertDeploymentPolicy({
@@ -142,11 +144,7 @@ async function run() {
   if (verifiedPolicy.mode !== 'staging') throw new Error('Expected staging');
   assert.equal(
     verifiedPolicy.databaseUrl.searchParams.get('sslmode'),
-    'require'
-  );
-  assert.equal(
-    verifiedPolicy.databaseUrl.searchParams.get('sslaccept'),
-    'strict'
+    'verify-full'
   );
   const options = stagingConnectionOptions(policy.databaseUrl, policy);
   assert.equal(options.host, policy.databaseUrl.hostname);
@@ -156,7 +154,92 @@ async function run() {
   assert.equal(options.statement_timeout, 0);
   assert.equal(options.connectionTimeoutMillis, 5000);
   assert.equal(options.query_timeout, 5000);
+  assert.equal(options.sslnegotiation, 'postgres');
+  assert.equal(Object.hasOwn(options, 'connectionString'), false);
+  const bounded = new URL(policy.databaseUrl);
+  bounded.searchParams.set('sslaccept', 'strict');
+  bounded.searchParams.set('connection_limit', '3');
+  bounded.searchParams.set('pool_timeout', '4');
+  bounded.searchParams.set('connect_timeout', '6');
+  const boundedEnv = { ...fixture(), DATABASE_URL: bounded.href };
+  const boundedPool = runtimeDatabaseOptions(
+    boundedEnv,
+    assertDeploymentPolicy(boundedEnv)
+  ).pool;
+  assert.equal(boundedPool.max, 3);
+  assert.equal(boundedPool.connectionTimeoutMillis, 4000);
+  assert.deepEqual(boundedPool.ssl, { rejectUnauthorized: true });
+  assert.equal(Object.hasOwn(boundedPool, 'connectionString'), false);
+  for (const [parameter, value] of [
+    ['connection_limit', '0'],
+    ['connection_limit', '101'],
+    ['pool_timeout', 'NaN'],
+    ['connect_timeout', '99'],
+  ]) {
+    const drift = new URL(bounded);
+    drift.searchParams.set(parameter, value);
+    const env = { ...fixture(), DATABASE_URL: drift.href };
+    assert.throws(
+      () => runtimeDatabaseOptions(env, assertDeploymentPolicy(env)),
+      DeploymentPolicyError
+    );
+  }
+  const localUrl = new URL('postgresql://127.0.0.1:54321/kiarakraft_test');
+  localUrl.username = 'fixture';
+  localUrl.password = 'synthetic-local-only';
+  const localEnv = {
+    KK_ISOLATED: '1',
+    KK_DATABASE_KIND: 'test',
+    DATABASE_URL: localUrl.href,
+  };
+  const local = runtimeDatabaseOptions(
+    localEnv,
+    assertDeploymentPolicy(localEnv)
+  );
+  assert.equal(local.localKind, 'test');
+  assert.equal(local.pool.ssl, false);
+  assert.equal(local.pool.max, 10);
+  for (const changes of [
+    { KK_DATABASE_KIND: 'dev' },
+    { DATABASE_URL: new URL('/elsewhere', localUrl).href },
+    { DATABASE_URL: fixture().DATABASE_URL },
+    { DATABASE_URL: localUrl.href + '?sslmode=disable' },
+    { KK_DATABASE_KIND: '' },
+  ]) {
+    const env = { ...localEnv, ...changes };
+    assert.throws(
+      () => runtimeDatabaseOptions(env, assertDeploymentPolicy(env)),
+      DeploymentPolicyError
+    );
+  }
+  const contradictory = { ...fixture(), KK_ISOLATED: '1' };
+  assert.throws(
+    () =>
+      runtimeDatabaseOptions(
+        contradictory,
+        assertDeploymentPolicy(contradictory)
+      ),
+    DeploymentPolicyError
+  );
+  const hosted = {
+    KK_DEPLOYMENT_MODE: 'production',
+    DATABASE_URL: bounded.href,
+  };
+  const hostedPool = runtimeDatabaseOptions(
+    hosted,
+    assertDeploymentPolicy(hosted)
+  ).pool;
+  assert.deepEqual(hostedPool.ssl, { rejectUnauthorized: true });
+  const withoutVerification = new URL(bounded);
+  withoutVerification.searchParams.delete('sslmode');
+  const missingTLS = { ...hosted, DATABASE_URL: withoutVerification.href };
+  assert.throws(
+    () =>
+      runtimeDatabaseOptions(missingTLS, assertDeploymentPolicy(missingTLS)),
+    DeploymentPolicyError
+  );
   const previousPgOptions = process.env.PGOPTIONS;
+  const previousReplication = process.env.PGREPLICATION;
   try {
     process.env.PGOPTIONS = '-c search_path=private -c statement_timeout=0';
     const client = new pg.Client(options) as pg.Client & {
@@ -166,12 +249,24 @@ async function run() {
     assert.equal(startup.options, '-c client_encoding=UTF8');
     assert.equal(Object.hasOwn(startup, 'statement_timeout'), false);
     assert.doesNotMatch(JSON.stringify(startup), /private|search_path/);
+    process.env.PGREPLICATION = 'database';
+    assert.throws(
+      () => stagingConnectionOptions(policy.databaseUrl, policy),
+      DeploymentPolicyError
+    );
+    assert.throws(
+      () => runtimeDatabaseOptions(localEnv, assertDeploymentPolicy(localEnv)),
+      DeploymentPolicyError
+    );
   } finally {
     if (previousPgOptions === undefined) delete process.env.PGOPTIONS;
     else process.env.PGOPTIONS = previousPgOptions;
+    if (previousReplication === undefined) delete process.env.PGREPLICATION;
+    else process.env.PGREPLICATION = previousReplication;
   }
   const marker = {
     databaseName: policy.databaseName,
+    roleName: 'fixture',
     mode: 'staging',
     purpose: 'synthetic-only-v1',
     deploymentId: policy.deploymentId,
@@ -217,6 +312,7 @@ async function run() {
     [],
     [marker, marker],
     [{ ...marker, databaseName: 'other' }],
+    [{ ...marker, roleName: 'other' }],
     [{ ...marker, mode: 'production' }],
     [{ ...marker, purpose: 'other' }],
     [{ ...marker, deploymentId: 'other' }],
@@ -242,12 +338,18 @@ async function run() {
 
   // Real installed Prisma extension dispatch, denied before engine SQL/network.
   // Only a closed loopback port is configured as a second layer of isolation.
-  const clientUrl = new URL('postgresql://127.0.0.1:9/disabled');
-  clientUrl.username = 'disabled';
-  clientUrl.password = 'disabled';
-  const client = new PrismaClient({ datasourceUrl: clientUrl.href });
+  const client = new PrismaClient({
+    adapter: new PrismaPg({
+      host: '127.0.0.1',
+      port: 9,
+      database: 'disabled',
+      user: 'disabled',
+      password: 'disabled',
+      ssl: false,
+    }),
+  });
   let verifications = 0;
-  const guarded = guardStagingPrisma(client, async () => {
+  const guarded = guardPrismaDatabase(client, async () => {
     verifications++;
     throw new DeploymentPolicyError('Synthetic identity denial');
   });

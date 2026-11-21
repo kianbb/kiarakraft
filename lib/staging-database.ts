@@ -6,17 +6,22 @@ import {
   type DeploymentEnvironment,
   type StagingPolicy,
 } from './deployment-policy';
+import {
+  postgresConnectionOptions,
+  runtimeDatabaseOptions,
+} from './postgres-connection';
 
 export type StagingQueryable = {
   query(sql: string): Promise<{ rows: unknown[] }>;
 };
 
-export const STAGING_IDENTITY_SQL = `SELECT current_database()::text AS "databaseName", mode, purpose, "deploymentId" FROM kk_staging_guard.identity LIMIT 2`;
+export const STAGING_IDENTITY_SQL = `SELECT current_database()::text AS "databaseName", current_user::text AS "roleName", mode, purpose, "deploymentId" FROM kk_staging_guard.identity LIMIT 2`;
 
 /** Never creates/repairs a marker; provisioning is a separate explicit action. */
 export async function verifyStagingDatabaseIdentity(
   client: StagingQueryable,
-  policy: StagingPolicy
+  policy: StagingPolicy,
+  target = policy.databaseUrl
 ): Promise<void> {
   try {
     await client.query('BEGIN READ ONLY');
@@ -27,6 +32,7 @@ export async function verifyStagingDatabaseIdentity(
       result.rows.length !== 1 ||
       !row ||
       row.databaseName !== policy.databaseName ||
+      row.roleName !== decodeURIComponent(target.username) ||
       row.mode !== 'staging' ||
       row.purpose !== 'synthetic-only-v1' ||
       row.deploymentId !== policy.deploymentId
@@ -46,19 +52,17 @@ export function stagingConnectionOptions(
   url: URL,
   policy: StagingPolicy
 ): pg.ClientConfig {
+  if (
+    url.href !== policy.databaseUrl.href &&
+    url.href !== policy.directUrl.href
+  ) {
+    throw new DeploymentPolicyError('Staging database target is not pinned');
+  }
   return {
-    host: url.hostname,
-    port: Number(url.port || 5432),
-    database: policy.databaseName,
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    ssl: { rejectUnauthorized: true },
-    // A tracked startup option blocks ambient PGOPTIONS without relying on
-    // session search_path, which transaction poolers cannot preserve.
-    options: '-c client_encoding=UTF8',
-    application_name: 'kiarakraft-staging-identity',
-    client_encoding: 'UTF8',
-    connectionTimeoutMillis: 5000,
+    ...postgresConnectionOptions(url, {
+      tls: true,
+      applicationName: 'kiarakraft-staging-identity',
+    }),
     // Preserve the server bound transaction-locally in the identity check.
     statement_timeout: 0,
     query_timeout: 5000,
@@ -72,6 +76,7 @@ export async function verifyStagingDatabaseTargets(
 ): Promise<void> {
   const policy = assertDeploymentPolicy(env);
   if (policy.mode !== 'staging') return;
+  runtimeDatabaseOptions(env, policy);
   const targets =
     includeDirect && policy.directUrl.href !== policy.databaseUrl.href
       ? [policy.databaseUrl, policy.directUrl]
@@ -80,7 +85,7 @@ export async function verifyStagingDatabaseTargets(
     const client = new pg.Client(stagingConnectionOptions(target, policy));
     try {
       await client.connect();
-      await verifyStagingDatabaseIdentity(client, policy);
+      await verifyStagingDatabaseIdentity(client, policy, target);
     } catch {
       throw new DeploymentPolicyError(
         'Staging database identity could not be verified'
@@ -92,7 +97,7 @@ export async function verifyStagingDatabaseTargets(
 }
 
 /** Preserve PrismaPromises while guarding models, raw SQL and transaction start. */
-export function guardStagingPrisma(
+export function guardPrismaDatabase(
   client: PrismaClient,
   verify: () => Promise<void>
 ): PrismaClient {

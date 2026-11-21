@@ -52,7 +52,10 @@ jobs:
           cache: npm
 
       - name: Install locked dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --ignore-scripts
+
+      - name: Generate Prisma client without contacting a database
+        run: node scripts/dev/run.mjs generate
 
       - name: Prepare isolated test database and synthetic fixtures
         run: npm run db:test:prepare

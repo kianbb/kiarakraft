@@ -13,6 +13,8 @@ npm run dev:local
 
 Dependencies must be installed before setup. Setup generates local settings and the Prisma Client, starts PostgreSQL on loopback, then applies migrations and synthetic fixtures to the dedicated development and test databases. Setup also works after a locked install with `--ignore-scripts`. It does not use hosted service credentials. If prerequisites or database guards fail, correct the configuration rather than substituting a hosted URL.
 
+Prisma 7 client generation works with both database URLs unset. CI generates the client before standalone fixture preparation. Database CLI commands use the guarded `DIRECT_URL`. The application uses `DATABASE_URL` through the PostgreSQL adapter. Legacy scripts that instantiate Prisma directly need separate migration before use. The historical `/api/admin/seed` endpoint is disabled. Use the guarded fixture commands for local test data.
+
 Generated settings and fixture credentials are ignored by Git and protected with owner-only file permissions. Keep them local. Setup refuses to overwrite an unmanaged local environment file; resolve that conflict without copying secrets into a worker.
 
 The primary checkout defaults to app port `3000` and database port `55432`. Worktrees use path-derived defaults; check for conflicts before running several workers. Set `KK_APP_PORT` and `KK_LOCAL_DB_PORT` during initial setup to select other ports. `KK_APP_PORT` also selects the app's serving port. Keep listeners on `127.0.0.1` and each checkout's state separate.
@@ -61,6 +63,8 @@ Unit tests and local checks do not exercise paid AI, mail delivery or live payme
 ## Environment boundaries
 
 The launcher constructs a restricted environment before application/database tooling runs. It clears inherited provider credentials and forces paid AI/translation admission settings to zero. Keep that behavior covered when adding configuration. A provider key alone must not enable spending.
+
+The PostgreSQL adapter uses explicit connection options and verifies hosted TLS certificates. Staging checks the database, login role and identity marker before ORM access. Loopback application runs require a matching local synthetic marker. Application builds do not apply migrations.
 
 Do not run arbitrary maintenance scripts with a hosted environment implicitly loaded. Never reset an existing hosted database, run production seed scripts for local setup, repair migration history to conceal drift, or replace remote assets incidentally. Preserve existing data and add forward migrations.
 

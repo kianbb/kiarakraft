@@ -10,7 +10,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { localDir, safeEnvironment } from './environment.mjs';
-import { connectLocal, verifyIdentity } from './database.mjs';
+import {
+  connectLocal,
+  localPrismaPoolOptions,
+  verifyIdentity,
+} from './database.mjs';
 import { nodeTool } from './run.mjs';
 
 export async function prepareDatabase(kind = 'test') {
@@ -22,6 +26,8 @@ export async function prepareDatabase(kind = 'test') {
     await client.end();
   }
   const { PrismaClient } = await import('@prisma/client');
+  const { PrismaPg } = await import('@prisma/adapter-pg');
+  const adapter = new PrismaPg(localPrismaPoolOptions(env.DATABASE_URL, kind));
   await nodeTool('prisma/build/index.js', ['migrate', 'deploy'], env);
 
   mkdirSync(localDir, { recursive: true, mode: 0o700 });
@@ -34,9 +40,7 @@ export async function prepareDatabase(kind = 'test') {
   });
   chmodSync(credentialsPath, 0o600);
   const hash = await bcrypt.hash(credentials.password, 12);
-  const prisma = new PrismaClient({
-    datasources: { db: { url: env.DATABASE_URL } },
-  });
+  const prisma = new PrismaClient({ adapter });
   try {
     await prisma.$transaction(async tx => {
       for (const role of ['BUYER', 'SELLER', 'ADMIN']) {

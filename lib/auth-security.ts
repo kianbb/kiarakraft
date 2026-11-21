@@ -140,21 +140,22 @@ export async function checkLoginRateLimit(
 
 // The conflicting row is locked and evaluated by PostgreSQL. Concurrent
 // requests in a renewed window each count once and keep its deadline fixed.
-// Prisma reads these timestamp-without-time-zone columns as UTC.
+// Store a UTC wall-clock value in the timestamp-without-time-zone columns.
+// The ISO string carries its offset across the Prisma and PostgreSQL casts.
 async function incrementAttempt(
   tx: Prisma.TransactionClient,
   identifier: string,
-  now: Date,
-  windowEnd: Date,
+  nowUtc: string,
+  windowEndUtc: string,
   maximum: number
 ): Promise<number> {
   const [counter] = await tx.$queryRaw<{ count: number }[]>`
     INSERT INTO "RateLimit" (id, identifier, count, "resetTime", "createdAt", "updatedAt")
     VALUES (
       gen_random_uuid()::text, ${identifier}, 1,
-      ${windowEnd}::timestamptz AT TIME ZONE 'UTC',
-      ${now}::timestamptz AT TIME ZONE 'UTC',
-      ${now}::timestamptz AT TIME ZONE 'UTC'
+      ${windowEndUtc}::timestamptz AT TIME ZONE 'UTC',
+      ${nowUtc}::timestamptz AT TIME ZONE 'UTC',
+      ${nowUtc}::timestamptz AT TIME ZONE 'UTC'
     )
     ON CONFLICT (identifier) DO UPDATE SET
       count = CASE
@@ -182,7 +183,10 @@ export async function recordLoginAttempt(
 ): Promise<void> {
   try {
     const now = new Date();
-    const rateLimitWindow = new Date(now.getTime() + RATE_LIMIT_WINDOW);
+    const nowUtc = now.toISOString();
+    const windowEndUtc = new Date(
+      now.getTime() + RATE_LIMIT_WINDOW
+    ).toISOString();
     const accountLock = `account_lock:${email}`;
     const emailCounter = `login_attempts:${email}`;
 
@@ -190,8 +194,8 @@ export async function recordLoginAttempt(
       await incrementAttempt(
         tx,
         `ip_attempts:${ip}`,
-        now,
-        rateLimitWindow,
+        nowUtc,
+        windowEndUtc,
         MAX_IP_ATTEMPTS
       );
 
@@ -208,20 +212,22 @@ export async function recordLoginAttempt(
       const failedAttempts = await incrementAttempt(
         tx,
         emailCounter,
-        now,
-        rateLimitWindow,
+        nowUtc,
+        windowEndUtc,
         MAX_LOGIN_ATTEMPTS
       );
       if (failedAttempts < MAX_LOGIN_ATTEMPTS) return;
 
-      const lockoutWindow = new Date(now.getTime() + LOCKOUT_DURATION);
+      const lockoutEndUtc = new Date(
+        now.getTime() + LOCKOUT_DURATION
+      ).toISOString();
       await tx.$executeRaw`
         INSERT INTO "RateLimit" (id, identifier, count, "resetTime", "createdAt", "updatedAt")
         VALUES (
           gen_random_uuid()::text, ${accountLock}, ${failedAttempts},
-          ${lockoutWindow}::timestamptz AT TIME ZONE 'UTC',
-          ${now}::timestamptz AT TIME ZONE 'UTC',
-          ${now}::timestamptz AT TIME ZONE 'UTC'
+          ${lockoutEndUtc}::timestamptz AT TIME ZONE 'UTC',
+          ${nowUtc}::timestamptz AT TIME ZONE 'UTC',
+          ${nowUtc}::timestamptz AT TIME ZONE 'UTC'
         )
         ON CONFLICT (identifier) DO UPDATE SET
           count = EXCLUDED.count,

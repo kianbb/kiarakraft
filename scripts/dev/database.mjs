@@ -36,6 +36,23 @@ export function localConnectionOptions(url) {
   };
 }
 
+// Call only after the local database identity has been verified. Pool
+// acquisition and server statements stay bounded without a client-side
+// timeout interrupting transaction cleanup on a reused connection.
+export function localPrismaPoolOptions(value, kind) {
+  const url = assertLocalDatabase(value, kind);
+  if (
+    ['PGSSLNEGOTIATION', 'PGREPLICATION', 'PGBINARY'].some(
+      key => process.env[key]
+    )
+  )
+    throw new Error(
+      'Unexpected PostgreSQL environment options in local tooling.'
+    );
+  const { query_timeout, ...options } = localConnectionOptions(url);
+  return { ...options, max: 2, idleTimeoutMillis: 10000 };
+}
+
 export async function verifyIdentity(client, kind, { provision = false } = {}) {
   const identity = await client.query('SELECT current_database() AS name');
   if (identity.rows[0].name !== `kiarakraft_${kind}`)

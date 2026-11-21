@@ -67,7 +67,8 @@
     "@auth/prisma-adapter": "2.11.3",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
-    "@prisma/client": "6.19.3",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-select": "^2.2.5",
@@ -125,15 +126,14 @@
     "lint-staged": "^16.2.7",
     "postcss": "^8",
     "prettier": "^3.7.4",
-    "prisma": "6.19.3",
+    "prisma": "7.10.1",
     "tailwindcss": "^4.1.16",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "@prisma/config@6.19.3": {
-      "deepmerge-ts": "8.0.2",
+    "@prisma/config@7.10.1": {
       "effect": "3.22.1"
     }
   },

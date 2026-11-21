@@ -227,6 +227,31 @@ async function run() {
       },
     });
     const items = [{ productId: product.id, quantity: 1 }];
+    const stock = () =>
+      prisma.product.findUniqueOrThrow({
+        where: { id: product.id },
+        select: { stock: true },
+      });
+    const updateStock = (value: number) =>
+      prisma.product.update({
+        where: { id: product.id },
+        data: { stock: value },
+        select: { stock: true },
+      });
+    const [, committed] = await prisma.$transaction([updateStock(6), stock()]);
+    assert.equal(committed.stock, 6);
+    await assert.rejects(
+      prisma.$transaction([
+        updateStock(7),
+        prisma.product.findUniqueOrThrow({
+          where: { id: `missing-${suffix}` },
+          select: { id: true },
+        }),
+      ]),
+      { code: 'P2025' }
+    );
+    assert.equal((await stock()).stock, 6, 'A failed batch must roll back');
+    assert.equal((await updateStock(5)).stock, 5);
 
     for (const changes of [
       { active: false },
@@ -385,7 +410,7 @@ async function run() {
       'Late capture of a canceled order must leave stock intact'
     );
     console.log(
-      '✓ PostgreSQL orderability, rollback, stock contention, and offline order claims passed'
+      '✓ PostgreSQL batch and interactive rollback, stock contention, and offline order claims passed'
     );
     await checkReturnTransitions(userId, orderId, product.id);
     console.log(

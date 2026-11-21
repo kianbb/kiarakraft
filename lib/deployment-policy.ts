@@ -123,11 +123,6 @@ function stagingDatabaseUrl(
       if (!databaseParameters.has(key) || seen.has(key)) throw new Error();
       seen.add(key);
     }
-    // Prisma 6 defaults sslaccept to accept_invalid_certs and documents
-    // require (rather than libpq's verify-full) as its required TLS mode.
-    // Keep certificate verification on for the actual ORM connection too.
-    url.searchParams.set('sslmode', 'require');
-    url.searchParams.set('sslaccept', 'strict');
     return url;
   } catch {
     // Neither connection strings nor underlying URL parser errors may leak.
