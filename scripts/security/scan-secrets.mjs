@@ -132,6 +132,42 @@ function sensitiveArtifact(name, { includeLegacyDatabase = false } = {}) {
   );
 }
 
+const RESOLVED_HISTORY_FILE = 'scripts/security/resolved-history-findings.json';
+
+// Exact historical blob IDs whose findings were investigated and resolved
+// (for example, a credential that has since been revoked). Only the history
+// scan consults this list; a malformed list fails the scan closed.
+export function loadResolvedHistoryBlobs(root) {
+  const filename = path.join(root, RESOLVED_HISTORY_FILE);
+  let raw;
+  try {
+    raw = readFileSync(filename, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return new Set();
+    throw new Error('Resolved history list unreadable; scan incomplete.');
+  }
+  let entries;
+  try {
+    entries = JSON.parse(raw).resolved;
+  } catch {
+    throw new Error('Resolved history list invalid; scan incomplete.');
+  }
+  if (!Array.isArray(entries))
+    throw new Error('Resolved history list invalid; scan incomplete.');
+  const blobs = new Set();
+  for (const entry of entries) {
+    if (
+      typeof entry?.blob !== 'string' ||
+      !/^[a-f0-9]{40}$/.test(entry.blob) ||
+      typeof entry.resolution !== 'string' ||
+      entry.resolution.trim() === ''
+    )
+      throw new Error('Resolved history entry invalid; scan incomplete.');
+    blobs.add(entry.blob);
+  }
+  return blobs;
+}
+
 export async function scanRepository({
   cwd = process.cwd(),
   mode = '--staged',
@@ -140,6 +176,7 @@ export async function scanRepository({
   const root = git(cwd, ['rev-parse', '--show-toplevel']).toString().trim();
   let count = 0;
   let findings = 0;
+  let resolved = 0;
   const record = (name, finding) => {
     findings += 1;
     report(
@@ -157,6 +194,7 @@ export async function scanRepository({
     }
   };
   if (mode === '--all-history') {
+    const resolvedBlobs = loadResolvedHistoryBlobs(root);
     // Pipe object metadata instead of holding the repository's history in memory.
     const revisions = spawn(
       'git',
@@ -211,6 +249,11 @@ export async function scanRepository({
         if (match[2] !== 'blob') continue;
         if (Number(match[3]) > MAX_BLOB_BYTES)
           throw new Error('Oversized history blob; scan incomplete.');
+        if (resolvedBlobs.has(match[1])) {
+          count += 1;
+          resolved += 1;
+          continue;
+        }
         inspect(
           `${match[4] || '(unnamed blob)'} @ ${match[1].slice(0, 12)}`,
           git(root, ['cat-file', 'blob', match[1]])
@@ -260,7 +303,7 @@ export async function scanRepository({
       }
     }
   }
-  return { files: count, findings };
+  return { files: count, findings, resolved };
 }
 
 async function main() {
@@ -281,6 +324,10 @@ async function main() {
     console.log(
       `Secret scan: ${result.files} blobs/files checked; ${result.findings} findings. No secret values are printed.`
     );
+    if (result.resolved)
+      console.log(
+        `Skipped ${result.resolved} historical blob(s) listed as resolved in ${RESOLVED_HISTORY_FILE}.`
+      );
     process.exitCode = result.findings ? 1 : 0;
   } catch {
     // Git errors can contain object contents or credentials: intentionally suppress details.

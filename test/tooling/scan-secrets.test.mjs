@@ -169,6 +169,60 @@ test('history mode finds a removed credential and fails without disclosing it', 
   assert.ok(!(result.stdout + result.stderr).includes(githubToken));
 });
 
+function commitRemovedSecret(cwd, git, name, content) {
+  writeFileSync(path.join(cwd, name), content);
+  git('add', name);
+  git('commit', '--quiet', '-m', 'synthetic fixture');
+  const blob = git('rev-parse', `HEAD:${name}`).toString().trim();
+  git('rm', '--quiet', name);
+  git('commit', '--quiet', '-m', 'remove fixture');
+  return blob;
+}
+
+function writeResolvedList(cwd, entries) {
+  mkdirSync(path.join(cwd, 'scripts', 'security'), { recursive: true });
+  writeFileSync(
+    path.join(cwd, 'scripts', 'security', 'resolved-history-findings.json'),
+    JSON.stringify({ resolved: entries })
+  );
+}
+
+test('history mode skips only exact blobs listed as resolved', t => {
+  const { cwd, git, run } = repository(t);
+  const resolvedBlob = commitRemovedSecret(cwd, git, 'old.txt', githubToken);
+  writeResolvedList(cwd, [
+    { blob: resolvedBlob, resolution: 'Synthetic token revoked.' },
+  ]);
+  const passing = run('--all-history');
+  assert.equal(passing.status, 0);
+  assert.ok(passing.stdout.includes('Skipped 1 historical blob'));
+
+  commitRemovedSecret(cwd, git, 'other.txt', `${githubToken}\nsecond`);
+  const failing = run('--all-history');
+  assert.equal(failing.status, 1);
+  assert.ok(failing.stderr.includes('other.txt'));
+  assert.ok(!(failing.stdout + failing.stderr).includes(githubToken));
+});
+
+test('resolved list never applies to tracked or staged scans', t => {
+  const { cwd, git, run } = repository(t);
+  writeFileSync(path.join(cwd, 'live.txt'), githubToken);
+  git('add', 'live.txt');
+  const blob = git('rev-parse', ':live.txt').toString().trim();
+  writeResolvedList(cwd, [{ blob, resolution: 'Should not apply.' }]);
+  assert.equal(run('--staged').status, 1);
+  assert.equal(run('--tracked').status, 1);
+});
+
+test('a malformed resolved list fails the history scan closed', t => {
+  const { cwd, git, run } = repository(t);
+  commitRemovedSecret(cwd, git, 'old.txt', githubToken);
+  writeResolvedList(cwd, [{ blob: 'abc123', resolution: 'Too short.' }]);
+  assert.equal(run('--all-history').status, 2);
+  writeResolvedList(cwd, [{ blob: 'a'.repeat(40), resolution: ' ' }]);
+  assert.equal(run('--all-history').status, 2);
+});
+
 test('scanner errors and unsupported arguments fail closed', t => {
   const { cwd, git, run } = repository(t);
   writeFileSync(
