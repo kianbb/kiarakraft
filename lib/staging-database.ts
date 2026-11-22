@@ -104,7 +104,7 @@ export function guardPrismaDatabase(
   let verification: Promise<void> | undefined;
   const ready = () => (verification ??= Promise.resolve().then(verify));
   const guarded = client.$extends({
-    name: 'staging-identity',
+    name: 'database-identity',
     query: {
       async $allOperations({ args, query }) {
         await ready();

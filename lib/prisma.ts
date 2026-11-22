@@ -5,6 +5,7 @@ import {
   runtimeDatabaseOptions,
   verifyLocalRuntimeIdentity,
 } from './postgres-connection';
+import { verifyProductionDatabaseTarget } from './production-database';
 import {
   guardPrismaDatabase,
   verifyStagingDatabaseTargets,
@@ -26,6 +27,11 @@ function createPrismaClient(): PrismaClient {
   if (policy.mode === 'staging') {
     return guardPrismaDatabase(client, () =>
       verifyStagingDatabaseTargets(environment, false)
+    );
+  }
+  if (policy.mode === 'production') {
+    return guardPrismaDatabase(client, () =>
+      verifyProductionDatabaseTarget(policy)
     );
   }
   if (localKind) {

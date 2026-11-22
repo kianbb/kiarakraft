@@ -93,7 +93,7 @@ export function runtimeDatabaseOptions(
   let url: URL;
   try {
     url =
-      policy.mode === 'staging'
+      policy.mode !== 'standard'
         ? policy.databaseUrl
         : new URL(env.DATABASE_URL ?? '');
   } catch {
@@ -101,9 +101,7 @@ export function runtimeDatabaseOptions(
       'An explicit PostgreSQL target is required'
     );
   }
-  const local =
-    policy.mode === 'standard' &&
-    (env.KK_ISOLATED === '1' || env.KK_DEPLOYMENT_MODE !== 'production');
+  const local = policy.mode === 'standard';
   let localKind: LocalDatabaseKind | undefined;
   if (local) {
     const kind = env.KK_DATABASE_KIND;
