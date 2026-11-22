@@ -7,6 +7,7 @@ import { Metadata } from 'next';
 import { searchProducts } from '@/lib/search';
 import { CATEGORY_IMAGE_FALLBACKS, HERO_IMAGE } from '@/lib/assets';
 import { prisma } from '@/lib/prisma';
+import { getApprovedProductRatings } from '@/lib/product-ratings';
 import {
   OrganizationJsonLd,
   WebSiteJsonLd,
@@ -15,6 +16,8 @@ import {
 
 // Pre-render both locales for the dynamic [locale] segment to ensure correct SSG per-locale
 export const dynamicParams = false;
+// Refresh featured products and their approved ratings after the initial render.
+export const revalidate = 60;
 export function generateStaticParams() {
   return [{ locale: 'fa' }, { locale: 'en' }];
 }
@@ -63,6 +66,10 @@ async function getFeaturedProducts(locale: string) {
       limit: 4, // Show 4 featured products
       locale,
     });
+    const ratings = await getApprovedProductRatings(
+      prisma.review,
+      results.products.map(product => product.id)
+    );
     return results.products.map(product => ({
       id: product.id,
       title: product.title,
@@ -70,6 +77,7 @@ async function getFeaturedProducts(locale: string) {
       description: product.description,
       priceToman: product.priceToman,
       stock: product.stock,
+      rating: ratings.get(product.id),
       images: product.images.map(img => ({
         url: img.url,
         alt: img.alt || product.title,

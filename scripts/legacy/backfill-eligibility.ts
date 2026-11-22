@@ -1,3 +1,4 @@
+import './require-opt-in';
 import { prisma } from '@/lib/prisma';
 import { assessProductForHandcrafted } from '@/lib/moderation';
 

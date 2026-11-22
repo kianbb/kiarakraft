@@ -70,6 +70,7 @@ async function main() {
         'auth-session',
         'auth-redirect',
         'public-products',
+        'product-ratings',
         'product-image-order',
         'product-image-input',
         'seller.orders',

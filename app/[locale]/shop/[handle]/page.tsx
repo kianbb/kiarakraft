@@ -5,6 +5,7 @@ import {
   publicProductSelect,
   toPublicProduct,
 } from '@/lib/public-product';
+import { getApprovedProductRatings } from '@/lib/product-ratings';
 import { ProductCard } from '@/components/products/ProductCard';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Badge } from '@/components/ui/badge';
@@ -120,6 +121,10 @@ export default async function ShopPage({
   const products = hasNext
     ? seller.products.slice(0, PAGE_SIZE)
     : seller.products;
+  const ratings = await getApprovedProductRatings(
+    prisma.review,
+    products.map(product => product.id)
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -254,6 +259,7 @@ export default async function ShopPage({
                 key={product.id}
                 product={{
                   ...toPublicProduct(product, resolvedParams.locale),
+                  rating: ratings.get(product.id),
                   images: product.images.map(
                     (img: { url: string; alt: string | null }) => ({
                       url: img.url,

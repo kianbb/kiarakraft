@@ -13,7 +13,7 @@ npm run dev:local
 
 Dependencies must be installed before setup. Setup generates local settings and the Prisma Client, starts PostgreSQL on loopback, then applies migrations and synthetic fixtures to the dedicated development and test databases. Setup also works after a locked install with `--ignore-scripts`. It does not use hosted service credentials. If prerequisites or database guards fail, correct the configuration rather than substituting a hosted URL.
 
-Prisma 7 client generation works with both database URLs unset. CI generates the client before standalone fixture preparation. Database CLI commands use the guarded `DIRECT_URL`. The application uses `DATABASE_URL` through the PostgreSQL adapter. Legacy scripts that instantiate Prisma directly need separate migration before use. The historical `/api/admin/seed` endpoint is disabled. Use the guarded fixture commands for local test data.
+Prisma 7 client generation works with both database URLs unset. CI generates the client before standalone fixture preparation. Database CLI commands use the guarded `DIRECT_URL`. The application uses `DATABASE_URL` through the PostgreSQL adapter. The [archived maintenance scripts](../scripts/legacy/README.md) are no longer available as npm scripts. Those that instantiate Prisma directly need separate migration before use. The historical `/api/admin/seed` endpoint is disabled. Use the guarded fixture commands for local test data.
 
 Generated settings and fixture credentials are ignored by Git and protected with owner-only file permissions. Keep them local. Setup refuses to overwrite an unmanaged local environment file; resolve that conflict without copying secrets into a worker.
 

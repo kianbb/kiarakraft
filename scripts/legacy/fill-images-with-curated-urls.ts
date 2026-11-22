@@ -1,3 +1,4 @@
+import './require-opt-in';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
