@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useState, useEffect } from 'react';
 import { Clock, Search, Filter } from 'lucide-react';
 
 interface SearchStatsProps {
@@ -18,12 +17,7 @@ export function SearchStats({
   hasFilters,
   processingTime,
 }: SearchStatsProps) {
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('explore');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
-
-  if (!isHydrated) return null;
+  const t = useTranslations('explore');
 
   const hasQuery = Boolean(query?.trim());
 

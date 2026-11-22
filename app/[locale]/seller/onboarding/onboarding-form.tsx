@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -106,10 +106,7 @@ export default function SellerOnboardingForm({
 }) {
   const locale = useLocale();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -120,7 +117,7 @@ export default function SellerOnboardingForm({
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
     formState: { errors: profileErrors },
-    watch: watchProfile,
+    getValues: getProfileValues,
   } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
   });
@@ -131,7 +128,7 @@ export default function SellerOnboardingForm({
     handleSubmit: handleContactSubmit,
     setValue: setContactValue,
     formState: { errors: contactErrors },
-    watch: watchContact,
+    getValues: getContactValues,
   } = useForm<ContactForm>({
     resolver: zodResolver(contactSchema),
   });
@@ -201,8 +198,8 @@ export default function SellerOnboardingForm({
   const onVerificationSubmit = async (data: VerificationForm) => {
     setLoading(true);
     try {
-      const profileData = watchProfile();
-      const contactData = watchContact();
+      const profileData = getProfileValues();
+      const contactData = getContactValues();
 
       const completeData = {
         ...profileData,

@@ -1,6 +1,6 @@
 import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth-edge';
+import { auth } from '@/lib/auth-proxy';
 
 const intlMiddleware = createMiddleware({
   locales: ['fa', 'en'],
@@ -9,7 +9,7 @@ const intlMiddleware = createMiddleware({
   localeDetection: false,
 });
 
-export default async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   // Apply auth check only to protected routes
   const pathname = req.nextUrl.pathname;
   const normalizedPath = pathname.replace(/\/+/g, '/').replace(/\.\./g, '');
@@ -37,7 +37,13 @@ export default async function middleware(req: NextRequest) {
       // Redirect to login with callback
       const locale = pathSegments[0];
       const loginUrl = new URL(`/${locale}/auth/login`, req.url);
-      loginUrl.searchParams.set('callbackUrl', req.url);
+      // Relative path: req.url's host can differ from the browser's
+      // (for example localhost versus 127.0.0.1), which made the login
+      // page discard the callback as cross-origin.
+      loginUrl.searchParams.set(
+        'callbackUrl',
+        `${req.nextUrl.pathname}${req.nextUrl.search}`
+      );
       return NextResponse.redirect(loginUrl);
     }
 

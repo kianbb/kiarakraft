@@ -1,45 +1,11 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 
-interface FooterProps {
-  // serverLocale is passed from the server layout so hrefs and texts render correctly in SSR
-  serverLocale?: string;
-  serverFooter?: Record<string, string>;
-  serverCategories?: Record<string, string>;
-}
-
-export default function Footer({
-  serverLocale,
-  serverFooter,
-  serverCategories,
-}: FooterProps) {
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-
-  const _t = useTranslations('footer');
-  const _tCategories = useTranslations('categories');
-  const _locale = useLocale();
-
-  // If server-side strings are provided, use them for SSR to avoid rendering keys
-  // in the initial HTML. After hydration prefer the hook translations.
-  const t = isHydrated
-    ? _t
-    : (((k: string) => (serverFooter && serverFooter[k]) ?? k) as (
-        k: string
-      ) => string);
-
-  const tCategories = isHydrated
-    ? _tCategories
-    : (((k: string) => (serverCategories && serverCategories[k]) ?? k) as (
-        k: string
-      ) => string);
-
-  // Prefer serverLocale for SSR correctness, fall back to client locale after hydration
-  const locale = serverLocale ?? (isHydrated ? _locale : 'en');
+export default function Footer() {
+  const locale = useLocale();
+  const t = useTranslations('footer');
+  const tCategories = useTranslations('categories');
 
   const footerLinks = [
     {

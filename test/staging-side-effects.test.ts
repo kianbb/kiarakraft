@@ -72,6 +72,7 @@ function load<T>(
     },
     process: { env },
     Buffer,
+    Response,
     URL,
     setInterval: () => 0,
     console: { log: () => {}, warn: () => {}, error: () => {} },
@@ -478,9 +479,11 @@ async function rendering(env: Env) {
   const tree = await layout.default(props);
   const metadata = await layout.generateMetadata(props);
   const elements = renderedElements(tree);
-  const robot = load<{
-    default: () => { rules: { disallow?: string; allow?: string } };
-  }>('app/robots.ts', env, {}).default();
+  const robots = await load<{ GET: () => Promise<Response> }>(
+    'app/robots.txt/route.ts',
+    env,
+    {}
+  ).GET();
   const config = load<{
     default: {
       env: { NEXT_PUBLIC_KK_STAGING: string };
@@ -501,7 +504,7 @@ async function rendering(env: Env) {
     elementTypes: new Set(elements.map(element => element.type)),
     resourceUrls: renderedResourceUrls(elements),
     metadata,
-    robot,
+    robots,
     config,
     noindex: headers.some(entry =>
       entry.headers.some(
@@ -643,7 +646,7 @@ async function run() {
     );
     assert.equal(page.metadata.robots.index, false);
     assert.equal(page.metadata.robots.follow, false);
-    assert.equal(page.robot.rules.disallow, '/');
+    assert.equal(await page.robots.text(), 'User-agent: *\nDisallow: /');
     assert.equal(page.noindex, true);
     assert.equal(page.config.env.NEXT_PUBLIC_KK_STAGING, 'true');
     assert.equal(page.config.images.remotePatterns.length, 0);
@@ -789,6 +792,16 @@ async function run() {
     ])
   );
   assert.equal(normalPage.metadata.robots.index, true);
+  assert.equal(
+    await normalPage.robots.text(),
+    'User-agent: *\nAllow: /\nSitemap: https://www.kiarakraft.com/sitemap.xml'
+  );
+  assert.equal(normalPage.robots.headers.get('content-type'), 'text/plain');
+  assert.equal(
+    normalPage.robots.headers.get('cache-control'),
+    'public, max-age=86400, s-maxage=86400'
+  );
+  assert.equal(normalPage.robots.headers.get('x-robots-tag'), 'noindex');
   assert.equal(normalPage.noindex, false);
   assert.equal(normalPage.config.env.NEXT_PUBLIC_KK_STAGING, 'false');
   assert.ok(normalPage.config.images.remotePatterns.length > 0);

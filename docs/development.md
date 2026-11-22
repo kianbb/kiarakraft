@@ -45,6 +45,8 @@ The local databases are `kiarakraft_dev` and `kiarakraft_test`. Writing test com
 
 Both `npm run build` and `build:local` use isolated settings. The deployment build uses its deployment environment. Builds do not apply migrations; hosted migrations require a separate reviewed operation.
 
+Next.js uses Turbopack for local development and for both build launchers. The Node.js request entry point, `proxy.ts`, handles locale routing and the preliminary auth redirects for seller and admin pages. Protected server pages and API routes perform their own authorization.
+
 ## HTTP checks
 
 Start the isolated local production build in another terminal, then target its explicit loopback URL. Replace the example port with the checkout's selected app port.

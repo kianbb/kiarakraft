@@ -405,7 +405,6 @@ async function processProductEnhancementAndAssessment({
 
   let enhancedDescription = product.description;
   let enhancedImageUrl = firstUploadedImageUrl;
-  let enhancementSuccessful = false;
 
   // STEP 1: Enhancement
   if (!skipEnhancement) {
@@ -428,8 +427,6 @@ async function processProductEnhancementAndAssessment({
       });
 
       if (enhancement.enhanced) {
-        enhancementSuccessful = true;
-
         // Handle enhanced image
         if (enhancement.imageUrl?.startsWith('data:image/')) {
           try {

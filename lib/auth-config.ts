@@ -139,7 +139,7 @@ export const authConfig: Omit<NextAuthConfig, 'providers'> = {
         token.authStartedAt = Date.now();
       }
       // Auth.js rewrites `iat` whenever it renews a cookie. These application
-      // claims remain unchanged across renewal, including Edge middleware.
+      // claims remain unchanged across renewal, including the routing proxy.
       // Old tokens without the claims must authenticate again.
       if (
         !token.sub ||

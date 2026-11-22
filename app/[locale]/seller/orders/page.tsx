@@ -18,26 +18,28 @@ export default function SellerOrdersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
   const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      const response = await fetch('/api/seller/orders');
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
+  const fetchOrders = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/seller/orders', { signal })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setOrders(data);
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching orders:', error);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -53,7 +55,9 @@ export default function SellerOrdersPage() {
       return;
     }
 
-    fetchOrders();
+    const controller = new AbortController();
+    void fetchOrders(controller.signal);
+    return () => controller.abort();
   }, [session, status, router, locale, fetchOrders]);
 
   const handleAction = async (

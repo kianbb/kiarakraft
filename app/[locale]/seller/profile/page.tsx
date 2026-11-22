@@ -47,10 +47,7 @@ export default function SellerProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<SellerProfileData | null>(null);
@@ -64,28 +61,36 @@ export default function SellerProfilePage() {
     resolver: zodResolver(profileSchema),
   });
 
-  const fetchProfile = useCallback(async () => {
-    try {
-      const response = await fetch('/api/seller/profile');
-      if (response.ok) {
-        const profileData = await response.json();
-        setProfile(profileData);
+  const fetchProfile = useCallback(
+    (signal?: AbortSignal) => {
+      return fetch('/api/seller/profile', { signal })
+        .then(async response => {
+          if (signal?.aborted) return;
+          if (response.ok) {
+            const profileData = await response.json();
+            if (signal?.aborted) return;
+            setProfile(profileData);
 
-        // Populate form with existing data
-        reset({
-          name: profileData.name || '',
-          bio: profileData.bio || '',
-          phone: profileData.phone || '',
-          address: profileData.address || '',
-          website: profileData.website || '',
+            // Populate form with existing data
+            reset({
+              name: profileData.name || '',
+              bio: profileData.bio || '',
+              phone: profileData.phone || '',
+              address: profileData.address || '',
+              website: profileData.website || '',
+            });
+          }
+        })
+        .catch(error => {
+          if (signal?.aborted) return;
+          console.error('Error fetching profile:', error);
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
         });
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [reset]);
+    },
+    [reset]
+  );
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -100,7 +105,9 @@ export default function SellerProfilePage() {
       return;
     }
 
-    fetchProfile();
+    const controller = new AbortController();
+    void fetchProfile(controller.signal);
+    return () => controller.abort();
   }, [session, status, router, fetchProfile, locale]);
 
   if (status === 'loading' || loading) {

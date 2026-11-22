@@ -61,14 +61,8 @@ export default function EditProductPage() {
   const rawId = params?.id;
   const productId = Array.isArray(rawId) ? rawId[0] : rawId;
 
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const _tCategories = useTranslations('categories');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
-  const tCategories = isHydrated
-    ? _tCategories
-    : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
+  const tCategories = useTranslations('categories');
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<FormCompatibleProduct | null>(null);
@@ -83,74 +77,79 @@ export default function EditProductPage() {
     resolver: zodResolver(productSchema),
   });
 
-  const fetchProduct = useCallback(async () => {
-    try {
-      console.log('🔍 [Edit Page] fetchProduct called');
-      console.log('Product ID from params:', productId);
-      console.log('Product ID type:', typeof productId);
+  const fetchProduct = useCallback(
+    (signal?: AbortSignal) => {
+      if (!productId) return;
 
-      if (!productId || typeof productId !== 'string') {
-        console.log('❌ [Edit Page] Invalid product ID, returning');
-        return;
-      }
-
-      // Use /get endpoint to avoid 500 error from heavy imports in main route
-      console.log(
-        '🌐 [Edit Page] Fetching product from API:',
-        `/api/seller/products/${productId}/get`
-      );
-      const response = await fetch(`/api/seller/products/${productId}/get`, {
+      // Use the read endpoint for loading data into the editor.
+      return fetch(`/api/seller/products/${productId}/get`, {
         credentials: 'include',
         cache: 'no-store',
-      });
-      console.log('📡 [Edit Page] API response status:', response.status);
+        signal,
+      })
+        .then(async response => {
+          if (signal?.aborted) return;
+          console.log('📡 [Edit Page] API response status:', response.status);
 
-      if (response.ok) {
-        const productData = await response.json();
-        console.log('✅ [Edit Page] Product data received:', productData);
-        setProduct(productData);
+          if (response.ok) {
+            const productData = await response.json();
+            if (signal?.aborted) return;
+            console.log('✅ [Edit Page] Product data received:', productData);
+            setProduct(productData);
 
-        // Populate form with existing data
-        reset({
-          name: productData.title || productData.name || '',
-          description: productData.description || '',
-          price: productData.priceToman || productData.price || 0,
-          stock: productData.stock || 0,
-          category:
-            productData.category?.slug || productData.category || 'textiles',
-          imageUrl: productData.images?.[0]?.url || productData.imageUrl || '',
-          tags: (() => {
-            if (Array.isArray(productData.tags)) {
-              return productData.tags.join(', ');
-            } else if (
-              typeof productData.tags === 'object' &&
-              productData.tags !== null
-            ) {
-              // Handle bilingual tags object {fa: [], en: []}
-              const fasiTags = productData.tags.fa || productData.tags.en || [];
-              return Array.isArray(fasiTags) ? fasiTags.join(', ') : '';
-            }
-            return typeof productData.tags === 'string' ? productData.tags : '';
-          })(),
+            // Populate form with existing data
+            reset({
+              name: productData.title || productData.name || '',
+              description: productData.description || '',
+              price: productData.priceToman || productData.price || 0,
+              stock: productData.stock || 0,
+              category:
+                productData.category?.slug ||
+                productData.category ||
+                'textiles',
+              imageUrl:
+                productData.images?.[0]?.url || productData.imageUrl || '',
+              tags: (() => {
+                if (Array.isArray(productData.tags)) {
+                  return productData.tags.join(', ');
+                } else if (
+                  typeof productData.tags === 'object' &&
+                  productData.tags !== null
+                ) {
+                  // Handle bilingual tags object {fa: [], en: []}
+                  const fasiTags =
+                    productData.tags.fa || productData.tags.en || [];
+                  return Array.isArray(fasiTags) ? fasiTags.join(', ') : '';
+                }
+                return typeof productData.tags === 'string'
+                  ? productData.tags
+                  : '';
+              })(),
+            });
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            if (signal?.aborted) return;
+            console.log('❌ [Edit Page] API error response:', errorData);
+            console.log(
+              '🔄 [Edit Page] Redirecting to products list due to API error'
+            );
+            router.push(`/${locale}/seller/products`);
+          }
+        })
+        .catch(error => {
+          if (signal?.aborted) return;
+          console.error('❌ [Edit Page] Error fetching product:', error);
+          console.log(
+            '🔄 [Edit Page] Redirecting to products list due to exception'
+          );
+          router.push(`/${locale}/seller/products`);
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
         });
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.log('❌ [Edit Page] API error response:', errorData);
-        console.log(
-          '🔄 [Edit Page] Redirecting to products list due to API error'
-        );
-        router.push(`/${locale}/seller/products`);
-      }
-    } catch (error) {
-      console.error('❌ [Edit Page] Error fetching product:', error);
-      console.log(
-        '🔄 [Edit Page] Redirecting to products list due to exception'
-      );
-      router.push(`/${locale}/seller/products`);
-    } finally {
-      setLoading(false);
-    }
-  }, [productId, router, reset, locale]);
+    },
+    [productId, router, reset, locale]
+  );
 
   useEffect(() => {
     console.log('🔄 [Edit Page] useEffect running');
@@ -177,10 +176,12 @@ export default function EditProductPage() {
     }
 
     console.log('✅ [Edit Page] Auth checks passed, fetching product');
-    fetchProduct();
+    const controller = new AbortController();
+    void fetchProduct(controller.signal);
+    return () => controller.abort();
   }, [session, status, router, fetchProduct, locale, productId]);
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || (productId && loading)) {
     return (
       <div className="min-h-screen py-8">
         <div className="container mx-auto px-4">

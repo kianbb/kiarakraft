@@ -52,10 +52,7 @@ interface SellerProfile {
 export default function AdminSellersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('admin');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('admin');
 
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,21 +86,26 @@ export default function AdminSellersPage() {
   }, [documentLoader, selectedSeller?.id, selectedSeller?.hasDocuments]);
   const [notesDraft, setNotesDraft] = useState('');
 
-  const fetchSellers = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/sellers');
-      if (response.ok) {
-        const data = await response.json();
-        setSellers(data.sellers);
-      } else {
+  const fetchSellers = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/admin/sellers', { signal })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setSellers(data.sellers);
+        } else {
+          toast.error('Failed to load sellers');
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching sellers:', error);
         toast.error('Failed to load sellers');
-      }
-    } catch (error) {
-      console.error('Error fetching sellers:', error);
-      toast.error('Failed to load sellers');
-    } finally {
-      setLoading(false);
-    }
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -119,7 +121,9 @@ export default function AdminSellersPage() {
       return;
     }
 
-    fetchSellers();
+    const controller = new AbortController();
+    void fetchSellers(controller.signal);
+    return () => controller.abort();
   }, [session, status, router, fetchSellers]);
 
   const handleVerifyAction = async (

@@ -70,10 +70,7 @@ interface ShippingResponse {
 export default function AdminShippingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('admin');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('admin');
 
   const [shippingData, setShippingData] = useState<ShippingResponse | null>(
     null
@@ -91,8 +88,8 @@ export default function AdminShippingPage() {
     notes: '',
   });
 
-  const fetchShippingRecords = useCallback(async () => {
-    try {
+  const fetchShippingRecords = useCallback(
+    (signal?: AbortSignal) => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '20',
@@ -102,17 +99,25 @@ export default function AdminShippingPage() {
       if (methodFilter !== 'all') params.append('method', methodFilter);
       if (searchTerm) params.append('search', searchTerm);
 
-      const response = await fetch(`/api/admin/shipping?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setShippingData(data);
-      }
-    } catch (error) {
-      console.error('Error fetching shipping records:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, statusFilter, methodFilter, searchTerm]);
+      return fetch(`/api/admin/shipping?${params}`, { signal })
+        .then(async response => {
+          if (signal?.aborted) return;
+          if (response.ok) {
+            const data = await response.json();
+            if (signal?.aborted) return;
+            setShippingData(data);
+          }
+        })
+        .catch(error => {
+          if (signal?.aborted) return;
+          console.error('Error fetching shipping records:', error);
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
+        });
+    },
+    [currentPage, statusFilter, methodFilter, searchTerm]
+  );
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -124,7 +129,9 @@ export default function AdminShippingPage() {
       router.push('/');
       return;
     }
-    fetchShippingRecords();
+    const controller = new AbortController();
+    void fetchShippingRecords(controller.signal);
+    return () => controller.abort();
   }, [
     session,
     status,
@@ -298,7 +305,7 @@ export default function AdminShippingPage() {
             </div>
 
             <div className="flex items-end">
-              <Button onClick={fetchShippingRecords} className="w-full">
+              <Button onClick={() => fetchShippingRecords()} className="w-full">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {t('refresh')}
               </Button>

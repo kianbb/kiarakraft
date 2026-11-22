@@ -1,6 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useCallback,
+} from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   Dialog,
@@ -13,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { ProductWithRelations } from '@/types/database';
+import { useHydrated } from '@/lib/use-hydrated';
 
 interface ProductStatusBadgeProps {
   product: ProductWithRelations;
@@ -25,83 +32,52 @@ export function ProductStatusBadge({
 }: ProductStatusBadgeProps) {
   const t = useTranslations('seller');
   const locale = useLocale();
-  // Use uncontrolled Dialog via DialogTrigger to avoid nested update loops
+  const mounted = useHydrated();
+  const [previousProduct, setPreviousProduct] = useState(product);
   const [currentProduct, setCurrentProduct] = useState(product);
-  // Use a ref for polling state to avoid setState loops on rerender
-  const isPollingRef = useRef(false);
-  const [mounted, setMounted] = useState(false);
-  const pollIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  // Mark as mounted after hydration
-  useEffect(() => {
-    setMounted(true);
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Poll for updates if PENDING (only after mount). Avoid setState in cleanup.
-  useEffect(() => {
-    if (!mounted) return;
-
-    const startPolling = () => {
-      if (isPollingRef.current) return; // Already polling
-      isPollingRef.current = true;
-
-      const pollProduct = async () => {
-        try {
-          const res = await fetch(`/api/seller/products/${product.id}`);
-          if (res.ok) {
-            const updated = await res.json();
-            setCurrentProduct(updated);
-            if (updated.eligibilityStatus !== 'PENDING') {
-              // Stop polling on terminal state
-              if (pollIntervalRef.current)
-                clearInterval(pollIntervalRef.current);
-              isPollingRef.current = false;
-              onUpdate?.(updated);
-              return false;
-            }
-          }
-        } catch {
-          // Ignore transient polling errors
-        }
-        return true;
-      };
-
-      // Delay initial poll to ensure hydration completes
-      const timeoutId = setTimeout(() => {
-        pollProduct();
-        pollIntervalRef.current = setInterval(async () => {
-          const keepGoing = await pollProduct();
-          if (!keepGoing && pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-          }
-        }, 3000);
-      }, 100);
-
-      // Clear initial delay if component rerenders/unmounts before it fires
-      return () => clearTimeout(timeoutId);
-    };
-
-    const stopPolling = () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      isPollingRef.current = false;
-    };
-
-    if (currentProduct.eligibilityStatus === 'PENDING') {
-      return startPolling();
-    } else {
-      stopPolling();
-    }
-  }, [mounted, currentProduct.eligibilityStatus, product.id, onUpdate]);
-
-  // Update when product prop changes
-  useEffect(() => {
+  if (previousProduct !== product) {
+    setPreviousProduct(product);
     setCurrentProduct(product);
-  }, [product]);
+  }
+
+  const notifyUpdate = useEffectEvent((updated: ProductWithRelations) => {
+    onUpdate?.(updated);
+  });
+
+  useEffect(() => {
+    if (!mounted || currentProduct.eligibilityStatus !== 'PENDING') return;
+
+    const controller = new AbortController();
+    const { signal } = controller;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const pollProduct = async () => {
+      try {
+        const response = await fetch(`/api/seller/products/${product.id}`, {
+          signal,
+        });
+        if (response.ok) {
+          const updated: ProductWithRelations = await response.json();
+          if (signal.aborted) return;
+          setCurrentProduct(updated);
+          if (updated.eligibilityStatus !== 'PENDING') {
+            notifyUpdate(updated);
+            return;
+          }
+        }
+      } catch {
+        // Retry transient polling errors while this product is active.
+      }
+      if (!signal.aborted) timer = setTimeout(pollProduct, 3000);
+    };
+
+    timer = setTimeout(pollProduct, 100);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [mounted, product, currentProduct.eligibilityStatus]);
 
   // Extract progress from eligibilityReasons
   const getProgress = useCallback(() => {

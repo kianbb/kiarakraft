@@ -102,7 +102,7 @@ async function main() {
       break;
     case 'build':
       await nodeTool('prisma/build/index.js', ['generate'], env);
-      await nodeTool('next/dist/bin/next', ['build', '--webpack'], env);
+      await nodeTool('next/dist/bin/next', ['build'], env);
       break;
     case 'dev':
     case 'start':

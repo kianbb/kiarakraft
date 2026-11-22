@@ -52,10 +52,7 @@ async function main() {
     [path.join(root, 'node_modules/prisma/build/index.js'), 'generate'],
     env
   );
-  await run(
-    [path.join(root, 'node_modules/next/dist/bin/next'), 'build', '--webpack'],
-    env
-  );
+  await run([path.join(root, 'node_modules/next/dist/bin/next'), 'build'], env);
 }
 
 main().catch(() => {

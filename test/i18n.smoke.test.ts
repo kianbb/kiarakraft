@@ -48,19 +48,57 @@ async function mustNotInclude(url: string, markers: string[]) {
   console.log('OK (absent):', url);
 }
 
+async function redirectFrom(path: string) {
+  const response = await fetch(new URL(path, target), {
+    redirect: 'manual',
+    headers: { 'accept-language': 'en-US,en;q=0.9' },
+    signal: AbortSignal.timeout(10000),
+  });
+  assert.equal(response.status, 307, `Expected proxy redirect from ${path}`);
+  const location = response.headers.get('location');
+  assert.ok(location, `Missing redirect location for ${path}`);
+  const destination = new URL(location, target);
+  assert.ok(['localhost', '127.0.0.1'].includes(destination.hostname));
+  assert.equal(destination.port, target.port);
+  return destination;
+}
+
 (async () => {
-  // If BASE_URL looks like localhost, ensure it's reachable; otherwise skip without failing.
-  const isLocal =
-    BASE_URL.includes('localhost') || BASE_URL.includes('127.0.0.1');
-  if (isLocal) {
-    try {
-      await fetchHtml(`${BASE_URL}/api/health`, 1);
-    } catch {
-      throw new Error(
-        'Local smoke-test server is unavailable; start npm run start:local first.'
+  try {
+    await fetchHtml(`${BASE_URL}/api/health`, 1);
+  } catch {
+    throw new Error(
+      'Local smoke-test server is unavailable; start npm run start:local first.'
+    );
+  }
+
+  const defaultLocale = await redirectFrom('/explore?q=ceramic');
+  assert.equal(defaultLocale.pathname, '/fa/explore');
+  assert.equal(defaultLocale.searchParams.get('q'), 'ceramic');
+  for (const locale of ['fa', 'en']) {
+    for (const section of ['seller', 'admin']) {
+      const pathname = `/${locale}/${section}`;
+      const login = await redirectFrom(`${pathname}?from=local-smoke`);
+      assert.equal(login.pathname, `/${locale}/auth/login`);
+      const callback = login.searchParams.get('callbackUrl');
+      assert.ok(callback, `Missing auth callback for ${pathname}`);
+      assert.ok(
+        callback.startsWith('/') && !callback.startsWith('//'),
+        `Auth callback for ${pathname} must be a same-site relative path`
       );
+      const callbackUrl = new URL(callback, login);
+      assert.equal(callbackUrl.pathname, pathname);
+      assert.equal(callbackUrl.searchParams.get('from'), 'local-smoke');
     }
   }
+  const serviceWorker = await fetch(new URL('/sw.js', target), {
+    redirect: 'error',
+    signal: AbortSignal.timeout(10000),
+  });
+  assert.equal(serviceWorker.status, 200);
+  assert.equal(serviceWorker.headers.get('service-worker-allowed'), '/');
+  await serviceWorker.body?.cancel();
+  console.log('OK: locale and auth redirects, API and static asset bypass');
 
   // Lightweight checks (avoid brittle content coupling)
   await mustInclude(`${BASE_URL}/en`, ['<html lang="en" dir="ltr"']);

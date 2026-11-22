@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -19,12 +19,8 @@ import { Label } from '@/components/ui/label';
 export default function LoginPage() {
   const router = useRouter();
 
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _locale = useLocale();
-  const _t = useTranslations('auth');
-  const locale = isHydrated ? _locale : 'en';
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const locale = useLocale();
+  const t = useTranslations('auth');
   const loginSchema = z.object({
     email: z.string().email(t('invalidEmail')),
     password: z.string().min(1, t('passwordRequired')),
