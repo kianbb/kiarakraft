@@ -71,6 +71,10 @@ test('worker sparse exclusions precede first checkout and never smudge legacy da
     );
     git(['add', '.']);
     git(['commit', '-m', 'Synthetic fixture only']);
+    const chosen = git(['rev-parse', 'HEAD']).toString().trim();
+    git(['branch', 'selected-base', chosen]);
+    writeFileSync(path.join(repository, 'README.md'), 'Newer default branch\n');
+    git(['commit', '-am', 'Advance the default fixture branch']);
     writeFileSync(
       probe,
       "import fs from 'node:fs'; const input=fs.readFileSync(0); fs.appendFileSync(process.argv[2], 'smudged\\n'); process.stdout.write(input);\n"
@@ -108,6 +112,7 @@ test('worker sparse exclusions precede first checkout and never smudge legacy da
     };
     const result = await createTaskWorktree('privacy-check', {
       baseRoot: repository,
+      base: 'selected-base',
       environment,
       execute: async (command, args) => {
         assert.equal(command, 'git');
@@ -124,6 +129,7 @@ test('worker sparse exclusions precede first checkout and never smudge legacy da
     });
     assert.equal(result, worker);
     assert.ok(commands[0].includes('--no-checkout'));
+    assert.equal(commands[0].at(-1), chosen);
     assert.ok(commands[1].includes('sparse-checkout'));
     assert.ok(commands[2].includes('read-tree'));
     assert.equal(
@@ -135,6 +141,15 @@ test('worker sparse exclusions precede first checkout and never smudge legacy da
       'The safe environment template must remain available'
     );
     assertPrivateAbsent();
+    await assert.rejects(
+      createTaskWorktree('invalid-base', {
+        baseRoot: repository,
+        base: 'missing-branch',
+        environment,
+      }),
+      /Choose a valid local branch or commit/
+    );
+    assert.ok(!existsSync(path.join(repository, '.worktrees', 'invalid-base')));
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

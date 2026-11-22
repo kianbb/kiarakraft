@@ -32,6 +32,37 @@
       "command": "npm run build:local",
       "group": "build",
       "problemMatcher": []
+    },
+    {
+      "label": "Kiara: new agent worktree",
+      "detail": "Credential-free task worktree in the main checkout from a chosen base, then install and isolated setup",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "worktree:new",
+        "--",
+        "${input:agentTaskSlug}",
+        "--base",
+        "${input:agentTaskBase}",
+        "--main-checkout",
+        "--setup"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "agentTaskSlug",
+      "type": "promptString",
+      "description": "Task name (lowercase letters, numbers, hyphens), e.g. checkout-copy"
+    },
+    {
+      "id": "agentTaskBase",
+      "type": "promptString",
+      "description": "Base branch or commit to start from (HEAD = main checkout's current commit)",
+      "default": "HEAD"
     }
   ]
 }
