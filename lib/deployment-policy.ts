@@ -24,7 +24,16 @@ export type StagingPolicy = {
   databaseName: string;
   deploymentId: string;
 };
-export type DeploymentPolicy = StagingPolicy | { mode: 'standard' };
+export type ProductionPolicy = {
+  mode: 'production';
+  databaseUrl: URL;
+  databaseName: string;
+  roleName: string;
+};
+export type DeploymentPolicy =
+  | StagingPolicy
+  | ProductionPolicy
+  | { mode: 'standard' };
 
 // Preview is restrictive even if its explicit mode is missing/misspelled.
 export function isStagingDeployment(
@@ -56,9 +65,7 @@ export function isSellerDocumentCollectionEnabled(
 function required(env: DeploymentEnvironment, key: string): string {
   const value = env[key];
   if (!value || value.trim() !== value)
-    throw new DeploymentPolicyError(
-      `Missing or invalid staging setting: ${key}`
-    );
+    throw new DeploymentPolicyError(`Missing or invalid setting: ${key}`);
   return value;
 }
 
@@ -95,10 +102,11 @@ const databaseParameters = new Set([
   'application_name',
 ]);
 
-function stagingDatabaseUrl(
+function pinnedDatabaseUrl(
   value: string,
   hostname: string,
-  databaseName: string
+  databaseName: string,
+  roleName?: string
 ): URL {
   try {
     const url = new URL(value);
@@ -108,6 +116,9 @@ function stagingDatabaseUrl(
       !url.password ||
       url.hostname !== hostname ||
       decodeURIComponent(url.pathname.slice(1)) !== databaseName ||
+      (roleName !== undefined &&
+        (decodeURIComponent(url.username) !== roleName ||
+          (url.port && url.port !== '5432'))) ||
       url.hash ||
       !['require', 'verify-full'].includes(
         url.searchParams.get('sslmode') || ''
@@ -127,15 +138,12 @@ function stagingDatabaseUrl(
   } catch {
     // Neither connection strings nor underlying URL parser errors may leak.
     throw new DeploymentPolicyError(
-      'Staging database target or TLS settings do not match the pinned identity'
+      'Database target or TLS settings do not match the pinned identity'
     );
   }
 }
 
-/** Synchronous validation runs before creating clients or reading any DB. */
-export function assertDeploymentPolicy(
-  env: DeploymentEnvironment = process.env
-): DeploymentPolicy {
+function validateDeploymentMode(env: DeploymentEnvironment): void {
   if (
     ['preview', 'production'].includes(env.VERCEL_ENV || '') &&
     !['staging', 'production'].includes(env.KK_DEPLOYMENT_MODE || '')
@@ -155,6 +163,47 @@ export function assertDeploymentPolicy(
   ) {
     throw new DeploymentPolicyError('Unknown deployment mode');
   }
+}
+
+function productionPolicy(env: DeploymentEnvironment): ProductionPolicy {
+  if (env.KK_ISOLATED === '1' || env.DIRECT_URL) {
+    throw new DeploymentPolicyError(
+      'Production runtime requires a dedicated pooled connection without a direct connection'
+    );
+  }
+  const host = required(env, 'KK_PRODUCTION_DATABASE_HOST');
+  const databaseName = required(env, 'KK_PRODUCTION_DATABASE_NAME');
+  const roleName = required(env, 'KK_PRODUCTION_DATABASE_ROLE');
+  if (
+    !/^ep-[a-z0-9-]+-pooler\.(?:[a-z0-9-]+\.)+neon\.tech$/.test(host) ||
+    !/^[A-Za-z0-9_-]{1,63}$/.test(databaseName) ||
+    !/^[a-z_][a-z0-9_]{0,62}$/.test(roleName) ||
+    roleName.startsWith('pg_') ||
+    ['postgres', 'neondb_owner'].includes(roleName)
+  ) {
+    throw new DeploymentPolicyError(
+      'Production database pins or restricted role are invalid'
+    );
+  }
+  return {
+    mode: 'production',
+    databaseName,
+    roleName,
+    databaseUrl: pinnedDatabaseUrl(
+      required(env, 'DATABASE_URL'),
+      host,
+      databaseName,
+      roleName
+    ),
+  };
+}
+
+/** Synchronous validation runs before creating clients or reading any DB. */
+export function assertDeploymentPolicy(
+  env: DeploymentEnvironment = process.env
+): DeploymentPolicy {
+  validateDeploymentMode(env);
+  if (env.KK_DEPLOYMENT_MODE === 'production') return productionPolicy(env);
   if (!isStagingDeployment(env)) return { mode: 'standard' };
   const origin = canonicalOrigin(required(env, 'AUTH_URL'));
   if (
@@ -197,12 +246,8 @@ export function assertDeploymentPolicy(
     origin,
     databaseName: name,
     deploymentId,
-    databaseUrl: stagingDatabaseUrl(required(env, 'DATABASE_URL'), host, name),
-    directUrl: stagingDatabaseUrl(
-      required(env, 'DIRECT_URL'),
-      directHost,
-      name
-    ),
+    databaseUrl: pinnedDatabaseUrl(required(env, 'DATABASE_URL'), host, name),
+    directUrl: pinnedDatabaseUrl(required(env, 'DIRECT_URL'), directHost, name),
   };
 }
 
@@ -216,5 +261,5 @@ export function assertProviderAllowed(
       `External capability is disabled in staging: ${capability}`
     );
   }
-  assertDeploymentPolicy(env);
+  validateDeploymentMode(env);
 }

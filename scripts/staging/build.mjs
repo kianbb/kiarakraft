@@ -27,15 +27,26 @@ async function main() {
     '../../lib/staging-database.ts',
     import.meta.url
   );
+  const { verifyProductionDatabaseTarget } = tsxRequire(
+    '../../lib/production-database.ts',
+    import.meta.url
+  );
   // Preflight precedes Prisma generation and all Next static/metadata reads.
   const policy = assertDeploymentPolicy();
-  await verifyStagingDatabaseTargets();
+  if (policy.mode === 'production')
+    await verifyProductionDatabaseTarget(policy);
+  if (policy.mode === 'staging') await verifyStagingDatabaseTargets();
   if (process.argv.includes('--preflight-only')) return;
   // Explicit child values also take precedence over conventional dotenv files.
   const env = { ...process.env };
   if (policy.mode === 'staging') {
     env.DATABASE_URL = policy.databaseUrl.href;
     env.DIRECT_URL = policy.directUrl.href;
+  }
+  if (policy.mode === 'production') {
+    env.DATABASE_URL = policy.databaseUrl.href;
+    // Prevent Prisma/Next from loading a direct connection via dotenv.
+    env.DIRECT_URL = '';
   }
   await run(
     [path.join(root, 'node_modules/prisma/build/index.js'), 'generate'],
@@ -50,7 +61,7 @@ async function main() {
 main().catch(() => {
   // Raw connection/build exceptions may include credentials or query details.
   console.error(
-    'Deployment preflight/build failed; verify the configured staging policy and database identity.'
+    'Deployment preflight/build failed; verify the configured deployment policy and database identity.'
   );
   process.exitCode = 1;
 });

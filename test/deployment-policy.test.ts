@@ -17,6 +17,10 @@ import {
   verifyStagingDatabaseIdentity,
 } from '../lib/staging-database';
 import { runtimeDatabaseOptions } from '../lib/postgres-connection';
+import {
+  PRODUCTION_IDENTITY_SQL,
+  verifyProductionDatabaseIdentity,
+} from '../lib/production-database';
 
 function fixture(): DeploymentEnvironment {
   const url = new URL(
@@ -39,12 +43,28 @@ function fixture(): DeploymentEnvironment {
   };
 }
 
+function productionFixture(): DeploymentEnvironment {
+  const host = 'ep-synthetic-pooler.eu-central-1.aws.neon.tech';
+  const database = 'kiara_production_fixture';
+  const role = 'kiara_runtime_fixture';
+  const url = new URL(`postgresql://${host}/${database}?sslmode=verify-full`);
+  url.username = role;
+  url.password = 'synthetic-fixture-only';
+  return {
+    VERCEL_ENV: 'production',
+    KK_DEPLOYMENT_MODE: 'production',
+    KK_PRODUCTION_DATABASE_HOST: host,
+    KK_PRODUCTION_DATABASE_NAME: database,
+    KK_PRODUCTION_DATABASE_ROLE: role,
+    DATABASE_URL: url.href,
+  };
+}
+
 async function run() {
   for (const env of [
     {},
     { NODE_ENV: 'production' },
     { KK_DEPLOYMENT_MODE: 'local' },
-    { VERCEL_ENV: 'production', KK_DEPLOYMENT_MODE: 'production' },
   ]) {
     assert.deepEqual(assertDeploymentPolicy(env), { mode: 'standard' });
     assertProviderAllowed('email', env);
@@ -52,6 +72,7 @@ async function run() {
   for (const env of [
     { VERCEL_ENV: 'preview' },
     { VERCEL_ENV: 'production' },
+    { VERCEL_ENV: 'production', KK_DEPLOYMENT_MODE: 'production' },
     { VERCEL_ENV: 'preview', KK_DEPLOYMENT_MODE: 'production' },
     { VERCEL_ENV: 'production', KK_DEPLOYMENT_MODE: 'local' },
     { KK_DEPLOYMENT_MODE: 'typo' },
@@ -221,23 +242,127 @@ async function run() {
       ),
     DeploymentPolicyError
   );
-  const hosted = {
-    KK_DEPLOYMENT_MODE: 'production',
-    DATABASE_URL: bounded.href,
-  };
-  const hostedPool = runtimeDatabaseOptions(
-    hosted,
-    assertDeploymentPolicy(hosted)
-  ).pool;
+  const hosted = productionFixture();
+  const production = assertDeploymentPolicy(hosted);
+  if (production.mode !== 'production') throw new Error('Expected production');
+  assertProviderAllowed('email', hosted);
+  const hostedPool = runtimeDatabaseOptions(hosted, production).pool;
   assert.deepEqual(hostedPool.ssl, { rejectUnauthorized: true });
-  const withoutVerification = new URL(bounded);
-  withoutVerification.searchParams.delete('sslmode');
-  const missingTLS = { ...hosted, DATABASE_URL: withoutVerification.href };
+  assert.equal(hostedPool.user, production.roleName);
+  assert.equal(hostedPool.database, production.databaseName);
+  assert.equal(hostedPool.host, hosted.KK_PRODUCTION_DATABASE_HOST);
+  assert.equal(Object.hasOwn(hostedPool, 'connectionString'), false);
+  for (const changes of [
+    {
+      KK_PRODUCTION_DATABASE_HOST: 'ep-other-pooler.eu-central-1.aws.neon.tech',
+    },
+    { KK_PRODUCTION_DATABASE_NAME: 'another_database' },
+    { KK_PRODUCTION_DATABASE_ROLE: 'another_role' },
+    { KK_PRODUCTION_DATABASE_ROLE: 'neondb_owner' },
+    { DIRECT_URL: hosted.DATABASE_URL },
+    { KK_ISOLATED: '1' },
+  ])
+    assert.throws(
+      () => assertDeploymentPolicy({ ...hosted, ...changes }),
+      DeploymentPolicyError
+    );
+  for (const update of [
+    (url: URL) => url.searchParams.delete('sslmode'),
+    (url: URL) => url.searchParams.set('sslaccept', 'accept_invalid_certs'),
+    (url: URL) => url.searchParams.append('sslmode', 'verify-full'),
+    (url: URL) => url.searchParams.set('options', '-c search_path=private'),
+    (url: URL) => url.searchParams.set('schema', 'private'),
+    (url: URL) => {
+      url.username = 'neondb_owner';
+    },
+    (url: URL) => {
+      url.port = '5433';
+    },
+  ]) {
+    const url = new URL(production.databaseUrl);
+    update(url);
+    assert.throws(
+      () => assertDeploymentPolicy({ ...hosted, DATABASE_URL: url.href }),
+      error =>
+        error instanceof DeploymentPolicyError &&
+        !error.message.includes('synthetic-fixture-only')
+    );
+  }
+  const nonPooled = new URL(production.databaseUrl);
+  nonPooled.hostname = nonPooled.hostname.replace('-pooler.', '.');
   assert.throws(
     () =>
-      runtimeDatabaseOptions(missingTLS, assertDeploymentPolicy(missingTLS)),
+      assertDeploymentPolicy({
+        ...hosted,
+        DATABASE_URL: nonPooled.href,
+        KK_PRODUCTION_DATABASE_HOST: nonPooled.hostname,
+      }),
     DeploymentPolicyError
   );
+  const productionIdentity = {
+    databaseName: production.databaseName,
+    roleName: production.roleName,
+    sessionRoleName: production.roleName,
+    readOnly: true,
+    restrictedRole: true,
+    ledgerInaccessible: true,
+  };
+  const productionQueries: string[] = [];
+  await verifyProductionDatabaseIdentity(
+    {
+      query: async sql => {
+        productionQueries.push(sql);
+        return {
+          rows: sql === PRODUCTION_IDENTITY_SQL ? [productionIdentity] : [],
+        };
+      },
+    },
+    production
+  );
+  assert.deepEqual(productionQueries, [
+    'BEGIN READ ONLY',
+    "SET LOCAL statement_timeout = '5s'",
+    'SET LOCAL search_path = pg_catalog, public',
+    PRODUCTION_IDENTITY_SQL,
+    'ROLLBACK',
+  ]);
+  for (const rows of [
+    [],
+    [productionIdentity, productionIdentity],
+    [{ ...productionIdentity, databaseName: 'elsewhere' }],
+    [{ ...productionIdentity, roleName: 'owner' }],
+    [{ ...productionIdentity, sessionRoleName: 'owner' }],
+    [{ ...productionIdentity, readOnly: false }],
+    [{ ...productionIdentity, restrictedRole: false }],
+    [{ ...productionIdentity, ledgerInaccessible: false }],
+    [{ ...productionIdentity, ledgerInaccessible: null }],
+  ]) {
+    await assert.rejects(
+      verifyProductionDatabaseIdentity(
+        { query: async () => ({ rows }) },
+        production
+      ),
+      DeploymentPolicyError
+    );
+  }
+  const failedProductionQueries: string[] = [];
+  await assert.rejects(
+    verifyProductionDatabaseIdentity(
+      {
+        query: async sql => {
+          failedProductionQueries.push(sql);
+          if (sql === PRODUCTION_IDENTITY_SQL)
+            throw new Error('private-query-sentinel');
+          return { rows: [] };
+        },
+      },
+      production
+    ),
+    error =>
+      error instanceof DeploymentPolicyError &&
+      !error.message.includes('private-query-sentinel')
+  );
+  assert.equal(failedProductionQueries.at(-1), 'ROLLBACK');
   const previousPgOptions = process.env.PGOPTIONS;
   const previousReplication = process.env.PGREPLICATION;
   try {
@@ -382,6 +507,7 @@ async function run() {
     [{}, 0],
     [{ VERCEL_ENV: 'preview' }, 1],
     [{ VERCEL_ENV: 'production' }, 1],
+    [{ KK_DEPLOYMENT_MODE: 'production' }, 1],
   ] as const) {
     const result = spawnSync(
       process.execPath,
@@ -399,7 +525,7 @@ async function run() {
     );
   }
   console.log(
-    '✓ Staging mode, canonical targets, provider denial, marker identity and real Prisma query/transaction barriers'
+    '✓ Staging and production targets, role permissions and real Prisma query/transaction barriers'
   );
 }
 
