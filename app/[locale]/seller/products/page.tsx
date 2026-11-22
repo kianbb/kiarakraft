@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -28,14 +28,35 @@ export default function SellerProductsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const locale = useLocale();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+
+  const fetchProducts = useCallback((signal?: AbortSignal) => {
+    // Use /list endpoint to avoid 500 error from heavy imports in main route
+    return fetch('/api/seller/products/list', {
+      credentials: 'include',
+      cache: 'no-store',
+      signal,
+    })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setProducts(data);
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching products:', error);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -50,26 +71,10 @@ export default function SellerProductsPage() {
       return;
     }
 
-    fetchProducts();
-  }, [session, status, router, locale]);
-
-  const fetchProducts = async () => {
-    try {
-      // Use /list endpoint to avoid 500 error from heavy imports in main route
-      const response = await fetch('/api/seller/products/list', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const controller = new AbortController();
+    void fetchProducts(controller.signal);
+    return () => controller.abort();
+  }, [session, status, router, locale, fetchProducts]);
 
   const deleteProduct = async (productId: string) => {
     if (!confirm(t('confirmDeleteProduct'))) return;

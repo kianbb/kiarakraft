@@ -7,7 +7,7 @@ import { Session } from 'next-auth';
 type User = { id: string; email: string };
 type WhereClause = { where: { email?: string; id?: string } };
 type TransactionFn = (tx: {
-  order: { update: () => Promise<Record<string, unknown>> };
+  order: { updateMany: () => Promise<{ count: number }> };
   cart: { upsert: () => Promise<{ id: string }> };
   cartItem: { upsert: () => Promise<Record<string, unknown>> };
 }) => Promise<unknown>;
@@ -76,7 +76,7 @@ async function run() {
     },
     $transaction: async (fn: TransactionFn) => {
       const tx = {
-        order: { update: async () => ({}) },
+        order: { updateMany: async () => ({ count: 1 }) },
         cart: { upsert: async () => ({ id: 'c1' }) },
         cartItem: { upsert: async () => ({}) },
       };

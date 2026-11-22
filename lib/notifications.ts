@@ -3,6 +3,10 @@ import { sendEmail } from '@/lib/email';
 import webpush from 'web-push';
 import { Prisma } from '@prisma/client';
 import {
+  assertProviderAllowed,
+  isStagingDeployment,
+} from './deployment-policy';
+import {
   sanitizeText,
   sanitizeCustomerName,
   sanitizeNotificationData,
@@ -18,7 +22,7 @@ const VAPID_SUBJECT =
   process.env.VAPID_SUBJECT || 'mailto:hello@kiarakraft.com';
 
 // Initialize web push if VAPID keys are available
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+if (!isStagingDeployment() && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
 
@@ -50,6 +54,7 @@ async function sendEmailNotification(
   notification: NotificationData
 ): Promise<NotificationResult> {
   try {
+    assertProviderAllowed('email');
     // Check rate limit before processing
     const rateLimit = checkNotificationRateLimit(notification.userId);
     if (!rateLimit.allowed) {
@@ -107,6 +112,7 @@ async function sendPushNotification(
   notification: NotificationData
 ): Promise<NotificationResult> {
   try {
+    assertProviderAllowed('push');
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       throw new Error('Web push not configured - VAPID keys missing');
     }
@@ -553,6 +559,28 @@ export async function sendNotification(
   return results;
 }
 
+export function sendFulfillmentNotification(
+  order: { id: string; userId: string },
+  status: 'SHIPPED' | 'DELIVERED',
+  trackingNo?: string | null
+) {
+  setImmediate(async () => {
+    try {
+      await sendNotification({
+        userId: order.userId,
+        type: status === 'SHIPPED' ? 'order_shipped' : 'order_delivered',
+        data: {
+          orderId: order.id,
+          trackingNumber: trackingNo || undefined,
+          locale: 'fa',
+        },
+      });
+    } catch {
+      console.error('Failed to send fulfillment notification');
+    }
+  });
+}
+
 /**
  * Subscribe user to push notifications
  */
@@ -565,6 +593,7 @@ export async function subscribeToPush(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    assertProviderAllowed('push');
     await prisma.pushSubscription.upsert({
       where: { endpoint: subscription.endpoint },
       update: {
@@ -637,4 +666,6 @@ export async function getUserNotificationStats(userId: string) {
 }
 
 // Export VAPID public key for frontend
-export const VAPID_PUBLIC_KEY_CLIENT = VAPID_PUBLIC_KEY;
+export const VAPID_PUBLIC_KEY_CLIENT = isStagingDeployment()
+  ? undefined
+  : VAPID_PUBLIC_KEY;

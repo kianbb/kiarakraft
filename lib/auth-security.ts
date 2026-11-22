@@ -3,7 +3,9 @@
  * Handles rate limiting, account lockout, and brute force protection
  */
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
+import { withinBcryptLimit } from './password-reset';
 
 // Configuration constants
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -22,6 +24,10 @@ export function validatePasswordComplexity(password: string): {
 
   if (password.length < 8) {
     errors.push('Password must be at least 8 characters long');
+  }
+
+  if (!withinBcryptLimit(password)) {
+    errors.push('Password must not exceed 72 UTF-8 bytes');
   }
 
   if (!/[a-z]/.test(password)) {
@@ -55,32 +61,15 @@ export function validatePasswordComplexity(password: string): {
   };
 }
 
+function remainingSeconds(resetTime: Date): number {
+  return Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / 1000));
+}
+
 /**
  * Check if an account is locked due to too many failed attempts
  */
 export async function isAccountLocked(email: string): Promise<boolean> {
-  try {
-    const lockout = await prisma.rateLimit.findUnique({
-      where: { identifier: `account_lock:${email}` },
-    });
-
-    if (!lockout) {
-      return false;
-    }
-
-    // Check if lockout period has expired
-    if (new Date() > lockout.resetTime) {
-      await prisma.rateLimit.delete({
-        where: { identifier: `account_lock:${email}` },
-      });
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Database error checking account lock:', error);
-    return false; // Fail open
-  }
+  return (await getLockoutTimeRemaining(email)) > 0;
 }
 
 /**
@@ -91,16 +80,21 @@ export async function getLockoutTimeRemaining(email: string): Promise<number> {
     const lockout = await prisma.rateLimit.findUnique({
       where: { identifier: `account_lock:${email}` },
     });
-
-    if (!lockout || new Date() > lockout.resetTime) {
-      return 0;
-    }
-
-    return Math.ceil((lockout.resetTime.getTime() - Date.now()) / 1000);
+    return lockout ? remainingSeconds(lockout.resetTime) : 0;
   } catch (error) {
     console.error('Database error getting lockout time:', error);
     return 0;
   }
+}
+
+async function blockedFor(
+  identifier: string,
+  maximum: number
+): Promise<number> {
+  const counter = await prisma.rateLimit.findUnique({ where: { identifier } });
+  return counter && counter.count >= maximum
+    ? remainingSeconds(counter.resetTime)
+    : 0;
 }
 
 /**
@@ -115,38 +109,25 @@ export async function checkLoginRateLimit(
   retryAfter?: number;
 }> {
   try {
-    // Check if account is locked
-    if (await isAccountLocked(email)) {
-      return {
-        allowed: false,
-        reason: 'account_locked',
-        retryAfter: await getLockoutTimeRemaining(email),
-      };
+    const lockout = await getLockoutTimeRemaining(email);
+    if (lockout > 0) {
+      return { allowed: false, reason: 'account_locked', retryAfter: lockout };
     }
 
-    // Check IP-based rate limiting
-    const ipAttemptCount = await prisma.rateLimit.findUnique({
-      where: { identifier: `ip_attempts:${ip}` },
-    });
-
-    if (ipAttemptCount && ipAttemptCount.count >= MAX_IP_ATTEMPTS) {
-      return {
-        allowed: false,
-        reason: 'ip_blocked',
-        retryAfter: 60, // IP blocks last 1 minute
-      };
+    const ipWait = await blockedFor(`ip_attempts:${ip}`, MAX_IP_ATTEMPTS);
+    if (ipWait > 0) {
+      return { allowed: false, reason: 'ip_blocked', retryAfter: ipWait };
     }
 
-    // Check email-based rate limiting
-    const emailAttemptCount = await prisma.rateLimit.findUnique({
-      where: { identifier: `login_attempts:${email}` },
-    });
-
-    if (emailAttemptCount && emailAttemptCount.count >= MAX_LOGIN_ATTEMPTS) {
+    const emailWait = await blockedFor(
+      `login_attempts:${email}`,
+      MAX_LOGIN_ATTEMPTS
+    );
+    if (emailWait > 0) {
       return {
         allowed: false,
         reason: 'too_many_attempts',
-        retryAfter: 60,
+        retryAfter: emailWait,
       };
     }
 
@@ -157,8 +138,43 @@ export async function checkLoginRateLimit(
   }
 }
 
+// The conflicting row is locked and evaluated by PostgreSQL. Concurrent
+// requests in a renewed window each count once and keep its deadline fixed.
+// Store a UTC wall-clock value in the timestamp-without-time-zone columns.
+// The ISO string carries its offset across the Prisma and PostgreSQL casts.
+async function incrementAttempt(
+  tx: Prisma.TransactionClient,
+  identifier: string,
+  nowUtc: string,
+  windowEndUtc: string,
+  maximum: number
+): Promise<number> {
+  const [counter] = await tx.$queryRaw<{ count: number }[]>`
+    INSERT INTO "RateLimit" (id, identifier, count, "resetTime", "createdAt", "updatedAt")
+    VALUES (
+      gen_random_uuid()::text, ${identifier}, 1,
+      ${windowEndUtc}::timestamptz AT TIME ZONE 'UTC',
+      ${nowUtc}::timestamptz AT TIME ZONE 'UTC',
+      ${nowUtc}::timestamptz AT TIME ZONE 'UTC'
+    )
+    ON CONFLICT (identifier) DO UPDATE SET
+      count = CASE
+        WHEN "RateLimit"."resetTime" <= EXCLUDED."updatedAt" THEN 1
+        WHEN "RateLimit".count < ${maximum} THEN "RateLimit".count + 1
+        ELSE "RateLimit".count
+      END,
+      "resetTime" = CASE
+        WHEN "RateLimit"."resetTime" <= EXCLUDED."updatedAt" THEN EXCLUDED."resetTime"
+        ELSE "RateLimit"."resetTime"
+      END,
+      "updatedAt" = GREATEST("RateLimit"."updatedAt", EXCLUDED."updatedAt")
+    RETURNING count
+  `;
+  return counter.count;
+}
+
 /**
- * Record a login attempt
+ * Record an evaluated login attempt
  */
 export async function recordLoginAttempt(
   email: string,
@@ -167,68 +183,58 @@ export async function recordLoginAttempt(
 ): Promise<void> {
   try {
     const now = new Date();
-    const rateLimitWindow = new Date(now.getTime() + RATE_LIMIT_WINDOW);
-    const lockoutWindow = new Date(now.getTime() + LOCKOUT_DURATION);
+    const nowUtc = now.toISOString();
+    const windowEndUtc = new Date(
+      now.getTime() + RATE_LIMIT_WINDOW
+    ).toISOString();
+    const accountLock = `account_lock:${email}`;
+    const emailCounter = `login_attempts:${email}`;
 
     await prisma.$transaction(async tx => {
-      // Record IP attempt
-      await tx.rateLimit.upsert({
-        where: { identifier: `ip_attempts:${ip}` },
-        update: {
-          count: { increment: 1 },
-          resetTime: rateLimitWindow,
-        },
-        create: {
-          identifier: `ip_attempts:${ip}`,
-          count: 1,
-          resetTime: rateLimitWindow,
-        },
-      });
+      await incrementAttempt(
+        tx,
+        `ip_attempts:${ip}`,
+        nowUtc,
+        windowEndUtc,
+        MAX_IP_ATTEMPTS
+      );
 
-      if (!success) {
-        // Record failed email attempt
-        const emailAttempt = await tx.rateLimit.upsert({
-          where: { identifier: `login_attempts:${email}` },
-          update: {
-            count: { increment: 1 },
-            resetTime: rateLimitWindow,
-          },
-          create: {
-            identifier: `login_attempts:${email}`,
-            count: 1,
-            resetTime: rateLimitWindow,
-          },
-        });
-
-        // Check if we should lock the account
-        if (emailAttempt.count >= MAX_LOGIN_ATTEMPTS) {
-          await tx.rateLimit.upsert({
-            where: { identifier: `account_lock:${email}` },
-            update: {
-              count: emailAttempt.count,
-              resetTime: lockoutWindow,
-            },
-            create: {
-              identifier: `account_lock:${email}`,
-              count: emailAttempt.count,
-              resetTime: lockoutWindow,
-            },
-          });
-
-          console.warn(
-            `Account locked due to too many failed attempts: ${email} (IP: ${ip})`
-          );
-        }
-      } else {
-        // Successful login - clear any lockout and failed attempts
+      if (success) {
+        // Keep the email-then-lock row order used by failed attempts. A login
+        // that was already in progress must leave a concurrently added lock active.
+        await tx.rateLimit.deleteMany({ where: { identifier: emailCounter } });
         await tx.rateLimit.deleteMany({
-          where: {
-            identifier: {
-              in: [`account_lock:${email}`, `login_attempts:${email}`],
-            },
-          },
+          where: { identifier: accountLock, resetTime: { lte: now } },
         });
+        return;
       }
+
+      const failedAttempts = await incrementAttempt(
+        tx,
+        emailCounter,
+        nowUtc,
+        windowEndUtc,
+        MAX_LOGIN_ATTEMPTS
+      );
+      if (failedAttempts < MAX_LOGIN_ATTEMPTS) return;
+
+      const lockoutEndUtc = new Date(
+        now.getTime() + LOCKOUT_DURATION
+      ).toISOString();
+      await tx.$executeRaw`
+        INSERT INTO "RateLimit" (id, identifier, count, "resetTime", "createdAt", "updatedAt")
+        VALUES (
+          gen_random_uuid()::text, ${accountLock}, ${failedAttempts},
+          ${lockoutEndUtc}::timestamptz AT TIME ZONE 'UTC',
+          ${nowUtc}::timestamptz AT TIME ZONE 'UTC',
+          ${nowUtc}::timestamptz AT TIME ZONE 'UTC'
+        )
+        ON CONFLICT (identifier) DO UPDATE SET
+          count = EXCLUDED.count,
+          "resetTime" = EXCLUDED."resetTime",
+          "updatedAt" = EXCLUDED."updatedAt"
+        WHERE "RateLimit"."resetTime" <= EXCLUDED."updatedAt"
+      `;
     });
   } catch (error) {
     console.error('Database error recording login attempt:', error);
@@ -296,7 +302,7 @@ export async function cleanupOldData(): Promise<void> {
 
 // Set up periodic cleanup (every 30 minutes)
 if (typeof setInterval !== 'undefined') {
-  setInterval(
+  const cleanupTimer = setInterval(
     () => {
       cleanupOldData().catch(error => {
         console.error('Failed to cleanup old auth data:', error);
@@ -304,4 +310,5 @@ if (typeof setInterval !== 'undefined') {
     },
     30 * 60 * 1000
   );
+  cleanupTimer.unref?.();
 }

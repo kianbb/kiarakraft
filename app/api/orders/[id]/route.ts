@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { publicProductSelect } from '@/lib/public-product';
+import { returnIneligibility } from '@/lib/return-eligibility';
+import {
+  buyerShippingSelect,
+  orderReceiptSelect,
+  toBuyerShipping,
+} from '@/lib/order-read';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
 
@@ -15,6 +23,7 @@ export async function GET(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      select: { id: true },
     });
 
     if (!user) {
@@ -26,19 +35,16 @@ export async function GET(
         id: params.id,
         userId: user.id,
       },
-      include: {
+      select: {
+        ...orderReceiptSelect,
         address: true,
-        shipping: true,
+        payment: { select: { status: true } },
+        shipping: { select: buyerShippingSelect },
         items: {
           include: {
+            returnRequest: { select: { id: true } },
             product: {
-              include: {
-                seller: true,
-                images: {
-                  orderBy: { sortOrder: 'asc' },
-                  take: 1,
-                },
-              },
+              select: publicProductSelect,
             },
           },
         },
@@ -49,7 +55,26 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    return NextResponse.json(order);
+    const { shipping, payment, items, ...receipt } = order;
+    const ineligibility = returnIneligibility({
+      ...receipt,
+      payment,
+      shipping,
+    });
+    const returnEligible = ineligibility === null;
+    return NextResponse.json(
+      {
+        ...receipt,
+        shipping: toBuyerShipping(shipping),
+        returnEligible,
+        returnNeedsSupport: ineligibility === 'delivery_unconfirmed',
+        items: items.map(({ returnRequest, ...item }) => ({
+          ...item,
+          returnEligible: returnEligible && !returnRequest,
+        })),
+      },
+      { headers: { 'Cache-Control': 'private, no-store' } }
+    );
   } catch (error) {
     console.error('Error fetching order:', error);
     return NextResponse.json(

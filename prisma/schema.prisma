@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 model User {
@@ -260,6 +258,10 @@ model SellerDocument {
   mime      String
   bytes     Int
   createdAt DateTime      @default(now())
+  // Null classifies existing references as legacy; never silently public-deliver them.
+  resourceType String?
+  deliveryType String?
+  status       String?
   seller    SellerProfile @relation(fields: [sellerId], references: [id])
 
   @@index([sellerId])
@@ -391,12 +393,14 @@ model AuditLog {
 
 model AIUsage {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
+  actorId   String   // User id, or an explicit service actor without a login account
   service   String   // 'GPT5_MINI' or 'GPT_IMAGE_1'
   cost      Float    // Estimated cost in USD
   timestamp DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
+  @@index([actorId, timestamp])
   @@index([timestamp])
 }

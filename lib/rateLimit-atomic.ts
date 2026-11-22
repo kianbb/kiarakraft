@@ -207,7 +207,7 @@ export function withAtomicRateLimit<T extends unknown[]>(
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);
 
       console.warn(
-        `Rate limit exceeded for ${request.url} from IP ${
+        `Rate limit exceeded for ${new URL(request.url).pathname} from IP ${
           request.headers.get('x-forwarded-for') || 'unknown'
         }`
       );

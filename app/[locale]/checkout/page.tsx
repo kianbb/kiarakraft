@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -24,12 +24,9 @@ import {
 } from '@/components/checkout/ShippingMethodSelector';
 
 export default function CheckoutPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('checkout');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('checkout');
 
   // State
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
@@ -56,27 +53,35 @@ export default function CheckoutPage() {
     }>
   >([]);
 
+  const fetchCart = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/cart', { signal })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setCartItems(data);
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching cart:', error);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
+  }, []);
+
   useEffect(() => {
+    if (status === 'loading') return;
     if (!session) {
       router.push('/auth/login');
       return;
     }
-    fetchCart();
-  }, [session, router]);
-
-  const fetchCart = async () => {
-    try {
-      const response = await fetch('/api/cart');
-      if (response.ok) {
-        const data = await response.json();
-        setCartItems(data);
-      }
-    } catch (error) {
-      console.error('Error fetching cart:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const controller = new AbortController();
+    void fetchCart(controller.signal);
+    return () => controller.abort();
+  }, [session, status, router, fetchCart]);
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total: number, item: CartItemWithProduct) => {

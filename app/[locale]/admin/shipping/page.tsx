@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { allowedShippingStatuses, shippingStatuses } from '@/lib/orderStatus';
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ interface ShippingRecord {
   updatedAt: string;
   order: {
     id: string;
+    status: string;
     totalToman: number;
     user: {
       email: string;
@@ -68,50 +70,57 @@ interface ShippingResponse {
 export default function AdminShippingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('admin');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('admin');
 
   const [shippingData, setShippingData] = useState<ShippingResponse | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [methodFilter, setMethodFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [methodFilter, setMethodFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingShipping, setEditingShipping] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
+    expectedUpdatedAt: '',
     status: '',
     trackingNo: '',
     notes: '',
   });
 
-  const fetchShippingRecords = useCallback(async () => {
-    try {
+  const fetchShippingRecords = useCallback(
+    (signal?: AbortSignal) => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '20',
       });
 
-      if (statusFilter) params.append('status', statusFilter);
-      if (methodFilter) params.append('method', methodFilter);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (methodFilter !== 'all') params.append('method', methodFilter);
       if (searchTerm) params.append('search', searchTerm);
 
-      const response = await fetch(`/api/admin/shipping?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setShippingData(data);
-      }
-    } catch (error) {
-      console.error('Error fetching shipping records:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, statusFilter, methodFilter, searchTerm]);
+      return fetch(`/api/admin/shipping?${params}`, { signal })
+        .then(async response => {
+          if (signal?.aborted) return;
+          if (response.ok) {
+            const data = await response.json();
+            if (signal?.aborted) return;
+            setShippingData(data);
+          }
+        })
+        .catch(error => {
+          if (signal?.aborted) return;
+          console.error('Error fetching shipping records:', error);
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
+        });
+    },
+    [currentPage, statusFilter, methodFilter, searchTerm]
+  );
 
   useEffect(() => {
+    if (status === 'loading') return;
     if (status === 'unauthenticated') {
       router.push('/auth/login');
       return;
@@ -120,7 +129,9 @@ export default function AdminShippingPage() {
       router.push('/');
       return;
     }
-    fetchShippingRecords();
+    const controller = new AbortController();
+    void fetchShippingRecords(controller.signal);
+    return () => controller.abort();
   }, [
     session,
     status,
@@ -139,6 +150,7 @@ export default function AdminShippingPage() {
   const handleEditShipping = (shipping: ShippingRecord) => {
     setEditingShipping(shipping.id);
     setEditForm({
+      expectedUpdatedAt: shipping.updatedAt,
       status: shipping.status,
       trackingNo: shipping.trackingNo || '',
       notes: '',
@@ -158,13 +170,16 @@ export default function AdminShippingPage() {
       if (response.ok) {
         setEditingShipping(null);
         fetchShippingRecords();
+      } else if (response.status === 409) {
+        setEditingShipping(null);
+        await fetchShippingRecords();
+        alert(t('shippingUpdateConflict'));
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to update shipping');
+        alert(t('updateFailed'));
       }
     } catch (error) {
       console.error('Error updating shipping:', error);
-      alert('Failed to update shipping');
+      alert(t('updateFailed'));
     }
   };
 
@@ -172,14 +187,28 @@ export default function AdminShippingPage() {
     switch (status) {
       case 'PROCESSING':
         return (
-          <Badge className="bg-yellow-100 text-yellow-800">Processing</Badge>
+          <Badge className="bg-yellow-100 text-yellow-800">
+            {t('shippingStatus.PROCESSING')}
+          </Badge>
         );
       case 'SHIPPED':
-        return <Badge className="bg-blue-100 text-blue-800">Shipped</Badge>;
+        return (
+          <Badge className="bg-blue-100 text-blue-800">
+            {t('shippingStatus.SHIPPED')}
+          </Badge>
+        );
       case 'DELIVERED':
-        return <Badge className="bg-green-100 text-green-800">Delivered</Badge>;
+        return (
+          <Badge className="bg-green-100 text-green-800">
+            {t('shippingStatus.DELIVERED')}
+          </Badge>
+        );
       case 'RETURNED':
-        return <Badge className="bg-red-100 text-red-800">Returned</Badge>;
+        return (
+          <Badge className="bg-red-100 text-red-800">
+            {t('shippingStatus.RETURNED')}
+          </Badge>
+        );
       default:
         return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
     }
@@ -250,11 +279,12 @@ export default function AdminShippingPage() {
                   <SelectValue placeholder={t('allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('allStatuses')}</SelectItem>
-                  <SelectItem value="PROCESSING">Processing</SelectItem>
-                  <SelectItem value="SHIPPED">Shipped</SelectItem>
-                  <SelectItem value="DELIVERED">Delivered</SelectItem>
-                  <SelectItem value="RETURNED">Returned</SelectItem>
+                  <SelectItem value="all">{t('allStatuses')}</SelectItem>
+                  {shippingStatuses.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {t(`shippingStatus.${status}`)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -266,7 +296,7 @@ export default function AdminShippingPage() {
                   <SelectValue placeholder={t('allMethods')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('allMethods')}</SelectItem>
+                  <SelectItem value="all">{t('allMethods')}</SelectItem>
                   <SelectItem value="STANDARD">Standard</SelectItem>
                   <SelectItem value="EXPRESS">Express</SelectItem>
                   <SelectItem value="PICKUP">Pickup</SelectItem>
@@ -275,7 +305,7 @@ export default function AdminShippingPage() {
             </div>
 
             <div className="flex items-end">
-              <Button onClick={fetchShippingRecords} className="w-full">
+              <Button onClick={() => fetchShippingRecords()} className="w-full">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 {t('refresh')}
               </Button>
@@ -348,6 +378,7 @@ export default function AdminShippingPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label={t('editShipment')}
                       onClick={() => handleEditShipping(shipping)}
                     >
                       <Edit className="h-4 w-4" />
@@ -368,14 +399,18 @@ export default function AdminShippingPage() {
                           setEditForm({ ...editForm, status: value })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="edit-status">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="PROCESSING">Processing</SelectItem>
-                          <SelectItem value="SHIPPED">Shipped</SelectItem>
-                          <SelectItem value="DELIVERED">Delivered</SelectItem>
-                          <SelectItem value="RETURNED">Returned</SelectItem>
+                          {allowedShippingStatuses(
+                            shipping.order.status,
+                            shipping.status
+                          ).map(status => (
+                            <SelectItem key={status} value={status}>
+                              {t(`shippingStatus.${status}`)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -411,7 +446,17 @@ export default function AdminShippingPage() {
                   </div>
 
                   <div className="flex gap-2 mt-4">
-                    <Button onClick={handleSaveShipping}>{t('save')}</Button>
+                    <Button
+                      disabled={
+                        !allowedShippingStatuses(
+                          shipping.order.status,
+                          shipping.status
+                        ).some(status => status === editForm.status)
+                      }
+                      onClick={handleSaveShipping}
+                    >
+                      {t('save')}
+                    </Button>
                     <Button
                       variant="outline"
                       onClick={() => setEditingShipping(null)}

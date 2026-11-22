@@ -4,13 +4,20 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
   uploadImageToCloudinary,
-  validateImageFile,
   UPLOAD_FOLDER,
   deleteImageFromCloudinary,
 } from '@/lib/cloudinary';
 import { revalidateTag } from 'next/cache';
+import { isStagingDeployment } from '@/lib/deployment-policy';
+import {
+  ProductImageInputError,
+  readProductImage,
+} from '@/lib/product-image-input';
 
 export async function uploadProductImage(formData: FormData) {
+  if (isStagingDeployment()) {
+    return { success: false, error: 'Image uploads are disabled in staging' };
+  }
   try {
     const session = await auth();
 
@@ -27,10 +34,15 @@ export async function uploadProductImage(formData: FormData) {
       return { success: false, error: 'Seller profile required' };
     }
 
-    const file = formData.get('file') as File;
-    const productId = formData.get('productId') as string;
-
-    if (!file || !productId) {
+    const files = formData.getAll('file');
+    const productIds = formData.getAll('productId');
+    const productId = productIds[0];
+    if (
+      files.length !== 1 ||
+      productIds.length !== 1 ||
+      typeof productId !== 'string' ||
+      !productId
+    ) {
       return { success: false, error: 'File and product ID are required' };
     }
 
@@ -46,15 +58,7 @@ export async function uploadProductImage(formData: FormData) {
       return { success: false, error: 'Product not found or access denied' };
     }
 
-    // Validate file
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      return { success: false, error: validation.error };
-    }
-
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = await readProductImage(files[0]);
 
     // Upload to Cloudinary
     const uploadResult = await uploadImageToCloudinary(buffer, {
@@ -95,11 +99,11 @@ export async function uploadProductImage(formData: FormData) {
       },
     };
   } catch (error) {
-    console.error('Error uploading product image:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Upload failed',
-    };
+    if (error instanceof ProductImageInputError) {
+      return { success: false, error: error.message, status: error.status };
+    }
+    console.error('Product image upload failed');
+    return { success: false, error: 'Upload failed' };
   }
 }
 

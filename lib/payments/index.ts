@@ -1,6 +1,6 @@
 import { OfflineAdapter } from './adapters/offline';
-import { ZarinpalStub } from './adapters/zarinpalStub';
 
-const gateway = process.env.PAYMENT_GATEWAY ?? 'OFFLINE'; // "OFFLINE" | "ZARINPAL"
-
-export const adapter = gateway === 'ZARINPAL' ? ZarinpalStub : OfflineAdapter;
+export function getOfflinePaymentAdapter() {
+  const gateway = process.env.PAYMENT_GATEWAY;
+  return gateway === undefined || gateway === 'OFFLINE' ? OfflineAdapter : null;
+}

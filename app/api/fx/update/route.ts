@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateFxRates } from '@/scripts/fx-update';
+import { isStagingDeployment } from '@/lib/deployment-policy';
 
 export async function POST(request: NextRequest) {
+  if (isStagingDeployment()) {
+    return NextResponse.json({ error: 'Disabled in staging' }, { status: 503 });
+  }
   try {
     // Verify this is from Vercel Cron or admin
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('🔄 FX update triggered via API');
 
+    const { updateFxRates } = await import('@/scripts/fx-update');
     const rates = await updateFxRates();
 
     return NextResponse.json({
@@ -35,14 +39,18 @@ export async function POST(request: NextRequest) {
 
 // Allow GET for manual testing
 export async function GET(request: NextRequest) {
+  if (isStagingDeployment()) {
+    return NextResponse.json({ error: 'Disabled in staging' }, { status: 503 });
+  }
   try {
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { updateFxRates } = await import('@/scripts/fx-update');
     const rates = await updateFxRates();
 
     return NextResponse.json({

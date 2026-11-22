@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // Basic health check
+    await prisma.$queryRaw`SELECT 1`;
     const healthData = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -10,7 +13,7 @@ export async function GET() {
       environment: process.env.NODE_ENV,
       version: process.env.npm_package_version || '1.0.0',
       services: {
-        database: 'connected', // Could add actual DB health check here
+        database: 'connected',
         api: 'operational',
       },
     };

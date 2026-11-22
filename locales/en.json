@@ -272,8 +272,10 @@
     "requestReturn": "Request Return",
     "noReturnableItems": "No Returnable Items",
     "allItemsReturned": "All items in this order already have return requests.",
+    "deliveryUnconfirmed": "We could not confirm the delivery date. Contact support for help with a return.",
+    "contactSupport": "Contact support",
     "backToOrder": "Back to Order",
-    "returnPolicy": "You can request a return for items within 30 days of delivery.",
+    "returnPolicy": "For eligible items, request a return from the time of recorded delivery through the end of the 30th calendar day after delivery, Tehran time.",
     "selectItem": "Select Item to Return",
     "chooseItem": "Choose an item...",
     "reasonForReturn": "Reason for Return",
@@ -357,7 +359,7 @@
     "adding": "Adding...",
     "addedToCart": "Added to cart",
     "addToWishlist": "Add to Wishlist",
-    "reviews": "reviews",
+    "ratingSummary": "{average} out of 5 · {count, plural, one {# review} other {# reviews}}",
     "demoProductNotice": "This is a demo product. Please visit our explore page to see real products!"
   },
   "auth": {
@@ -488,7 +490,7 @@
     "productTags": "Product Tags",
     "chooseImages": "Choose Images",
     "uploadingImages": "Uploading...",
-    "dragDropImages": "Drag & drop or click to upload. JPEG, PNG, WebP up to 5MB each",
+    "dragDropImages": "Drag and drop or click to upload JPEG, PNG, or WebP photos under 2 MB each.",
     "noImagesUploaded": "No images uploaded yet",
     "primaryImage": "Primary",
     "editAlt": "Edit alt",
@@ -496,9 +498,12 @@
     "saveAlt": "Save",
     "cancelAlt": "Cancel",
     "altTextPlaceholder": "Alt text (max 200 chars)",
-    "maximumImagesAllowed": "Maximum {{count}} images allowed",
+    "maximumImagesAllowed": "Maximum {count} images allowed",
     "uploadComplete": "Upload complete",
     "uploadFailed": "Upload failed",
+    "uploadImageTooLarge": "This photo is too large. Choose a smaller file.",
+    "uploadImageFormats": "JPEG, PNG, or WebP.",
+    "uploadImageInvalid": "Choose a JPEG, PNG, or WebP photo without animation, up to 24 megapixels.",
     "imageDeleted": "Image deleted",
     "deleteFailed": "Delete failed",
     "imagesReordered": "Images reordered",
@@ -563,6 +568,7 @@
     "visualBranding": "Visual Branding",
     "updateProfile": "Update Profile",
     "verificationPendingMessage": "Your seller verification request is being reviewed",
+    "manualVerificationDescription": "Update your shop profile and contact your Kiara Kraft onboarding coordinator for approval. Keep your national ID and identity documents private.",
     "completeOnboarding": "Complete Onboarding",
     "editShopInfo": "Edit Shop Info",
     "editProfile": "Edit Profile",
@@ -594,7 +600,12 @@
     "verificationDescription": "Complete your identity verification to start selling",
     "nationalId": "National ID",
     "nationalIdPlaceholder": "Enter your 10-digit national ID",
-    "nationalIdPrivacyNote": "Your national ID is encrypted and only used for identity verification",
+    "nationalIdPrivacyNote": "Your national ID is used for identity verification. We store a protected fingerprint rather than the number itself.",
+    "nationalIdInvalid": "Enter your 10-digit national ID.",
+    "identityAlreadyRecorded": "Your identity information is already recorded. Contact support if it needs to change.",
+    "identityUnavailable": "Identity verification is temporarily unavailable. Please try again later.",
+    "onboardingFailed": "We could not complete your shop setup. Please try again.",
+    "documentUploadFailed": "We could not upload your document. Please try again.",
     "supportingDocuments": "Supporting Documents",
     "uploadDocuments": "Upload Documents",
     "uploading": "Uploading...",
@@ -629,7 +640,12 @@
     "approvedNextSteps": "Your product is now live on the marketplace and visible to buyers.",
     "rejectionReasons": "Rejection Reasons",
     "whatToDo": "What to do",
-    "rejectedNextSteps": "Review the feedback and update your product to meet our handmade marketplace standards. You can edit and resubmit your product."
+    "rejectedNextSteps": "Review the feedback and update your product to meet our handmade marketplace standards. You can edit and resubmit your product.",
+    "documentUploaded": "Document uploaded securely.",
+    "documentsReconciliationRequired": "Your existing documents need a secure review before more can be uploaded. Please contact support.",
+    "documentsLimit": "A maximum of five documents can be submitted.",
+    "uploadedDocuments": "Uploaded documents",
+    "document": "Document"
   },
   "shop": {
     "verified": "Verified",
@@ -663,7 +679,6 @@
     "supportMessage": "Support Iranian artists and craftspeople by shopping at Kiara Kraft",
     "allRightsReserved": "All rights reserved"
   },
-
   "admin": {
     "dashboard": "Admin Dashboard",
     "welcomeBack": "Welcome back",
@@ -699,7 +714,6 @@
     "searchSellers": "Search sellers...",
     "ago": "ago",
     "days": "days",
-    "sellerVerification": "Seller Verification",
     "verificationDescription": "Review KYC details and approve or reject sellers.",
     "review": "Review",
     "documents": "Documents",
@@ -738,6 +752,14 @@
     "next": "Next",
     "updateFailed": "Update failed",
     "shippingManagement": "Shipping Management",
+    "editShipment": "Edit shipment",
+    "shippingUpdateConflict": "The shipment could not be updated. Review its current status and try again.",
+    "shippingStatus": {
+      "PROCESSING": "Processing",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "RETURNED": "Returned"
+    },
     "search": "Search",
     "searchPlaceholder": "Search by tracking number, order ID, or email...",
     "status": "Status",
@@ -782,11 +804,17 @@
     "orderId": "Order ID",
     "reason": "Reason",
     "markReceived": "Mark Received",
-    "processRefund": "Process Refund",
+    "returnRefundUnavailable": "Refund processing is unavailable.",
+    "refunded": "Recorded as refunded",
+    "returnStatusChanged": "This return was updated. Refresh the page before trying again.",
     "returnStatusUpdated": "Return status updated successfully",
     "errorUpdatingReturn": "Error updating return status",
     "noReturns": "No returns found",
-    "noReturnsInStatus": "No returns in this status"
+    "noReturnsInStatus": "No returns in this status",
+    "documentLabel": "Document {number}",
+    "documentUnavailable": "Document unavailable",
+    "documentsUnavailable": "Documents could not be loaded. Please try again.",
+    "documentsReconciliationRequired": "Some older documents need a secure review before they can be opened."
   },
   "reviews": {
     "leaveReview": "Leave a Review",
@@ -820,15 +848,14 @@
   "refunds": {
     "title": "Refund Policy",
     "description": "Refund and Return Policy for Kiara Kraft handcrafted marketplace",
-    "lastUpdated": "Last Updated",
-    "effectiveDate": "Effective Date",
-    "timelineNotice": "All refund requests must be initiated within 7 days of delivery. Due to the handcrafted nature of our products, each request is reviewed individually.",
+    "pilotScope": "Returns for invited-pilot purchases",
+    "timelineNotice": "For eligible purchases in the invited pilot, request a return from the time of recorded delivery through the end of the 30th calendar day after delivery, Tehran time. We review each request individually. Your statutory rights still apply.",
     "refundTimeline": "Refund Timeline",
     "request": "Request",
     "review": "Review",
     "decision": "Decision",
     "processing": "Processing",
-    "requestPeriod": "0-7 days after delivery",
+    "requestPeriod": "Delivery through day 30, Tehran time",
     "reviewPeriod": "1-3 business days",
     "decisionPeriod": "3-5 business days",
     "processingPeriod": "5-14 business days",
@@ -849,10 +876,10 @@
     "finalSaleItems": "Final Sale Items",
     "finalSaleItemsDescription": "Items marked as final sale during purchase.",
     "howToRequestRefund": "How to Request a Refund",
-    "contactCustomerService": "Contact Customer Service",
-    "contactDescription": "Email refunds@kiarakraft.com with your order number and reason for refund.",
-    "provideDocumentation": "Provide Documentation",
-    "documentationDescription": "Include photos of the product and any relevant documentation.",
+    "startRequest": "Start Your Request",
+    "startRequestDescription": "Open the order in your account and choose Request Return. If your order has not arrived, its delivery date is missing, or you need help with an exception, contact support with your order number.",
+    "keepDocumentation": "Keep Photos and Documents",
+    "documentationDescription": "Keep photos of the item and any relevant documents in case support asks for them.",
     "waitForReview": "Wait for Review",
     "waitDescription": "Our team will review your request within 1-3 business days.",
     "returnIfApproved": "Return if Approved",
@@ -998,8 +1025,7 @@
   "terms": {
     "title": "Terms of Service",
     "description": "Terms of Service for Kiara Kraft handcrafted marketplace",
-    "lastUpdated": "Last Updated",
-    "effectiveDate": "Effective Date",
+    "pilotScope": "These terms include the return policy for invited-pilot purchases.",
     "acceptance": {
       "title": "Acceptance of Terms",
       "content": "By accessing and using Kiara Kraft, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service."
@@ -1039,7 +1065,7 @@
       },
       "refunds": {
         "title": "Refunds",
-        "content": "Refund eligibility is subject to our refund policy and must be initiated within 7 days of delivery."
+        "content": "For eligible purchases in the invited pilot, request a return from your order page through the end of the 30th calendar day after recorded delivery, Tehran time. Contact support for undelivered orders and exceptions. Your statutory rights still apply."
       }
     },
     "userConduct": {

@@ -1,9 +1,55 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { assertDeploymentPolicy } from './deployment-policy';
+import {
+  runtimeDatabaseOptions,
+  verifyLocalRuntimeIdentity,
+} from './postgres-connection';
+import { verifyProductionDatabaseTarget } from './production-database';
+import {
+  guardPrismaDatabase,
+  verifyStagingDatabaseTargets,
+} from './staging-database';
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  localPrisma?: { target: string | undefined; client: PrismaClient };
 };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+const environment = { ...process.env };
+const policy = assertDeploymentPolicy(environment);
+const { pool, localKind } = runtimeDatabaseOptions(environment, policy);
+const cacheable = Boolean(localKind && environment.NODE_ENV !== 'production');
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+function createPrismaClient(): PrismaClient {
+  const client = new PrismaClient({
+    adapter: new PrismaPg(pool, { schema: 'public' }),
+  });
+  if (policy.mode === 'staging') {
+    return guardPrismaDatabase(client, () =>
+      verifyStagingDatabaseTargets(environment, false)
+    );
+  }
+  if (policy.mode === 'production') {
+    return guardPrismaDatabase(client, () =>
+      verifyProductionDatabaseTarget(policy)
+    );
+  }
+  if (localKind) {
+    return guardPrismaDatabase(client, () =>
+      verifyLocalRuntimeIdentity(pool, localKind)
+    );
+  }
+  return client;
+}
+
+const cached = cacheable ? globalForPrisma.localPrisma : undefined;
+export const prisma =
+  cached && cached.target === environment.DATABASE_URL
+    ? cached.client
+    : createPrismaClient();
+
+if (cacheable)
+  globalForPrisma.localPrisma = {
+    target: environment.DATABASE_URL,
+    client: prisma,
+  };

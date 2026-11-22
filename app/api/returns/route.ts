@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { withCSRF } from '@/lib/csrf';
+import {
+  RETURN_WINDOW_DAYS,
+  returnIneligibility,
+} from '@/lib/return-eligibility';
 
 const createReturnSchema = z.object({
   orderId: z.string().min(1).max(50),
@@ -146,6 +150,7 @@ export const POST = withCSRF(async function (request: NextRequest) {
       include: {
         items: true,
         payment: true,
+        shipping: { select: { history: true } },
       },
     });
 
@@ -153,32 +158,21 @@ export const POST = withCSRF(async function (request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Check if order is eligible for return
-    if (order.payment?.status !== 'PAID') {
+    const ineligibility = returnIneligibility(order);
+    if (ineligibility) {
+      const messages = {
+        unpaid: 'Order must be paid to request return',
+        undelivered: 'Order must be delivered to request return',
+        delivery_unconfirmed: 'Contact support to confirm the delivery date',
+        expired: `Return window of ${RETURN_WINDOW_DAYS} days has expired`,
+      };
       return NextResponse.json(
-        { error: 'Order must be paid to request return' },
-        { status: 400 }
-      );
-    }
-
-    // Check if order was delivered
-    if (order.status !== 'DELIVERED') {
-      return NextResponse.json(
-        { error: 'Order must be delivered to request return' },
-        { status: 400 }
-      );
-    }
-
-    // Check return time window (30 days)
-    const deliveryDate = order.updatedAt; // Assuming updatedAt is when status changed to DELIVERED
-    const daysSinceDelivery = Math.floor(
-      (Date.now() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const RETURN_WINDOW_DAYS = 30;
-
-    if (daysSinceDelivery > RETURN_WINDOW_DAYS) {
-      return NextResponse.json(
-        { error: `Return window of ${RETURN_WINDOW_DAYS} days has expired` },
+        {
+          error: messages[ineligibility],
+          ...(ineligibility === 'delivery_unconfirmed' && {
+            code: ineligibility,
+          }),
+        },
         { status: 400 }
       );
     }

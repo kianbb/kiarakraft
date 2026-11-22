@@ -8,10 +8,10 @@ export type OrderItemSnapshot = {
 
 export type MinimalTx = {
   order: {
-    update(args: {
-      where: { id: string };
+    updateMany(args: {
+      where: { id: string; userId: string; status: 'PENDING' };
       data: { status: 'CANCELED' };
-    }): Promise<unknown>;
+    }): Promise<{ count: number }>;
   };
   cart: {
     upsert(args: {
@@ -34,11 +34,14 @@ export async function cancelOrderAndRestoreCart(
   userId: string,
   orderId: string,
   items: OrderItemSnapshot[]
-): Promise<{ orderCanceled: true; cartRestored: true }> {
-  await tx.order.update({
-    where: { id: orderId },
+): Promise<{ orderCanceled: boolean; cartRestored: boolean }> {
+  const canceled = await tx.order.updateMany({
+    where: { id: orderId, userId, status: 'PENDING' },
     data: { status: 'CANCELED' },
   });
+  if (canceled.count !== 1) {
+    return { orderCanceled: false, cartRestored: false };
+  }
 
   const cart = await tx.cart.upsert({
     where: { userId },
@@ -58,5 +61,5 @@ export async function cancelOrderAndRestoreCart(
     });
   }
 
-  return { orderCanceled: true, cartRestored: true } as const;
+  return { orderCanceled: true, cartRestored: true };
 }

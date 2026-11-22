@@ -8,7 +8,10 @@ import { verifyHumanUser } from '@/lib/captcha';
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8, 'Password must be at least 8 characters long'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters long')
+    .max(72),
   name: z.string().min(1),
   role: z.enum(['BUYER', 'SELLER']).default('BUYER'),
   // Seller-specific fields
@@ -123,7 +126,6 @@ export const POST = withRateLimit(
       });
 
       // Remove password from response
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _password, ...userWithoutPassword } = user;
 
       return NextResponse.json({
@@ -131,7 +133,7 @@ export const POST = withRateLimit(
         user: userWithoutPassword,
       });
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Registration failed');
 
       if (error instanceof z.ZodError) {
         return NextResponse.json(

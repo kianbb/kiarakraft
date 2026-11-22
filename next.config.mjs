@@ -1,4 +1,3 @@
-import { withSentryConfig } from '@sentry/nextjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 // Build a CSP string. Start with Report-Only, then enforce after verification.
@@ -8,6 +7,9 @@ const makeCsp = () => {
   const CLOUDINARY_API = 'https://api.cloudinary.com';
   const UNSPLASH = 'https://images.unsplash.com';
   const PICSUM = 'https://picsum.photos';
+
+  if (isStaging)
+    return "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;";
 
   const policy = `
     default-src 'self';
@@ -27,24 +29,30 @@ const makeCsp = () => {
 };
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+const isStaging =
+  process.env.KK_DEPLOYMENT_MODE === 'staging' ||
+  process.env.VERCEL_ENV === 'preview';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: { NEXT_PUBLIC_KK_STAGING: String(isStaging) },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-      },
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-      },
-    ],
+    remotePatterns: isStaging
+      ? []
+      : [
+          {
+            protocol: 'https',
+            hostname: 'images.unsplash.com',
+          },
+          {
+            protocol: 'https',
+            hostname: 'picsum.photos',
+          },
+          {
+            protocol: 'https',
+            hostname: 'res.cloudinary.com',
+          },
+        ],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
@@ -55,21 +63,26 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   poweredByHeader: false,
-  compress: true,
-  trailingSlash: false,
-  generateEtags: true,
-  reactStrictMode: true,
+  reactCompiler: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '127.0.0.1:3000'],
       bodySizeLimit: '2mb', // Limit server action body size
     },
-    optimizePackageImports: ['lucide-react', '@/components/ui'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   headers: async () => [
+    ...(isStaging
+      ? [
+          {
+            source: '/:path*',
+            headers: [
+              { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+            ],
+          },
+        ]
+      : []),
     {
       source: '/:path*',
       headers: [
@@ -118,6 +131,14 @@ const nextConfig = {
       ],
     },
     {
+      // APIs return account/order data as well as public catalog data. Default
+      // all of them to private storage until a public cache is explicitly designed.
+      source: '/api/:path*',
+      headers: [
+        { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+      ],
+    },
+    {
       source: '/static/:path*',
       headers: [
         {
@@ -162,22 +183,6 @@ const nextConfig = {
       ],
     },
   ],
-  eslint: {
-    // Enforce ESLint checks during builds for better code quality
-    ignoreDuringBuilds: false,
-  },
-  typescript: {
-    // Enforce TypeScript checks during builds to prevent runtime errors
-    ignoreBuildErrors: false,
-  },
-  webpack: config => {
-    config.ignoreWarnings = [
-      // Silence known benign OTel/Sentry dynamic require warnings
-      /Critical dependency: the request of a dependency is an expression/,
-      /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
-    ];
-    return config;
-  },
 };
 
 export default withNextIntl(nextConfig);

@@ -1,43 +1,18 @@
 name: lighthouse
 
+# Legacy remote probes are suspended until protected synthetic staging is verified.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
-  lighthouse:
+  require-staging-verification:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 2
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Build application
-        run: npm run build
-        env:
-          NEXTAUTH_SECRET: test-secret-key
-          NEXTAUTH_URL: http://localhost:3000
-
-      - name: Run Lighthouse CI
-        run: npm run lhci
-        env:
-          NEXTAUTH_SECRET: test-secret-key
-          NEXTAUTH_URL: http://localhost:3000
-          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
-          LHCI_BUILD_CONTEXT__COMMIT_TIME: ${{ github.event.head_commit.timestamp }}
-          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
-          LHCI_BUILD_CONTEXT__COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      - name: Require an isolated staging test runner
+        run: |
+          echo "::error::This legacy workflow is suspended. Use the local checks in CI until an access-protected synthetic staging runner is verified."
+          exit 1

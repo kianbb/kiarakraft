@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,28 +35,35 @@ export function AddressSelector({
     isDefault: false,
   });
 
-  const fetchAddresses = useCallback(async () => {
-    try {
-      const response = await fetch('/api/addresses');
-      if (response.ok) {
-        const data = await response.json();
+  const fetchAddresses = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/addresses', { signal })
+      .then(async response => {
+        if (!response.ok) return;
+        const data: Address[] = await response.json();
+        if (signal?.aborted) return;
         setAddresses(data);
-        // Auto-select default address if none selected
-        if (!selectedAddressId && data.length > 0) {
-          const defaultAddress =
-            data.find((addr: Address) => addr.isDefault) || data[0];
-          onAddressSelect(defaultAddress);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching addresses:', error);
-    } finally {
-      setLoading(false);
+        return data;
+      })
+      .catch(error => {
+        if (!signal?.aborted) console.error('Error fetching addresses:', error);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
+  }, []);
+
+  const selectInitialAddress = useEffectEvent((data: Address[]) => {
+    if (!selectedAddressId && data.length > 0) {
+      onAddressSelect(data.find(address => address.isDefault) ?? data[0]);
     }
-  }, [selectedAddressId, onAddressSelect]);
+  });
 
   useEffect(() => {
-    fetchAddresses();
+    const controller = new AbortController();
+    void fetchAddresses(controller.signal).then(data => {
+      if (data && !controller.signal.aborted) selectInitialAddress(data);
+    });
+    return () => controller.abort();
   }, [fetchAddresses]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,7 +120,12 @@ export function AddressSelector({
       });
 
       if (response.ok) {
-        fetchAddresses();
+        const remaining = await fetchAddresses();
+        if (!selectedAddressId && remaining?.length) {
+          onAddressSelect(
+            remaining.find(address => address.isDefault) ?? remaining[0]
+          );
+        }
       }
     } catch (error) {
       console.error('Error deleting address:', error);

@@ -1,5 +1,4 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Badge } from '@/components/ui/badge';
 import { Scale } from 'lucide-react';
 
 interface TermsPageProps {
@@ -30,12 +29,7 @@ export default async function TermsOfServicePage({ params }: TermsPageProps) {
             <Scale className="h-10 w-10 text-primary" />
             {t('title')}
           </h1>
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <Badge variant="secondary">
-              {t('lastUpdated')}: August 18, 2025
-            </Badge>
-            <span>{t('effectiveDate')}: August 18, 2025</span>
-          </div>
+          <p className="text-muted-foreground">{t('pilotScope')}</p>
         </div>
 
         <div className="prose prose-lg max-w-none">

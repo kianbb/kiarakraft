@@ -1,18 +1,25 @@
+import {
+  ImageOrderError,
+  reorderProductImages,
+} from '@/lib/product-image-order';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withRateLimit, uploadRateLimit } from '@/lib/rateLimit';
-import {
-  uploadImageToCloudinary,
-  ALLOWED_IMAGE_TYPES,
-  MAX_FILE_SIZE,
-} from '@/lib/cloudinary';
+import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { withCSRF } from '@/lib/csrf';
+import { isStagingDeployment } from '@/lib/deployment-policy';
+import {
+  ProductImageInputError,
+  readImageMultipart,
+  readProductImage,
+} from '@/lib/product-image-input';
+
+const MAX_BATCH_FILES = 5;
 
 export const runtime = 'nodejs';
 
-// Upload one or more images for a seller's product
-export const POST = withRateLimit(
+const limitedUpload = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (
     request: NextRequest,
@@ -49,14 +56,16 @@ export const POST = withRateLimit(
         );
       }
 
-      const formData = await request.formData();
-      const files = formData.getAll('files') as File[];
-      if (!files || files.length === 0) {
+      const formData = await readImageMultipart(request);
+      const files = formData.getAll('files');
+      if (files.length === 0 || files.length > MAX_BATCH_FILES) {
         return NextResponse.json(
-          { error: 'No files provided' },
+          { error: 'Upload between one and five image files' },
           { status: 400 }
         );
       }
+      const images: Buffer[] = [];
+      for (const file of files) images.push(await readProductImage(file));
 
       const existingCount = await prisma.listingImage.count({
         where: { productId },
@@ -65,23 +74,7 @@ export const POST = withRateLimit(
 
       const results: Array<{ id: string; url: string; sortOrder: number }> = [];
 
-      for (const file of files) {
-        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-          return NextResponse.json(
-            { error: `Invalid file type: ${file.type}` },
-            { status: 400 }
-          );
-        }
-        if (file.size > MAX_FILE_SIZE) {
-          return NextResponse.json(
-            {
-              error: `File too large: max ${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB`,
-            },
-            { status: 400 }
-          );
-        }
-
-        const buffer = Buffer.from(await file.arrayBuffer());
+      for (const buffer of images) {
         const uploaded = await uploadImageToCloudinary(buffer, {
           folder: `kiarakraft/products/${productId}`,
         });
@@ -97,19 +90,40 @@ export const POST = withRateLimit(
 
       return NextResponse.json({ success: true, images: results });
     } catch (error) {
-      console.error('Upload product images error:', error);
+      if (error instanceof ProductImageInputError) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: error.status }
+        );
+      }
+      console.error('Product image batch upload failed');
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
     }
   })
 );
+
+// Upload one or more images for a seller's product.
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+  if (isStagingDeployment()) {
+    return NextResponse.json(
+      { error: 'Image uploads are disabled in staging' },
+      { status: 403 }
+    );
+  }
+  return limitedUpload(request, context);
+}
 
 // Reorder images by providing an array of { id, sortOrder }
 export const PATCH = withRateLimit(
   uploadRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params: routeParams }: { params: Promise<{ id: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
       if (!session?.user?.email) {
@@ -140,26 +154,16 @@ export const PATCH = withRateLimit(
       }
 
       const body = await request.json();
-      const updates: Array<{ id: string; sortOrder: number }> =
-        body?.order ?? [];
-      if (!Array.isArray(updates) || updates.length === 0) {
-        return NextResponse.json(
-          { error: 'No order provided' },
-          { status: 400 }
-        );
-      }
-
-      await Promise.all(
-        updates.map(u =>
-          prisma.listingImage.update({
-            where: { id: u.id },
-            data: { sortOrder: u.sortOrder },
-          })
-        )
-      );
+      await reorderProductImages(prisma, productId, body?.order);
 
       return NextResponse.json({ success: true });
     } catch (error) {
+      if (error instanceof ImageOrderError) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: error.status }
+        );
+      }
       console.error('Reorder images error:', error);
       return NextResponse.json({ error: 'Reorder failed' }, { status: 500 });
     }

@@ -1,11 +1,7 @@
 import OpenAI from 'openai';
 import * as Sentry from '@sentry/nextjs';
-import {
-  sanitizeForPrompt,
-  trackAIUsage,
-  estimateGPT5MiniCost,
-  validateImageUrl,
-} from '@/lib/security-utils';
+import { sanitizeForPrompt, validateImageUrl } from '@/lib/security-utils';
+import { AIBudgetError, reserveAICall } from '@/lib/ai-budget';
 
 type EligibilityResult = {
   status: 'APPROVED' | 'REJECTED';
@@ -68,11 +64,6 @@ export async function assessProductWithAI(input: {
       console.error('⚠️ No OpenAI API key found - cannot assess product');
       throw new Error('AI configuration error - please contact support');
     }
-
-    const openai = new OpenAI({
-      apiKey: openaiKey,
-      timeout: 120000, // 2 minute timeout
-    });
 
     // Validate image URL if provided
     if (input.imageUrl) {
@@ -146,30 +137,16 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       },
     ];
 
-    // Track AI usage if userId provided
-    if (input.userId) {
-      try {
-        const estimatedCost = estimateGPT5MiniCost(1500, 500); // Rough estimate
-        const usageCheck = await trackAIUsage(
-          input.userId,
-          'GPT5_MINI',
-          estimatedCost
-        );
-
-        if (!usageCheck.allowed) {
-          console.warn(
-            `⚠️ AI assessment limit exceeded for user ${input.userId}`
-          );
-          throw new Error(
-            'Monthly AI usage limit exceeded - please try again next month'
-          );
-        }
-      } catch (trackingError) {
-        // Don't fail assessment if usage tracking fails
-        console.error('AI usage tracking failed (continuing):', trackingError);
-        // Continue with assessment even if tracking fails
-      }
-    }
+    await reserveAICall({
+      userId: input.userId,
+      purpose: 'product-assessment',
+      kind: 'text',
+    });
+    const openai = new OpenAI({
+      apiKey: openaiKey,
+      timeout: 120000,
+      maxRetries: 0,
+    });
 
     console.log('🤖 Calling GPT-5 mini for assessment...', {
       model: 'gpt-5-mini-2025-08-07',
@@ -240,6 +217,7 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       reasons_fa: result.reasons_fa || result.reasons || [],
     };
   } catch (error) {
+    if (error instanceof AIBudgetError) throw error;
     // Log detailed error information
     console.error('🚨 AI ASSESSMENT FAILED - USING FALLBACK', {
       error: error instanceof Error ? error.message : error,
@@ -252,7 +230,6 @@ ${input.imageUrl ? 'An image of the product is provided below.' : 'No image was 
       title: input.title?.substring(0, 50),
       timestamp: new Date().toISOString(),
       apiKeyPresent: !!process.env.OPENAI_API_KEY,
-      apiKeyPrefix: process.env.OPENAI_API_KEY?.substring(0, 10),
     });
 
     // Capture in Sentry for monitoring

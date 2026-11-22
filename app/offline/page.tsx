@@ -50,7 +50,8 @@ export default function OfflinePage() {
   };
 
   const goHome = () => {
-    window.location.href = '/';
+    // Start a fresh document request so the service worker can recover it.
+    window.location.assign(new URL('/', window.location.origin).href);
   };
 
   return (

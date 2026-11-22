@@ -1,0 +1,9 @@
+node_modules
+.next
+.local
+.git
+.vercel
+.lighthouseci
+prisma/dev.db
+package-lock.json
+*.tsbuildinfo

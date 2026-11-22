@@ -3,141 +3,120 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { withCSRF } from '@/lib/csrf';
+import { JsonInputError, readJsonInput } from '@/lib/json-input';
 
-const updateStatusSchema = z.object({
+const updateStatusSchema = z.strictObject({
   status: z.enum(['APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED']),
+  expectedStatus: z
+    .enum(['REQUESTED', 'APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED'])
+    .optional(),
 });
+
+const transitions: Record<string, string[]> = {
+  REQUESTED: ['APPROVED', 'REJECTED'],
+  APPROVED: ['RECEIVED', 'REJECTED'],
+};
 
 export const PATCH = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (session?.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { status } = updateStatusSchema.parse(body);
+    const { status, expectedStatus } = await readJsonInput(
+      request,
+      updateStatusSchema,
+      1024
+    );
+    if (status === 'REFUNDED') {
+      // Refunds require a verified transfer and a reconciliation record.
+      // A return status update cannot provide either.
+      return NextResponse.json(
+        { error: 'Refund processing is unavailable' },
+        { status: 409 }
+      );
+    }
+    if (!expectedStatus) {
+      return NextResponse.json(
+        { error: 'Expected return status is required' },
+        { status: 400 }
+      );
+    }
 
-    // Get the return request
-    const returnRequest = await prisma.returnRequest.findUnique({
-      where: { id: params.id },
-      include: {
-        orderItem: {
-          include: {
-            product: true,
-          },
-        },
-        order: {
-          include: {
-            payment: true,
-          },
-        },
+    const { id } = await params;
+    const current = await prisma.returnRequest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        orderId: true,
+        orderItem: { select: { product: { select: { title: true } } } },
       },
     });
-
-    if (!returnRequest) {
+    if (!current) {
       return NextResponse.json(
         { error: 'Return request not found' },
         { status: 404 }
       );
     }
-
-    // Validate status transitions
-    const validTransitions: Record<string, string[]> = {
-      REQUESTED: ['APPROVED', 'REJECTED'],
-      APPROVED: ['RECEIVED', 'REJECTED'],
-      RECEIVED: ['REFUNDED'],
-      REJECTED: [],
-      REFUNDED: [],
-    };
-
-    if (!validTransitions[returnRequest.status]?.includes(status)) {
+    if (current.status !== expectedStatus) {
       return NextResponse.json(
-        {
-          error: `Invalid status transition from ${returnRequest.status} to ${status}`,
-        },
+        { error: 'Return status changed; refresh and retry' },
+        { status: 409 }
+      );
+    }
+    if (!transitions[current.status]?.includes(status)) {
+      return NextResponse.json(
+        { error: 'Invalid return status transition' },
         { status: 400 }
       );
     }
 
-    // Handle refund logic
-    if (status === 'REFUNDED') {
-      // Check if payment exists and is PAID
-      if (returnRequest.order.payment?.status !== 'PAID') {
-        return NextResponse.json(
-          { error: 'Cannot refund unpaid order' },
-          { status: 400 }
-        );
-      }
-
-      // Calculate refund amount
-      const refundAmount =
-        returnRequest.orderItem.unitPriceToman *
-        returnRequest.orderItem.quantity;
-
-      // In production, you would call the payment gateway refund API here
-      // For now, we'll just update the payment status
-      await prisma.payment.update({
-        where: { id: returnRequest.order.payment.id },
+    const updated = await prisma.$transaction(async tx => {
+      const changed = await tx.returnRequest.update({
+        where: { id, status: expectedStatus },
+        data: { status },
+      });
+      await tx.notificationLog.create({
         data: {
-          status: 'REFUNDED',
-          raw: {
-            ...((returnRequest.order.payment.raw as Record<string, unknown>) ||
-              {}),
-            refundedAt: new Date().toISOString(),
-            refundAmount,
-            refundedBy: session.user.id,
+          userId: current.userId,
+          type: `return_${status.toLowerCase()}`,
+          channel: 'email',
+          status: 'pending',
+          data: {
+            returnId: current.id,
+            orderId: current.orderId,
+            productTitle: current.orderItem.product.title,
           },
         },
       });
-
-      // Restock the product if configured
-      if (process.env.RESTOCK_ON_REFUND === 'true') {
-        await prisma.product.update({
-          where: { id: returnRequest.orderItem.productId },
-          data: {
-            stock: {
-              increment: returnRequest.orderItem.quantity,
-            },
-          },
-        });
-      }
-    }
-
-    // Update the return request status
-    const updated = await prisma.returnRequest.update({
-      where: { id: params.id },
-      data: { status },
+      return changed;
     });
-
-    // Log notification (in production, send actual notifications)
-    await prisma.notificationLog.create({
-      data: {
-        userId: returnRequest.userId,
-        type: `return_${status.toLowerCase()}`,
-        channel: 'email',
-        status: 'pending',
-        data: {
-          returnId: returnRequest.id,
-          orderId: returnRequest.orderId,
-          productTitle: returnRequest.orderItem.product.title,
-        },
-      },
-    });
-
     return NextResponse.json(updated);
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof JsonInputError) {
       return NextResponse.json(
-        { error: 'Invalid status', details: error.issues },
-        { status: 400 }
+        { error: error.message },
+        { status: error.status }
       );
     }
-
-    console.error('Error updating return status:', error);
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error.code === 'P2025' || error.code === 'P2034')
+    ) {
+      return NextResponse.json(
+        { error: 'Return status changed; refresh and retry' },
+        { status: 409 }
+      );
+    }
+    console.error('Failed to update return status');
     return NextResponse.json(
       { error: 'Failed to update return status' },
       { status: 500 }

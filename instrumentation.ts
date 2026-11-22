@@ -9,6 +9,12 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     console.log('🔐 Initializing security configuration...');
 
+    // Staging validation is deliberately outside the legacy best-effort
+    // configuration logger. Failed isolation must prevent startup.
+    const { verifyStagingDatabaseTargets } =
+      await import('@/lib/staging-database');
+    await verifyStagingDatabaseTargets(process.env, false);
+
     try {
       // Dynamic import to avoid build-time issues with crypto module
       const { initializeSecurityConfig } =

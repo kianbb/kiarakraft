@@ -1,6 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  createDocumentReviewLoader,
+  documentReviewForSeller,
+  emptyDocumentReview,
+} from '@/lib/seller-document-review';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -36,7 +41,7 @@ interface SellerProfile {
   verificationNotes: string | null;
   verifiedAt: string | null;
   verifiedBy: string | null;
-  docsFolder: string | null;
+  hasDocuments: boolean;
   createdAt: string;
   user: {
     email: string;
@@ -47,10 +52,7 @@ interface SellerProfile {
 export default function AdminSellersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('admin');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('admin');
 
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,17 +62,51 @@ export default function AdminSellersPage() {
     null
   );
   const [verifying, setVerifying] = useState(false);
-  const [docs, setDocs] = useState<
-    | {
-        secure_url: string;
-        resource_type: 'image' | 'raw';
-        bytes: number;
-        created_at: string;
-      }[]
-    | null
-  >(null);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [documentState, setDocumentState] = useState(() =>
+    emptyDocumentReview(null)
+  );
+  const documentLoader = useMemo(
+    () => createDocumentReviewLoader(fetch, setDocumentState),
+    []
+  );
+  const documentReview = documentReviewForSeller(
+    selectedSeller?.id ?? null,
+    documentState
+  );
+  const docs = documentReview.documents;
+  const loadingDocs = documentReview.loading;
+  const docsUnavailable = documentReview.unavailable;
+  const legacyDocs = documentReview.legacyReconciliationRequired;
+  useEffect(() => {
+    documentLoader.select(
+      selectedSeller?.id ?? null,
+      selectedSeller?.hasDocuments ?? false
+    );
+    return () => documentLoader.dispose();
+  }, [documentLoader, selectedSeller?.id, selectedSeller?.hasDocuments]);
   const [notesDraft, setNotesDraft] = useState('');
+
+  const fetchSellers = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/admin/sellers', { signal })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setSellers(data.sellers);
+        } else {
+          toast.error('Failed to load sellers');
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching sellers:', error);
+        toast.error('Failed to load sellers');
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -85,25 +121,10 @@ export default function AdminSellersPage() {
       return;
     }
 
-    fetchSellers();
-  }, [session, status, router]);
-
-  const fetchSellers = async () => {
-    try {
-      const response = await fetch('/api/admin/sellers');
-      if (response.ok) {
-        const data = await response.json();
-        setSellers(data.sellers);
-      } else {
-        toast.error('Failed to load sellers');
-      }
-    } catch (error) {
-      console.error('Error fetching sellers:', error);
-      toast.error('Failed to load sellers');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const controller = new AbortController();
+    void fetchSellers(controller.signal);
+    return () => controller.abort();
+  }, [session, status, router, fetchSellers]);
 
   const handleVerifyAction = async (
     sellerId: string,
@@ -139,26 +160,6 @@ export default function AdminSellersPage() {
       toast.error(`Failed to ${action} seller`);
     } finally {
       setVerifying(false);
-    }
-  };
-
-  const loadDocuments = async (sellerId: string) => {
-    setLoadingDocs(true);
-    setDocs(null);
-    try {
-      const res = await fetch(`/api/admin/sellers/${sellerId}/documents`);
-      if (res.ok) {
-        const data = await res.json();
-        setDocs(data.documents || []);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.message || 'Failed to load documents');
-      }
-    } catch (e) {
-      console.error('Load documents error', e);
-      toast.error('Failed to load documents');
-    } finally {
-      setLoadingDocs(false);
     }
   };
 
@@ -331,13 +332,12 @@ export default function AdminSellersPage() {
                     {t('review')}
                   </Button>
 
-                  {seller.docsFolder && (
+                  {seller.hasDocuments && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         setSelectedSeller(seller);
-                        loadDocuments(seller.id);
                       }}
                     >
                       <FileText className="h-4 w-4 mr-2" />
@@ -450,30 +450,39 @@ export default function AdminSellersPage() {
                     </div>
                   )}
 
-                  {selectedSeller.docsFolder && (
+                  {selectedSeller.hasDocuments && (
                     <div>
                       <h3 className="font-medium mb-2">{t('documents')}</h3>
                       {loadingDocs ? (
                         <p className="text-sm text-muted-foreground">
                           {t('loading')}...
                         </p>
+                      ) : docsUnavailable ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t('documentsUnavailable')}
+                        </p>
                       ) : docs && docs.length > 0 ? (
                         <ul className="space-y-2">
                           {docs.map((d, idx) => (
                             <li
-                              key={idx}
+                              key={d.id}
                               className="text-sm flex items-center justify-between gap-3"
                             >
-                              <a
-                                href={d.secure_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline truncate"
-                              >
-                                {d.secure_url.split('/').pop()}
-                              </a>
+                              {d.available && d.downloadPath ? (
+                                <a
+                                  href={d.downloadPath}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  referrerPolicy="no-referrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  {t('documentLabel', { number: idx + 1 })}
+                                </a>
+                              ) : (
+                                <span>{t('documentUnavailable')}</span>
+                              )}
                               <span className="text-xs text-muted-foreground">
-                                {d.resource_type.toUpperCase()} •{' '}
+                                {d.mime || t('documentUnavailable')} •{' '}
                                 {(d.bytes / 1024).toFixed(0)} KB
                               </span>
                             </li>
@@ -481,7 +490,14 @@ export default function AdminSellersPage() {
                         </ul>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          {t('noDocuments')}
+                          {legacyDocs
+                            ? t('documentsReconciliationRequired')
+                            : t('noDocuments')}
+                        </p>
+                      )}
+                      {legacyDocs && docs && docs.length > 0 && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {t('documentsReconciliationRequired')}
                         </p>
                       )}
                     </div>

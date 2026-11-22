@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  publicProductWhere,
+  publicProductSelect,
+  toPublicProduct,
+} from '@/lib/public-product';
 import { PrismaWhereClause, PrismaOrderBy } from '@/types/database';
 
 export async function GET(request: NextRequest) {
@@ -10,9 +15,7 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || 'newest';
 
     const where: PrismaWhereClause = {
-      active: true,
-      isTest: false,
-      eligibilityStatus: 'APPROVED', // Only show approved products
+      ...publicProductWhere,
     };
 
     // Add search filter
@@ -49,37 +52,13 @@ export async function GET(request: NextRequest) {
 
     const products = await prisma.product.findMany({
       where,
-      include: {
-        seller: true,
-        category: true,
-        images: true,
-        ...({ translations: true } as Record<string, true>),
-      },
+      select: publicProductSelect,
       orderBy,
       take: 50, // Limit to 50 products
     });
 
     const locale = new URL(request.url).searchParams.get('locale') || 'fa';
-    type WithTranslations = (typeof products)[number] & {
-      translations?: Array<{
-        locale: string;
-        title: string;
-        description: string;
-      }>;
-      eligibilityStatus?: string;
-    };
-    const mapped = (products as WithTranslations[]).map(p => {
-      if (locale === 'en' && Array.isArray(p.translations)) {
-        const en = p.translations.find(t => t.locale === 'en');
-        if (en)
-          return {
-            ...p,
-            title: en.title,
-            description: en.description,
-          } as typeof p;
-      }
-      return p;
-    });
+    const mapped = products.map(product => toPublicProduct(product, locale));
 
     return NextResponse.json(mapped);
   } catch (error) {

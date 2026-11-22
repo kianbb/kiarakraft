@@ -9,15 +9,17 @@ import {
   type AdminAction,
 } from '@/lib/orderStatus';
 import * as Sentry from '@sentry/nextjs';
-import { sendNotification } from '@/lib/notifications';
+import { sendFulfillmentNotification } from '@/lib/notifications';
+import { FulfillmentConflict, updateOrderFulfillment } from '@/lib/fulfillment';
 
 // Admin can set status to SHIPPED, DELIVERED, or CANCELED, with guards
 export const PATCH = withRateLimit(
   adminRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params: routeParams }: { params: Promise<{ id: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
       if (!session?.user?.email || session.user.role !== 'ADMIN') {
@@ -27,7 +29,8 @@ export const PATCH = withRateLimit(
 
       const { id } = params;
       const body = await request.json().catch(() => ({}));
-      const action = (body?.action as string | undefined)?.toLowerCase();
+      const action =
+        typeof body?.action === 'string' ? body.action.toLowerCase() : null;
 
       if (
         !action ||
@@ -36,7 +39,10 @@ export const PATCH = withRateLimit(
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
       }
 
-      const order = await prisma.order.findUnique({ where: { id } });
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: { user: { select: { id: true, email: true } } },
+      });
       if (!order) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       }
@@ -52,42 +58,40 @@ export const PATCH = withRateLimit(
         );
       }
 
-      const updated = await prisma.order.update({
-        where: { id },
-        data: { status: nextStatus },
-        include: {
-          user: { select: { id: true, email: true } },
-          shipping: true,
-        },
-      });
-
-      // Send notification for shipped/delivered orders (best-effort)
-      if (nextStatus === 'SHIPPED' || nextStatus === 'DELIVERED') {
-        setImmediate(async () => {
-          try {
-            const notificationType =
-              nextStatus === 'SHIPPED' ? 'order_shipped' : 'order_delivered';
-            await sendNotification({
-              userId: updated.user.id,
-              type: notificationType,
-              data: {
-                orderId: updated.id,
-                trackingNumber: updated.shipping?.trackingNo || undefined,
-                locale: 'fa',
-              },
-            });
-          } catch (notificationError) {
-            console.error(
-              `Error sending ${nextStatus.toLowerCase()} notification:`,
-              notificationError
-            );
-            Sentry.captureException(notificationError);
-          }
-        });
+      const updated = await updateOrderFulfillment(
+        prisma,
+        order,
+        nextStatus,
+        'ADMIN'
+      );
+      if (updated.notification) {
+        sendFulfillmentNotification(
+          updated.order,
+          updated.notification,
+          updated.shipment?.trackingNo
+        );
       }
 
-      return NextResponse.json(updated);
+      return NextResponse.json({
+        ...updated.order,
+        user: order.user,
+        shipping: updated.shipment,
+      });
     } catch (error) {
+      if (error instanceof FulfillmentConflict) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error.code === 'P2025' || error.code === 'P2034')
+      ) {
+        return NextResponse.json(
+          { error: 'Order status changed; refresh and retry' },
+          { status: 409 }
+        );
+      }
       console.error('Error updating order status (admin):', error);
       Sentry.captureException(error);
       return NextResponse.json(

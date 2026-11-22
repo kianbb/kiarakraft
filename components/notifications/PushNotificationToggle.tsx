@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Bell, BellOff } from 'lucide-react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 interface PushNotificationToggleProps {
   locale: string;
@@ -14,7 +15,12 @@ export function PushNotificationToggle({
   locale,
 }: PushNotificationToggleProps) {
   const { data: session } = useSession();
-  const [isSupported, setIsSupported] = useState(false);
+  const isSupported =
+    useHydrated() &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window;
+  const userId = session?.user?.id;
   const [permission, setPermission] =
     useState<NotificationPermission>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -24,41 +30,38 @@ export function PushNotificationToggle({
   const isRTL = locale === 'fa';
 
   useEffect(() => {
-    // Check if push notifications are supported
-    const supported =
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      'Notification' in window;
-    setIsSupported(supported);
+    if (!isSupported || !userId) return;
 
-    if (supported && session?.user) {
-      setPermission(Notification.permission);
-      checkSubscription();
-      fetchPublicKey();
-    }
-  }, [session]);
+    const controller = new AbortController();
+    const { signal } = controller;
 
-  async function fetchPublicKey() {
-    try {
-      const response = await fetch('/api/push/subscribe');
-      if (response.ok) {
+    void fetch('/api/push/subscribe', { signal })
+      .then(async response => {
+        if (!response.ok) return;
         const data = await response.json();
+        if (signal.aborted) return;
+        setPermission(Notification.permission);
         setPublicKey(data.publicKey);
-      }
-    } catch (error) {
-      console.error('Error fetching VAPID public key:', error);
-    }
-  }
+      })
+      .catch(error => {
+        if (!signal.aborted) {
+          console.error('Error fetching VAPID public key:', error);
+        }
+      });
 
-  async function checkSubscription() {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-    }
-  }
+    void navigator.serviceWorker.ready
+      .then(registration => registration.pushManager.getSubscription())
+      .then(subscription => {
+        if (!signal.aborted) setIsSubscribed(Boolean(subscription));
+      })
+      .catch(error => {
+        if (!signal.aborted) {
+          console.error('Error checking subscription:', error);
+        }
+      });
+
+    return () => controller.abort();
+  }, [isSupported, userId]);
 
   async function requestPermission() {
     if (!isSupported || !session?.user || !publicKey) return;

@@ -1,0 +1,26 @@
+{
+  "description": "Historical blobs whose findings were investigated and resolved. Only the history scan skips these exact blob IDs; tracked and staged scans never do. Add an entry only with a recorded resolution, reviewed in a PR.",
+  "resolved": [
+    {
+      "blob": "e51146faff221db3b4ad5fe44e734975abac42e5",
+      "path": ".env.production",
+      "contents": "DATABASE_URL with the original Neon password",
+      "resolution": "Password reset on all five Neon branches; the exposed password was verified rejected on direct and pooled connections (12-13 November 2026).",
+      "resolvedOn": "2026-11-22"
+    },
+    {
+      "blob": "b8ecb410b42aba0372a74f61f5fe7c85dd58695d",
+      "path": ".env.example",
+      "contents": "Commented PostgreSQL URL template (username, password, host, port, database placeholders), a local SQLite path and placeholder auth values",
+      "resolution": "No credential: every value is a placeholder or a local file path.",
+      "resolvedOn": "2026-11-22"
+    },
+    {
+      "blob": "7a0e3c0d867c95e0ff159f6bb8be39fadb9d68f8",
+      "path": ".env",
+      "contents": "Local SQLite file path and an early NEXTAUTH_SECRET",
+      "resolution": "The early auth secret differs from every current deployment binding (private comparison, 10 November 2026), so it signs nothing in use.",
+      "resolvedOn": "2026-11-22"
+    }
+  ]
+}

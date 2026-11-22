@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma as realPrisma } from '@/lib/prisma';
-import { adapter as realAdapter } from '@/lib/payments';
+import { getOfflinePaymentAdapter } from '@/lib/payments';
+import type { PaymentAdapter } from '@/lib/payments/adapter';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, paymentRateLimit } from '@/lib/rateLimit';
 import { collectPreflightIssues } from '@/lib/orderPreflight';
@@ -14,7 +15,7 @@ import * as Sentry from '@sentry/nextjs';
 type TestOverrides = {
   getSession?: typeof auth;
   prisma?: typeof realPrisma;
-  adapter?: typeof realAdapter;
+  adapter?: PaymentAdapter;
 };
 let __testOverrides: TestOverrides | undefined;
 export function __setTestOverrides(overrides?: TestOverrides) {
@@ -27,13 +28,19 @@ export const POST = withRateLimit(
     try {
       const getSession = __testOverrides?.getSession ?? auth;
       const prisma = __testOverrides?.prisma ?? realPrisma;
-      const adapter = __testOverrides?.adapter ?? realAdapter;
-
       const session = await getSession();
 
       if (!session?.user?.email) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      const adapter = __testOverrides?.adapter ?? getOfflinePaymentAdapter();
+      if (!adapter || adapter.gateway !== 'OFFLINE') {
+        return NextResponse.json(
+          { error: 'Configured payment gateway is unavailable' },
+          { status: 503 }
+        );
+      }
+
       Sentry.setUser({ email: session.user.email });
 
       const user = await prisma.user.findUnique({
@@ -68,7 +75,14 @@ export const POST = withRateLimit(
         where: { orderId },
         include: {
           product: {
-            select: { id: true, title: true, stock: true, active: true },
+            select: {
+              id: true,
+              title: true,
+              stock: true,
+              active: true,
+              isTest: true,
+              eligibilityStatus: true,
+            },
           },
         },
       });
@@ -81,6 +95,8 @@ export const POST = withRateLimit(
             title: it.product?.title || 'Unknown',
             stock: it.product?.stock ?? 0,
             active: it.product?.active ?? false,
+            isTest: it.product?.isTest ?? true,
+            eligibilityStatus: it.product?.eligibilityStatus ?? 'PENDING',
           },
         }))
       );
@@ -129,29 +145,8 @@ export const POST = withRateLimit(
         );
       }
 
-      // Build callback URL with allowlist validation
-      const requestUrl = new URL(request.url);
-      const requestOrigin = requestUrl.origin;
-      const requestHost = requestUrl.host;
-      const envBase = process.env.PUBLIC_APP_BASE?.replace(/\/$/, '') || '';
-      let chosenBase = requestOrigin;
-      if (envBase) {
-        try {
-          const envUrl = new URL(envBase);
-          const allowedHosts = (
-            process.env.ALLOWED_APP_BASE_HOSTS || requestHost
-          )
-            .split(',')
-            .map(h => h.trim())
-            .filter(Boolean);
-          if (allowedHosts.includes(envUrl.host)) {
-            chosenBase = envUrl.origin;
-          }
-        } catch {
-          // ignore malformed env base, fallback to request origin
-        }
-      }
-      const callbackUrl = `${chosenBase}/api/payments/callback`;
+      // Keep the buyer's offline callback on the origin holding their session.
+      const callbackUrl = '/api/payments/callback';
 
       // Check for suspicious payment patterns
       const clientIP =
@@ -191,31 +186,23 @@ export const POST = withRateLimit(
         amountToman: order.totalToman,
         callbackUrl,
       });
+      if (!result.redirectUrl.startsWith(callbackUrl + '?')) {
+        return NextResponse.json(
+          { error: 'Invalid redirect URL from payment gateway' },
+          { status: 500 }
+        );
+      }
 
       // Save payment record
       await prisma.payment.create({
         data: {
           orderId,
           gateway: adapter.gateway,
-          status: 'INITIATED',
+          status: 'PENDING',
           amountToman: order.totalToman,
           authority: result.authority || null,
         },
       });
-
-      // Validate redirect URL is http/https to prevent scheme injection
-      try {
-        const r = new URL(result.redirectUrl);
-        if (r.protocol !== 'http:' && r.protocol !== 'https:') {
-          throw new Error('Invalid redirect URL scheme');
-        }
-      } catch (e) {
-        console.error('Unsafe redirect URL from adapter.create', e);
-        return NextResponse.json(
-          { error: 'Invalid redirect URL from payment gateway' },
-          { status: 500 }
-        );
-      }
 
       return NextResponse.json({ redirectUrl: result.redirectUrl });
     } catch (error) {

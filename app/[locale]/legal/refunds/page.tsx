@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Metadata } from 'next';
@@ -28,8 +27,6 @@ export default async function RefundPolicyPage({
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'refunds' });
 
-  const lastUpdated = '2025-08-18';
-
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -38,14 +35,7 @@ export default async function RefundPolicyPage({
             <RefreshCw className="h-10 w-10 text-primary" />
             {t('title')}
           </h1>
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <Badge variant="secondary">
-              {t('lastUpdated')}: {lastUpdated}
-            </Badge>
-            <span>
-              {t('effectiveDate')}: {lastUpdated}
-            </span>
-          </div>
+          <p className="text-muted-foreground">{t('pilotScope')}</p>
         </div>
 
         <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -162,11 +152,9 @@ export default async function RefundPolicyPage({
                   1
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-2">
-                    {t('contactCustomerService')}
-                  </h4>
+                  <h4 className="font-semibold mb-2">{t('startRequest')}</h4>
                   <p className="text-sm text-muted-foreground">
-                    {t('contactDescription')}
+                    {t('startRequestDescription')}
                   </p>
                 </div>
               </div>
@@ -176,7 +164,7 @@ export default async function RefundPolicyPage({
                 </div>
                 <div>
                   <h4 className="font-semibold mb-2">
-                    {t('provideDocumentation')}
+                    {t('keepDocumentation')}
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     {t('documentationDescription')}

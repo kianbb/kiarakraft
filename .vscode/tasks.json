@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Kiara: local setup",
+      "type": "shell",
+      "command": "npm run setup",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kiara: development",
+      "type": "shell",
+      "command": "npm run dev:local",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kiara: verify",
+      "type": "shell",
+      "command": "npm run verify",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Kiara: integration tests",
+      "type": "shell",
+      "command": "npm run test:integration",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kiara: local build",
+      "type": "shell",
+      "command": "npm run build:local",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kiara: new agent worktree",
+      "detail": "Credential-free task worktree in the main checkout from a chosen base, then install and isolated setup",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "worktree:new",
+        "--",
+        "${input:agentTaskSlug}",
+        "--base",
+        "${input:agentTaskBase}",
+        "--main-checkout",
+        "--setup"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "agentTaskSlug",
+      "type": "promptString",
+      "description": "Task name (lowercase letters, numbers, hyphens), e.g. checkout-copy"
+    },
+    {
+      "id": "agentTaskBase",
+      "type": "promptString",
+      "description": "Base branch or commit to start from (HEAD = main checkout's current commit)",
+      "default": "HEAD"
+    }
+  ]
+}

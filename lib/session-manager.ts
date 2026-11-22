@@ -12,31 +12,40 @@ import { cookies } from 'next/headers';
  */
 export async function invalidateUserSessions(userId: string): Promise<void> {
   try {
-    // Update the user's passwordChangedAt timestamp
-    // This will be checked against the JWT's issued time
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        passwordChangedAt: new Date(),
-      },
-    });
-
-    // Log security event
-    await prisma.auditLog.create({
-      data: {
-        action: 'sessions_invalidated',
-        userId,
-        targetId: userId,
-        targetType: 'user',
-        metadata: {
-          reason: 'password_reset',
-          timestamp: new Date().toISOString(),
+    // Share the account lock with password/reset writers. JWTs compare the
+    // immutable millisecond credential version, never Auth.js's rolling iat.
+    await prisma.$transaction(async tx => {
+      const [user] = await tx.$queryRaw<
+        Array<{ passwordChangedAt: Date | null }>
+      >`SELECT "passwordChangedAt" FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      if (!user) throw new Error('Account not found');
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          passwordChangedAt: new Date(
+            Math.max(Date.now(), (user.passwordChangedAt?.getTime() ?? 0) + 1)
+          ),
         },
-        success: true,
-      },
+      });
+
+      // Log security event
+      await tx.passwordResetToken.deleteMany({ where: { userId } });
+      await tx.auditLog.create({
+        data: {
+          action: 'sessions_invalidated',
+          userId,
+          targetId: userId,
+          targetType: 'user',
+          metadata: {
+            reason: 'password_reset',
+            timestamp: new Date().toISOString(),
+          },
+          success: true,
+        },
+      });
     });
   } catch (error) {
-    console.error('Failed to invalidate user sessions:', error);
+    console.error('Failed to invalidate user sessions');
     throw error;
   }
 }
@@ -47,7 +56,7 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
  */
 export async function isSessionValid(
   userId: string,
-  tokenIssuedAt: number
+  credentialVersion: number
 ): Promise<boolean> {
   try {
     const user = await prisma.user.findUnique({
@@ -59,19 +68,13 @@ export async function isSessionValid(
       return false;
     }
 
-    // If no passwordChangedAt, session is valid (legacy users)
-    if (!user.passwordChangedAt) {
-      return true;
-    }
-
-    // Check if token was issued after the last password change
-    const passwordChangedTimestamp = Math.floor(
-      user.passwordChangedAt.getTime() / 1000
+    return (
+      Number.isSafeInteger(credentialVersion) &&
+      credentialVersion >= 0 &&
+      credentialVersion === (user.passwordChangedAt?.getTime() ?? 0)
     );
-
-    return tokenIssuedAt >= passwordChangedTimestamp;
-  } catch (error) {
-    console.error('Failed to check session validity:', error);
+  } catch {
+    console.error('Failed to check session validity');
     // Fail closed - treat as invalid if we can't verify
     return false;
   }

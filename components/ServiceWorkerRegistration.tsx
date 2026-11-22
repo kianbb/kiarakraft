@@ -95,30 +95,5 @@ export default function ServiceWorkerRegistration() {
     }
   }, []);
 
-  // Helper function to cache important pages
-  useEffect(() => {
-    const cacheImportantPages = async () => {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        const pagesToCache = [
-          '/fa',
-          '/en',
-          '/fa/explore',
-          '/en/explore',
-          '/fa/auth/login',
-          '/en/auth/login',
-        ];
-
-        navigator.serviceWorker.controller.postMessage({
-          type: 'CACHE_URLS',
-          payload: pagesToCache,
-        });
-      }
-    };
-
-    // Cache important pages after a delay
-    const timer = setTimeout(cacheImportantPages, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
   return null; // This component doesn't render anything
 }

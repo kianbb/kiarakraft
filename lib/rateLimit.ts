@@ -36,8 +36,8 @@ setInterval(
           },
         },
       });
-    } catch (error) {
-      console.error('Failed to cleanup old rate limit entries:', error);
+    } catch {
+      console.error('Failed to clean up expired rate limit entries.');
     }
   },
   5 * 60 * 1000
@@ -62,8 +62,8 @@ export function createRateLimiter(config: RateLimitConfig) {
       try {
         const session = await auth();
         userId = session?.user?.id || null;
-      } catch (error) {
-        console.error('Failed to get user session for rate limiting:', error);
+      } catch {
+        console.error('Failed to get a session for rate limiting.');
       }
     }
 
@@ -78,17 +78,6 @@ export function createRateLimiter(config: RateLimitConfig) {
       userId && config.userMaxRequests
         ? config.userMaxRequests
         : config.maxRequests;
-
-    // Debug logging
-    console.log('[RateLimit Debug]', {
-      endpoint,
-      identifier,
-      userId,
-      ip,
-      maxRequests,
-      windowMs: config.windowMs,
-      useUserRateLimit: config.useUserRateLimit,
-    });
 
     const now = new Date();
     const windowEnd = new Date(now.getTime() + config.windowMs);
@@ -129,12 +118,7 @@ export function createRateLimiter(config: RateLimitConfig) {
         }
 
         if (existingEntry.count >= maxRequests) {
-          console.log('[RateLimit BLOCKED]', {
-            identifier,
-            count: existingEntry.count,
-            maxRequests,
-            resetTime: existingEntry.resetTime,
-          });
+          console.log('Rate limit blocked a request.');
           return {
             allowed: false,
             remainingRequests: 0,
@@ -160,12 +144,8 @@ export function createRateLimiter(config: RateLimitConfig) {
       });
 
       return result;
-    } catch (error) {
-      console.error('[RateLimit DB ERROR - Using memory fallback]', {
-        identifier,
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+    } catch {
+      console.error('Rate limit database unavailable; using memory fallback.');
 
       // Use in-memory fallback when database is unavailable
       // This provides basic protection without completely denying service
@@ -178,11 +158,7 @@ export function createRateLimiter(config: RateLimitConfig) {
           resetTime: windowEnd,
         });
 
-        console.warn(
-          '[RateLimit] Using memory fallback - allowing request (1/' +
-            maxRequests +
-            ')'
-        );
+        console.warn('Rate limit memory fallback allowed a request.');
 
         return {
           allowed: true,
@@ -192,11 +168,7 @@ export function createRateLimiter(config: RateLimitConfig) {
       }
 
       if (fallbackEntry.count >= maxRequests) {
-        console.warn('[RateLimit] Memory fallback - request blocked', {
-          identifier,
-          count: fallbackEntry.count,
-          maxRequests,
-        });
+        console.warn('Rate limit memory fallback blocked a request.');
 
         return {
           allowed: false,
@@ -209,13 +181,7 @@ export function createRateLimiter(config: RateLimitConfig) {
       fallbackEntry.count++;
       memoryFallback.set(identifier, fallbackEntry);
 
-      console.warn(
-        '[RateLimit] Using memory fallback - allowing request (' +
-          fallbackEntry.count +
-          '/' +
-          maxRequests +
-          ')'
-      );
+      console.warn('Rate limit memory fallback allowed a request.');
 
       return {
         allowed: true,
@@ -276,9 +242,7 @@ export function withRateLimit<T extends unknown[]>(
     if (!allowed) {
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000);
 
-      console.warn(
-        `Rate limit exceeded for ${request.url} from IP ${request.headers.get('x-forwarded-for') || 'unknown'}`
-      );
+      console.warn('Rate limit exceeded.');
 
       return new Response(
         JSON.stringify({

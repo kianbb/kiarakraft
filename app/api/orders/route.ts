@@ -4,12 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { withRateLimit, orderRateLimit } from '@/lib/rateLimit';
 import { withCSRF } from '@/lib/csrf';
 import { z } from 'zod';
+import { SHIPPING_METHODS, SHIPPING_PRICES } from '@/lib/shipping';
+import { isPublicProduct } from '@/lib/public-product';
 
 // Validation schema for order creation
 const createOrderSchema = z.object({
   addressId: z.string().max(50),
-  shippingMethod: z.enum(['STANDARD', 'EXPRESS', 'OVERNIGHT']),
-  shippingPrice: z.number().min(0).max(1000000), // Max ~$10,000 for shipping
+  shippingMethod: z.enum(SHIPPING_METHODS),
 });
 
 export const POST = withRateLimit(
@@ -40,7 +41,8 @@ export const POST = withRateLimit(
         );
       }
 
-      const { addressId, shippingMethod, shippingPrice } = validation.data;
+      const { addressId, shippingMethod } = validation.data;
+      const shippingPrice = SHIPPING_PRICES[shippingMethod];
 
       // Validate address belongs to user
       const address = await prisma.address.findFirst({
@@ -49,27 +51,6 @@ export const POST = withRateLimit(
 
       if (!address) {
         return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
-      }
-
-      // Validate shipping method
-      const validShippingMethods = ['STANDARD', 'EXPRESS', 'PICKUP'];
-      if (!validShippingMethods.includes(shippingMethod)) {
-        return NextResponse.json(
-          { error: 'Invalid shipping method' },
-          { status: 400 }
-        );
-      }
-
-      // Validate shipping price (prevent negative values)
-      if (
-        typeof shippingPrice !== 'number' ||
-        shippingPrice < 0 ||
-        shippingPrice > 1000000
-      ) {
-        return NextResponse.json(
-          { error: 'Invalid shipping price' },
-          { status: 400 }
-        );
       }
 
       // Get cart items with proper typing
@@ -100,10 +81,12 @@ export const POST = withRateLimit(
                 priceToman: number;
                 stock: number;
                 active: boolean;
+                isTest: boolean;
+                eligibilityStatus: string;
                 title: string;
               }>
             >`
-              SELECT id, "priceToman", stock, active, title
+              SELECT id, "priceToman", stock, active, "isTest", "eligibilityStatus", title
               FROM "Product"
               WHERE id = ${item.productId}
               FOR UPDATE
@@ -124,7 +107,7 @@ export const POST = withRateLimit(
             continue;
           }
 
-          if (!product.active) {
+          if (!isPublicProduct(product)) {
             validationIssues.push(`Product ${product.title} is not available`);
           }
 
@@ -172,7 +155,7 @@ export const POST = withRateLimit(
         await tx.orderShipping.create({
           data: {
             orderId: newOrder.id,
-            method: shippingMethod as 'STANDARD' | 'EXPRESS' | 'PICKUP',
+            method: shippingMethod,
             priceToman: shippingPrice,
             status: 'PROCESSING',
           },

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import '../scripts/dev/guard-test.mjs';
 import { prisma } from '@/lib/prisma';
 import { searchProducts } from '@/lib/search';
 
@@ -120,7 +121,7 @@ async function run() {
     console.log('🎉 Search partial match tests passed');
   } catch (err) {
     console.error('❌ Search partial match tests failed:', err);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await cleanup();
     await prisma.$disconnect();

@@ -3,6 +3,7 @@
  * Uses Cloudflare Turnstile for bot protection
  * Falls back to honeypot field if Turnstile is not configured
  */
+import { isStagingDeployment } from './deployment-policy';
 
 interface TurnstileVerifyResponse {
   success: boolean;
@@ -21,6 +22,11 @@ export async function verifyTurnstileToken(
   success: boolean;
   error?: string;
 }> {
+  if (isStagingDeployment())
+    return {
+      success: false,
+      error: 'External CAPTCHA verification is disabled in staging',
+    };
   const secret = process.env.TURNSTILE_SECRET_KEY;
 
   if (!secret) {
@@ -146,6 +152,10 @@ export async function verifyHumanUser(request: {
   if (headerCheck.isBot) {
     return { isHuman: false, error: headerCheck.reason };
   }
+
+  // Protected staging exercises only the local honeypot/header checks. Never
+  // send tokens or visitor IPs to an accidentally configured live provider.
+  if (isStagingDeployment()) return { isHuman: true };
 
   // If Turnstile token provided, verify it
   if (request.turnstileToken) {

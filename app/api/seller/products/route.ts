@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  createProductSchema,
+  ProductInputError,
+  readProductInput,
+} from '@/lib/product-input';
 import { translateProductFields } from '@/lib/translator';
 import { assessProductWithAI } from '@/lib/moderation-ai';
 import { enhanceProductBeforeApproval } from '@/lib/product-enhancement-openai';
@@ -715,13 +720,13 @@ export const POST = withRateLimit(
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
-      data = await request.json();
-      const useAI = (data.useAI as boolean) ?? true; // Default to true for backward compatibility
+      data = await readProductInput(request, createProductSchema);
+      const useAI = data.useAI as boolean;
 
       // Comprehensive input validation and sanitization
       const titleValidation = sanitizeAndValidate((data.name as string) || '', {
         maxLength: 200,
-        minLength: 3,
+        minLength: 1,
         sanitizationLevel: SanitizationLevel.STRICT,
         allowEmpty: false,
         detectThreats: true,
@@ -964,6 +969,12 @@ export const POST = withRateLimit(
           'Product is under review. You will be notified once the review is complete.',
       });
     } catch (error) {
+      if (error instanceof ProductInputError) {
+        return NextResponse.json(
+          { error: error.message, fields: error.fields },
+          { status: error.status }
+        );
+      }
       Sentry.captureException(error);
       console.error('Error creating product:', error);
 
@@ -1007,8 +1018,8 @@ export const POST = withRateLimit(
           // Include field-specific errors if validation failed
           fields: {
             title:
-              data.name && (data.name as string).length < 3
-                ? 'Title must be at least 3 characters'
+              data.name && (data.name as string).length < 1
+                ? 'Title must be at least 1 character'
                 : null,
             description:
               data.description && (data.description as string).length < 10

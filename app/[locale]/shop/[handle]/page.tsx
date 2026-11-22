@@ -1,5 +1,11 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import {
+  publicProductWhere,
+  publicProductSelect,
+  toPublicProduct,
+} from '@/lib/public-product';
+import { getApprovedProductRatings } from '@/lib/product-ratings';
 import { ProductCard } from '@/components/products/ProductCard';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { Badge } from '@/components/ui/badge';
@@ -38,29 +44,9 @@ async function getSellerByHandle(handle: string, page: number) {
       verified: true,
       createdAt: true,
       updatedAt: true,
-      user: {
-        select: {
-          name: true,
-          email: true,
-        },
-      },
       products: {
-        where: { active: true, isTest: false },
-        include: {
-          images: {
-            orderBy: { sortOrder: 'asc' },
-            take: 1,
-            select: { url: true, alt: true },
-          },
-          seller: {
-            select: {
-              handle: true,
-              displayName: true,
-              shopName: true,
-              verified: true,
-            },
-          },
-        },
+        where: publicProductWhere,
+        select: publicProductSelect,
         orderBy: { createdAt: 'desc' },
         skip,
         take: PAGE_SIZE + 1, // fetch one extra to detect next page
@@ -68,10 +54,7 @@ async function getSellerByHandle(handle: string, page: number) {
       _count: {
         select: {
           products: {
-            where: {
-              active: true,
-              isTest: false,
-            },
+            where: publicProductWhere,
           },
         },
       },
@@ -138,6 +121,10 @@ export default async function ShopPage({
   const products = hasNext
     ? seller.products.slice(0, PAGE_SIZE)
     : seller.products;
+  const ratings = await getApprovedProductRatings(
+    prisma.review,
+    products.map(product => product.id)
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -267,12 +254,12 @@ export default async function ShopPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {products.map((product: any) => (
+            {products.map(product => (
               <ProductCard
                 key={product.id}
                 product={{
-                  ...product,
+                  ...toPublicProduct(product, resolvedParams.locale),
+                  rating: ratings.get(product.id),
                   images: product.images.map(
                     (img: { url: string; alt: string | null }) => ({
                       url: img.url,

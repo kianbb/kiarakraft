@@ -2,137 +2,156 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
-import { sendNotification } from '@/lib/notifications';
+import { sendFulfillmentNotification } from '@/lib/notifications';
 import { withCSRF } from '@/lib/csrf';
+import { JsonInputError, readJsonInput } from '@/lib/json-input';
+import {
+  legacyOrderStatusTime,
+  FulfillmentConflict,
+  lockFulfillmentOrder,
+  writeShipment,
+} from '@/lib/fulfillment';
+import {
+  allowedShippingStatuses,
+  nextStatusForAdmin,
+  shippingStatuses,
+  type OrderStatus,
+} from '@/lib/orderStatus';
 
-const updateShippingSchema = z.object({
-  status: z.enum(['PROCESSING', 'SHIPPED', 'DELIVERED', 'RETURNED']),
-  trackingNo: z.string().optional(),
-  notes: z.string().optional(),
+const updateShippingSchema = z.strictObject({
+  status: z.enum(shippingStatuses),
+  expectedUpdatedAt: z.iso.datetime(),
+  trackingNo: z.string().trim().max(150).optional(),
+  notes: z.string().trim().max(1000).optional(),
 });
 
-// PUT /api/admin/shipping/[id] - Update shipping status
+// PUT /api/admin/shipping/[id] - Update the shipment and its order together.
 export const PUT = withCSRF(async function (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
-
     if (!session?.user?.email || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const validatedData = updateShippingSchema.parse(body);
-
-    // Find the shipping record
-    const existingShipping = await prisma.orderShipping.findUnique({
-      where: { id: params.id },
-      include: {
-        order: {
-          include: {
-            user: {
-              select: { id: true, email: true, name: true },
-            },
-          },
-        },
-      },
+    const { expectedUpdatedAt, ...change } = await readJsonInput(
+      request,
+      updateShippingSchema,
+      8192
+    );
+    const { id } = await params;
+    const record = await prisma.orderShipping.findUnique({
+      where: { id },
+      select: { orderId: true },
     });
-
-    if (!existingShipping) {
+    if (!record) {
       return NextResponse.json(
         { error: 'Shipping record not found' },
         { status: 404 }
       );
     }
 
-    // Build history entry
-    interface HistoryEvent {
-      status: string;
-      timestamp: Date;
-      updatedBy: string;
-      trackingNo?: string;
-      notes?: string;
-    }
+    const result = await prisma.$transaction(async tx => {
+      const order = await lockFulfillmentOrder(tx, record.orderId);
+      const shipping = await tx.orderShipping.findUnique({ where: { id } });
+      if (
+        !order ||
+        !shipping ||
+        shipping.orderId !== order.id ||
+        shipping.updatedAt.toISOString() !== expectedUpdatedAt
+      ) {
+        throw new FulfillmentConflict(
+          'Shipping record changed; refresh and retry'
+        );
+      }
+      if (
+        !allowedShippingStatuses(order.status, shipping.status).includes(
+          change.status
+        )
+      ) {
+        throw new FulfillmentConflict('Unsupported shipping transition');
+      }
 
-    interface HistoryData {
-      events: HistoryEvent[];
-    }
+      const action =
+        change.status === 'SHIPPED'
+          ? 'mark_shipped'
+          : change.status === 'DELIVERED'
+            ? 'mark_delivered'
+            : undefined;
+      const nextStatus =
+        action && change.status !== shipping.status
+          ? nextStatusForAdmin(order.status as OrderStatus, action)
+          : undefined;
+      const currentOrder = nextStatus
+        ? await tx.order.update({
+            where: { id: order.id, status: order.status },
+            data: { status: nextStatus },
+          })
+        : order;
+      // Catch-up uses a legacy order timestamp for the timeline only.
+      // Tracking/notes edits preserve the original fulfillment events.
+      let occurredAt: Date | undefined;
+      if (action && change.status !== shipping.status) {
+        occurredAt = nextStatus
+          ? currentOrder.updatedAt
+          : legacyOrderStatusTime(order);
+      }
+      await writeShipment(tx, shipping, {
+        ...change,
+        actor: 'ADMIN',
+        occurredAt,
+        legacyInferred: !!action && !nextStatus,
+      });
 
-    const currentHistory =
-      (existingShipping.history as unknown as HistoryData) || { events: [] };
-    const newEvent: HistoryEvent = {
-      status: validatedData.status,
-      timestamp: new Date(),
-      updatedBy: session.user.email,
-      ...(validatedData.trackingNo && { trackingNo: validatedData.trackingNo }),
-      ...(validatedData.notes && { notes: validatedData.notes }),
-    };
-
-    const updatedHistory: HistoryData = {
-      events: [...currentHistory.events, newEvent],
-    };
-
-    // Update shipping record
-    const updatedShipping = await prisma.orderShipping.update({
-      where: { id: params.id },
-      data: {
-        status: validatedData.status,
-        trackingNo: validatedData.trackingNo || existingShipping.trackingNo,
-        history: updatedHistory as unknown as Prisma.InputJsonValue,
-      },
-      include: {
-        order: {
-          include: {
-            user: {
-              select: { id: true, email: true, name: true },
+      const updated = await tx.orderShipping.findUniqueOrThrow({
+        where: { id },
+        include: {
+          order: {
+            include: {
+              user: { select: { id: true, email: true, name: true } },
+              address: true,
             },
-            address: true,
           },
         },
-      },
+      });
+      return { shipping: updated, nextStatus };
     });
 
-    // Send notification for shipping status updates (best-effort)
-    if (
-      validatedData.status === 'SHIPPED' ||
-      validatedData.status === 'DELIVERED'
-    ) {
-      setImmediate(async () => {
-        try {
-          const notificationType =
-            validatedData.status === 'SHIPPED'
-              ? 'order_shipped'
-              : 'order_delivered';
-          await sendNotification({
-            userId: updatedShipping.order.user.id,
-            type: notificationType,
-            data: {
-              orderId: updatedShipping.order.id,
-              trackingNumber: updatedShipping.trackingNo || undefined,
-              locale: 'fa',
-            },
-          });
-        } catch (notificationError) {
-          console.error(
-            `Error sending ${validatedData.status.toLowerCase()} notification:`,
-            notificationError
-          );
-        }
-      });
+    if (result.nextStatus === 'SHIPPED' || result.nextStatus === 'DELIVERED') {
+      sendFulfillmentNotification(
+        result.shipping.order,
+        result.nextStatus,
+        result.shipping.trackingNo
+      );
     }
-
     return NextResponse.json({
       message: 'Shipping status updated successfully',
-      shipping: updatedShipping,
+      shipping: result.shipping,
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 });
+    if (error instanceof JsonInputError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
     }
-    console.error('Error updating shipping status:', error);
+    if (error instanceof FulfillmentConflict) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error.code === 'P2025' || error.code === 'P2034')
+    ) {
+      return NextResponse.json(
+        { error: 'Shipping record changed; refresh and retry' },
+        { status: 409 }
+      );
+    }
+    console.error('Error updating shipping status');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -143,8 +162,9 @@ export const PUT = withCSRF(async function (
 // GET /api/admin/shipping/[id] - Get shipping details
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   try {
     const session = await auth();
 

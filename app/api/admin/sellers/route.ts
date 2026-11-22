@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+function privateJson(data: unknown, init: ResponseInit = {}) {
+  return NextResponse.json(data, {
+    ...init,
+    headers: {
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer',
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return privateJson({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -15,7 +26,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json(
+      return privateJson(
         { error: 'Access denied - Admin required' },
         { status: 403 }
       );
@@ -31,13 +42,24 @@ export async function GET(request: NextRequest) {
 
     const [sellers, total] = await Promise.all([
       prisma.sellerProfile.findMany({
-        include: {
-          user: {
-            select: {
-              email: true,
-              name: true,
-            },
-          },
+        select: {
+          id: true,
+          shopName: true,
+          displayName: true,
+          bio: true,
+          phone: true,
+          province: true,
+          city: true,
+          address: true,
+          website: true,
+          verified: true,
+          verificationNotes: true,
+          verifiedAt: true,
+          verifiedBy: true,
+          createdAt: true,
+          docsFolder: true,
+          _count: { select: { documents: true } },
+          user: { select: { email: true, name: true } },
         },
         orderBy: [
           { verified: 'asc' }, // Unverified first
@@ -55,8 +77,11 @@ export async function GET(request: NextRequest) {
       verified: await prisma.sellerProfile.count({ where: { verified: true } }),
     };
 
-    return NextResponse.json({
-      sellers,
+    return privateJson({
+      sellers: sellers.map(({ docsFolder, _count, ...seller }) => ({
+        ...seller,
+        hasDocuments: docsFolder !== null || _count.documents > 0,
+      })),
       stats,
       pagination: {
         page,
@@ -65,11 +90,8 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
-    console.error('Error fetching sellers:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch sellers' },
-      { status: 500 }
-    );
+  } catch {
+    console.error('Seller list unavailable');
+    return privateJson({ error: 'Failed to fetch sellers' }, { status: 500 });
   }
 }

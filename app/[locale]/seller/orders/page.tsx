@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { formatPrice, formatDate } from '@/lib/utils';
-import { OrderWithItems } from '@/types/database';
+import type { SellerOrder } from '@/lib/order-read';
 import { Search, Package, ArrowLeft, Calendar, User } from 'lucide-react';
 
 export default function SellerOrdersPage() {
@@ -18,13 +18,29 @@ export default function SellerOrdersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
-  const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const t = useTranslations('seller');
+  const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchOrders = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/seller/orders', { signal })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setOrders(data);
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching orders:', error);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -39,22 +55,10 @@ export default function SellerOrdersPage() {
       return;
     }
 
-    fetchOrders();
-  }, [session, status, router, locale]);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch('/api/seller/orders');
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const controller = new AbortController();
+    void fetchOrders(controller.signal);
+    return () => controller.abort();
+  }, [session, status, router, locale, fetchOrders]);
 
   const handleAction = async (
     orderId: string,
@@ -104,12 +108,12 @@ export default function SellerOrdersPage() {
   };
 
   const filteredOrders = orders.filter(
-    (order: OrderWithItems) =>
+    order =>
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.address?.fullName
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      order.items.some((item: OrderWithItems['items'][0]) =>
+      order.items.some(item =>
         item.product.title.toLowerCase().includes(searchTerm.toLowerCase())
       )
   );
@@ -173,7 +177,7 @@ export default function SellerOrdersPage() {
         {/* Orders List */}
         {filteredOrders.length > 0 ? (
           <div className="space-y-6">
-            {filteredOrders.map((order: OrderWithItems) => (
+            {filteredOrders.map(order => (
               <div key={order.id} className="bg-white rounded-lg border p-6">
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
                   <div className="flex items-center gap-3">
@@ -195,7 +199,7 @@ export default function SellerOrdersPage() {
                       <div className="font-bold">
                         {formatPrice(
                           order.items.reduce(
-                            (sum: number, item: OrderWithItems['items'][0]) =>
+                            (sum, item) =>
                               sum + item.unitPriceToman * item.quantity,
                             0
                           )
@@ -203,8 +207,7 @@ export default function SellerOrdersPage() {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {order.items.reduce(
-                          (sum: number, item: OrderWithItems['items'][0]) =>
-                            sum + item.quantity,
+                          (sum, item) => sum + item.quantity,
                           0
                         )}{' '}
                         {t('items')}
@@ -213,17 +216,20 @@ export default function SellerOrdersPage() {
                   </div>
                 </div>
 
-                {/* Customer Info */}
-                <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('customer')}:</span>
-                  <span className="text-sm">{order.address?.fullName}</span>
-                </div>
+                {order.address && (
+                  <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      {t('customer')}:
+                    </span>
+                    <span className="text-sm">{order.address.fullName}</span>
+                  </div>
+                )}
 
                 {/* Order Items */}
                 <div className="space-y-3">
                   <h4 className="font-medium">{t('orderItems')}:</h4>
-                  {order.items.map((item: OrderWithItems['items'][0]) => (
+                  {order.items.map(item => (
                     <div
                       key={item.id}
                       className="flex items-center gap-4 p-3 border rounded-lg"
@@ -265,24 +271,27 @@ export default function SellerOrdersPage() {
                   ))}
                 </div>
 
-                {/* Shipping Address */}
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">{t('shippingAddress')}:</h4>
-                  <div className="text-sm text-muted-foreground">
-                    <div>{order.address?.fullName}</div>
-                    <div>
-                      {order.address?.line1}{' '}
-                      {order.address?.line2 ? `, ${order.address.line2}` : ''}
-                    </div>
-                    <div>
-                      {order.address?.city}, {order.address?.province}{' '}
-                      {order.address?.postal}
-                    </div>
-                    <div>
-                      {t('phone')}: {order.address?.phone}
+                {order.address && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <h4 className="font-medium mb-2">
+                      {t('shippingAddress')}:
+                    </h4>
+                    <div className="text-sm text-muted-foreground">
+                      <div>{order.address.fullName}</div>
+                      <div>
+                        {order.address.line1}
+                        {order.address.line2 ? `, ${order.address.line2}` : ''}
+                      </div>
+                      <div>
+                        {order.address.city}, {order.address.province}{' '}
+                        {order.address.postal}
+                      </div>
+                      <div>
+                        {t('phone')}: {order.address.phone}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Actions */}
                 <div className="mt-4 flex gap-2 justify-end">

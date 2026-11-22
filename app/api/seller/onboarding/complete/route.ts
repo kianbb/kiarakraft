@@ -3,23 +3,38 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
-import { createHash } from 'crypto';
-import * as Sentry from '@sentry/nextjs';
+import { isSellerIdentityCollectionEnabled } from '@/lib/deployment-policy';
+import {
+  fingerprintNationalId,
+  IdentityKeyError,
+} from '@/lib/identity-fingerprint';
+import { readJsonInput, JsonInputError } from '@/lib/json-input';
+import { sellerOnboardingSchema } from '@/lib/seller-onboarding-input';
+import { ownedReadyDocuments } from '@/lib/seller-document-store';
+import { SellerDocumentError } from '@/lib/seller-documents';
 
 export const POST = withRateLimit(
   authRateLimit,
   withCSRF(async function (request: NextRequest) {
+    if (!isSellerIdentityCollectionEnabled())
+      return NextResponse.json(
+        { error: 'IDENTITY_COLLECTION_DISABLED' },
+        { status: 403 }
+      );
     try {
       const session = await auth();
 
       if (!session?.user?.email) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      Sentry.setUser({ email: session.user.email });
 
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
-        include: { sellerProfile: true },
+        select: {
+          id: true,
+          role: true,
+          sellerProfile: { select: { id: true, nationalIdHash: true } },
+        },
       });
 
       if (!user || user.role !== 'SELLER' || !user.sellerProfile) {
@@ -29,7 +44,19 @@ export const POST = withRateLimit(
         );
       }
 
-      const body = await request.json();
+      // Existing, legacy and unknown fingerprints all require a separate
+      // reviewed re-verification flow; ordinary onboarding cannot replace them.
+      if (user.sellerProfile.nationalIdHash !== null) {
+        return NextResponse.json(
+          { error: 'IDENTITY_ALREADY_RECORDED' },
+          { status: 409 }
+        );
+      }
+      const body = await readJsonInput(
+        request,
+        sellerOnboardingSchema,
+        16 * 1024
+      );
       const {
         shopName,
         displayName,
@@ -43,123 +70,71 @@ export const POST = withRateLimit(
         uploadedDocs,
       } = body;
 
-      // Validate required fields
-      if (
-        !shopName ||
-        !displayName ||
-        !bio ||
-        !phone ||
-        !province ||
-        !city ||
-        !address ||
-        !nationalId
-      ) {
-        return NextResponse.json(
-          {
-            error: 'VALIDATION_ERROR',
-            message: 'All required fields must be provided',
-          },
-          { status: 400 }
-        );
-      }
+      // Resolve only persisted, authenticated documents belonging to this seller.
+      if (uploadedDocs?.length)
+        await ownedReadyDocuments(user.sellerProfile.id, uploadedDocs);
 
-      // uploadedDocs: optional but if present must be an array of strict Cloudinary doc URLs (<=5)
-      const docs: unknown = uploadedDocs;
-      if (docs !== undefined) {
-        if (!Array.isArray(docs)) {
-          return NextResponse.json(
-            {
-              error: 'VALIDATION_ERROR',
-              message: 'uploadedDocs must be an array',
-            },
-            { status: 400 }
-          );
-        }
-        if (docs.length > 5) {
-          return NextResponse.json(
-            {
-              error: 'VALIDATION_ERROR',
-              message: 'A maximum of 5 documents is allowed',
-            },
-            { status: 400 }
-          );
-        }
+      const nationalIdHash = fingerprintNationalId(nationalId);
 
-        const sellerId = user.sellerProfile.id;
-        const isValidDocUrl = (u: string): boolean => {
-          try {
-            const url = new URL(u);
-            if (url.protocol !== 'https:') return false;
-            if (url.hostname !== 'res.cloudinary.com') return false; // exact host match
-            // Path segments e.g.: /<cloud>/image/upload/v123/kiarakraft/sellers/<id>/documents/filename.pdf
-            const segments = url.pathname.split('/').filter(Boolean);
-            const sellersIdx = segments.indexOf('sellers');
-            if (sellersIdx === -1) return false;
-            if (segments[sellersIdx + 1] !== sellerId) return false;
-            if (segments[sellersIdx + 2] !== 'documents') return false;
-            return true;
-          } catch {
-            return false;
-          }
-        };
-
-        const invalid = docs.find(
-          u => typeof u !== 'string' || !isValidDocUrl(u)
-        );
-        if (invalid) {
-          return NextResponse.json(
-            {
-              error: 'VALIDATION_ERROR',
-              message:
-                'uploadedDocs must be HTTPS Cloudinary URLs within your documents folder',
-            },
-            { status: 400 }
-          );
-        }
-      }
-
-      // Create secure hash of national ID (never store raw ID)
-      const nationalIdHash = createHash('sha256')
-        .update(nationalId + process.env.NEXTAUTH_SECRET) // Salt with app secret
-        .digest('hex');
-
-      // Update seller profile with onboarding data
-      const updatedProfile = await prisma.sellerProfile.update({
-        where: { id: user.sellerProfile.id },
+      // Compare-and-set preserves the first recorded identity even when two
+      // submissions pass the initial read concurrently. All profile writes share
+      // the ownership and first-write predicate.
+      const result = await prisma.sellerProfile.updateMany({
+        where: {
+          id: user.sellerProfile.id,
+          userId: user.id,
+          nationalIdHash: null,
+        },
         data: {
-          shopName: shopName.trim(),
-          displayName: displayName.trim(),
-          bio: bio.trim(),
-          website: website?.trim() || null,
-          phone: phone.trim(),
-          province: province.trim(),
-          city: city.trim(),
-          address: address.trim(),
+          shopName,
+          displayName,
+          bio,
+          website: website || null,
+          phone,
+          province,
+          city,
+          address,
           nationalIdHash,
-          // Verification status remains false until admin approval
           verified: false,
           verificationNotes: `Onboarding completed on ${new Date().toISOString()}. Documents uploaded: ${uploadedDocs?.length || 0}`,
         },
       });
+      if (result.count !== 1)
+        return NextResponse.json(
+          { error: 'IDENTITY_ALREADY_RECORDED' },
+          { status: 409 }
+        );
 
-      // Log the onboarding completion for admin review
-      console.log(
-        `Seller onboarding completed: ${user.email} (${updatedProfile.shopName})`
-      );
+      console.log('Seller onboarding completed');
 
       return NextResponse.json({
         success: true,
         message:
           'Onboarding completed successfully. Your profile is pending verification.',
         profile: {
-          id: updatedProfile.id,
-          shopName: updatedProfile.shopName,
-          verified: updatedProfile.verified,
+          id: user.sellerProfile.id,
+          shopName,
+          verified: false,
         },
       });
     } catch (error) {
-      console.error('Error completing onboarding:', error);
-      Sentry.captureException(error);
+      if (error instanceof SellerDocumentError)
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.status }
+        );
+      if (error instanceof IdentityKeyError)
+        return NextResponse.json(
+          { error: 'IDENTITY_UNAVAILABLE' },
+          { status: 503 }
+        );
+      if (error instanceof JsonInputError)
+        return NextResponse.json(
+          { error: 'VALIDATION_ERROR' },
+          { status: error.status }
+        );
+      // Prisma/provider/parser errors can contain submitted identity data.
+      console.error('Seller onboarding failed');
       return NextResponse.json(
         { error: 'Failed to complete onboarding' },
         { status: 500 }

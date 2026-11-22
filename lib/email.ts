@@ -1,6 +1,10 @@
 import { Resend } from 'resend';
-import nodemailer from 'nodemailer';
+import nodemailer from 'smtp-mailer';
 import { ReactElement } from 'react';
+import {
+  assertProviderAllowed,
+  isStagingDeployment,
+} from './deployment-policy';
 
 // Email configuration
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -21,11 +25,15 @@ const SMTP_CONFIG = {
 };
 
 // Initialize Resend client if API key is available
-const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+const resend =
+  !isStagingDeployment() && RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 // Initialize SMTP transporter as fallback
 const smtpTransporter =
-  SMTP_CONFIG.host && SMTP_CONFIG.auth.user && SMTP_CONFIG.auth.pass
+  !isStagingDeployment() &&
+  SMTP_CONFIG.host &&
+  SMTP_CONFIG.auth.user &&
+  SMTP_CONFIG.auth.pass
     ? nodemailer.createTransport(SMTP_CONFIG)
     : null;
 
@@ -49,6 +57,7 @@ export interface EmailResult {
  */
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
+    assertProviderAllowed('email');
     const { to, subject, html, text, react } = options;
 
     // Convert React component to HTML if provided
@@ -90,28 +99,20 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
           result = await resend.emails.send(emailOptions);
         }
 
-        console.log(`Email sent via Resend: ${result.data?.id}`);
+        if (result.error || !result.data?.id) {
+          throw new Error('Resend did not accept delivery');
+        }
+        console.log(`Email sent via Resend: ${result.data.id}`);
         return {
           success: true,
           messageId: result.data?.id,
           provider: 'resend',
         };
       } catch (resendError) {
-        console.error('🚨 RESEND FAILED - Details:');
+        // Provider exceptions may contain request bodies or authentication data.
         console.error(
-          'Error message:',
-          resendError instanceof Error ? resendError.message : 'Unknown error'
+          'Resend delivery failed; attempting configured SMTP fallback.'
         );
-        console.error('Full error object:', resendError);
-        console.error('EMAIL_FROM being used:', EMAIL_FROM);
-        console.error('Resend options that failed:', {
-          from: EMAIL_FROM,
-          to: '[REDACTED]',
-          subject,
-          hasHtml: !!finalHtml,
-          hasText: !!text,
-        });
-        console.error('Falling back to SMTP...');
 
         // Fall through to SMTP if Resend fails
         if (!smtpTransporter) {
@@ -141,11 +142,11 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     throw new Error(
       'No email provider configured. Please set RESEND_API_KEY or SMTP credentials.'
     );
-  } catch (error) {
-    console.error('Email sending failed:', error);
+  } catch {
+    console.error('Email delivery failed');
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown email error',
+      error: 'Email delivery failed',
     };
   }
 }

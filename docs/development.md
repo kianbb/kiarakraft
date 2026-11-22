@@ -1,0 +1,115 @@
+# Development
+
+Use Node 22.13 or newer within Node 22, the committed npm lockfile, and PostgreSQL 16 with `pg_trgm` and `unaccent`. The local launcher manages a separate PostgreSQL instance; it does not require a shared system service. On macOS it detects the Homebrew PostgreSQL 16 installation. Set `KK_PG_BIN` when the binaries are installed elsewhere.
+
+## Setup
+
+```bash
+nvm use
+npm ci --legacy-peer-deps
+npm run setup
+npm run dev:local
+```
+
+Dependencies must be installed before setup. Setup generates local settings and the Prisma Client, starts PostgreSQL on loopback, then applies migrations and synthetic fixtures to the dedicated development and test databases. Setup also works after a locked install with `--ignore-scripts`. It does not use hosted service credentials. If prerequisites or database guards fail, correct the configuration rather than substituting a hosted URL.
+
+Prisma 7 client generation works with both database URLs unset. CI generates the client before standalone fixture preparation. Database CLI commands use the guarded `DIRECT_URL`. The application uses `DATABASE_URL` through the PostgreSQL adapter. The [archived maintenance scripts](../scripts/legacy/README.md) are no longer available as npm scripts. Those that instantiate Prisma directly need separate migration before use. The historical `/api/admin/seed` endpoint is disabled. Use the guarded fixture commands for local test data.
+
+For a production-mode build and runtime, configure the expected pooled Neon hostname, database and restricted login separately as `KK_PRODUCTION_DATABASE_HOST`, `KK_PRODUCTION_DATABASE_NAME` and `KK_PRODUCTION_DATABASE_ROLE`. The pooled `DATABASE_URL` must match all three. The production application rejects a configured `DIRECT_URL`; migration access belongs to the separately controlled database CLI. The build preflight and first ORM operation verify the authenticated database and role in a bounded read-only transaction. They reject elevated roles, ownership and migration-ledger access. The application connects with certificate and hostname verification.
+
+After `npm run setup`, run `node --import tsx test/production-role.integration.mjs` to rehearse the pilot grant matrix on the marked synthetic test database. The test creates a temporary login, checks effective table grants and denial of ledger access, and rolls back its order, payment, shipment and return fixtures. The hosted database grant inventory and provider permissions require separate verification before production role provisioning.
+
+Generated settings and fixture credentials are ignored by Git and protected with owner-only file permissions. Keep them local. Setup refuses to overwrite an unmanaged local environment file; resolve that conflict without copying secrets into a worker.
+
+The primary checkout defaults to app port `3000` and database port `55432`. Worktrees use path-derived defaults; check for conflicts before running several workers. Set `KK_APP_PORT` and `KK_LOCAL_DB_PORT` during initial setup to select other ports. `KK_APP_PORT` also selects the app's serving port. Keep listeners on `127.0.0.1` and each checkout's state separate.
+
+The local databases are `kiarakraft_dev` and `kiarakraft_test`. Writing test commands require the test database's synthetic identity marker. A matching hostname, database name or `NODE_ENV` value alone is insufficient.
+
+## Commands
+
+| Command                                            | Purpose                                                              |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| `npm run dev:local`                                | Run the app with isolated local settings                             |
+| `npm run db:local:start` / `npm run db:local:stop` | Manage this checkout's PostgreSQL instance                           |
+| `npm test`                                         | Run database-free unit and application regressions                   |
+| `npm run test:tooling`                             | Check environment, database and tooling boundaries                   |
+| `npm run db:test:prepare`                          | Apply migrations and synthetic fixtures to the guarded test database |
+| `npm run test:integration`                         | Run guarded database-writing tests                                   |
+| `npm run verify`                                   | Run formatting, type, lint, unit/tooling and locale checks           |
+| `npm run build:local` / `npm run start:local`      | Build and serve the local production build                           |
+| `npm run security:secrets`                         | Scan staged content with redacted output                             |
+| `npm run security:secrets -- --tracked`            | Scan tracked working files                                           |
+| `npm run security:secrets -- --all-history`        | Scan reachable Git history                                           |
+| `npm run security:audit`                           | Audit production dependencies                                        |
+| `npm run test:legacy:moderation`                   | Run the separate legacy moderation suite                             |
+
+Both `npm run build` and `build:local` use isolated settings. The deployment build uses its deployment environment. Builds do not apply migrations; hosted migrations require a separate reviewed operation.
+
+Next.js uses Turbopack for local development and for both build launchers. The Node.js request entry point, `proxy.ts`, handles locale routing and the preliminary auth redirects for seller and admin pages. Protected server pages and API routes perform their own authorization.
+
+## HTTP checks
+
+Start the isolated local production build in another terminal, then target its explicit loopback URL. Replace the example port with the checkout's selected app port.
+
+```bash
+npm run build:local
+npm run start:local
+```
+
+```bash
+NEXT_URL=http://127.0.0.1:3000 npm run test:i18n
+NEXT_URL=http://127.0.0.1:3000 npm run test:application
+NEXT_URL=http://127.0.0.1:3000 npm run test:password-security
+```
+
+The locale smoke checks must fail when the server is absent or returns an error. Application/password checks verify the synthetic database identity, may temporarily change or create their own fixtures, and restore or remove those fixtures afterward. Run them sequentially against one checkout. They are not safe substitutes for staging tests against a hosted target.
+
+Unit tests and local checks do not exercise paid AI, mail delivery or live payment gateways. Provider mocks demonstrate the tested local behavior only. Review Persian/English rendering, mobile interaction and accessibility separately when affected.
+
+## Environment boundaries
+
+The launcher constructs a restricted environment before application/database tooling runs. It clears inherited provider credentials and forces paid AI/translation admission settings to zero. Keep that behavior covered when adding configuration. A provider key alone must not enable spending.
+
+The PostgreSQL adapter uses explicit connection options and verifies hosted TLS certificates. Staging checks the database, login role and identity marker before ORM access. Loopback application runs require a matching local synthetic marker. Application builds do not apply migrations.
+
+Do not run arbitrary maintenance scripts with a hosted environment implicitly loaded. Never reset an existing hosted database, run production seed scripts for local setup, repair migration history to conceal drift, or replace remote assets incidentally. Preserve existing data and add forward migrations.
+
+Local isolation reduces accidental access. Filesystem permissions, credential separation, network controls and server authorization remain necessary: a worktree or instruction file does not enforce all of those boundaries.
+
+## Parallel work
+
+Start independent tasks from reviewed, committed code:
+
+```bash
+npm run worktree:new -- task-name
+```
+
+Open the resulting task worktree separately, install locked dependencies and run setup there. Uncommitted changes are not included. Do not manually copy credentials, deployment metadata or database files. Use distinct state and ports; do not stop another worker's database.
+
+One coordinator integrates and verifies changes. Workers own bounded tasks and report exact checks, failures and verification limits. Coordinate lockfile and migration changes through designated owners.
+
+## CI and release
+
+Functional CI uses a dedicated PostgreSQL service, synthetic fixtures, isolated builds and local HTTP checks. Security scanning runs separately. Inspect the workflow files for the current commands; local success does not establish remote CI success.
+
+Keep failing checks visible. Fix configuration errors without weakening guards, and resolve findings before release or document a narrowly reviewed exception. Reports should identify a redacted location without exposing credentials or confidential evidence.
+
+Production and staging require separate configuration, credentials, access controls and human release review. Follow [staging](staging.md); a GitHub approval gate alone does not establish that an independent hosting deployment is protected.
+
+## Dependency compatibility
+
+The application SMTP transport is installed as `smtp-mailer` (an npm alias of maintained Nodemailer). Auth.js uses Credentials authentication here; its optional canonical Nodemailer email-provider peer is intentionally absent. The alias retains the real package identity for auditing. Do not install an older canonical Nodemailer to satisfy an unused optional provider. SMTP composition and provider-failure regressions are local checks, not proof of external email delivery.
+
+Sentry 11 uses explicitly restricted collection settings and a static trace lifecycle for existing callbacks. Staging initialization remains disabled. Node SDK event-pipeline tests cover structured-context removal; free-form messages, Browser/Edge integrations and live telemetry require separate review before activation. The application no longer installs the unused Vercel deployment CLI. Manage deployments through the approved hosting connection and release procedure.
+
+## Identity onboarding
+
+The manual pilot uses ordinary seller profile edits and admin approval. Leave `SELLER_IDENTITY_COLLECTION_ENABLED` unset or `false` for that workflow. Self-service identity submission requires `KK_DEPLOYMENT_MODE=production` and an explicit, server-only `SELLER_IDENTITY_COLLECTION_ENABLED=true`. Staging, Preview and isolated local mode block it. Document uploads additionally require their own opt-in.
+
+New seller identity fingerprints require independent `IDENTITY_HASH_KEY` and `IDENTITY_HASH_KEY_ID` settings. The key is the canonical unpadded base64url encoding of 32 cryptographically random bytes; the non-secret key ID is 1–32 ASCII letters, digits, underscores or hyphens. Generate and store it through the approved secret store; do not paste keys into chat, commands or repository files. Authentication secrets cannot substitute for this key. Missing/invalid configuration returns a generic unavailable response without a profile write.
+
+The fingerprint stores its algorithm/version/key ID in the existing private string field. Ordinary onboarding accepts only a first identity submission and atomically preserves every existing non-null fingerprint and profile state; changes need a separate reviewed re-verification flow. Ten-digit validation accepts Persian, Arabic and ASCII numerals but is format validation, not proof of identity. The raw number is not persisted by this route.
+
+Local launchers disable collection and clear both identity key settings, including inherited/configured values. Database-free and guarded integration tests supply synthetic keys explicitly. The new key must be provisioned separately before identity collection is enabled in an approved production release. Existing identity data, legacy treatment and credential rotation remain separate operational work.
+
+The historical `npm run lhci` command now fails before loading a browser or network client. Its old live-site/public-upload configuration and unused CLI dependency were removed; historical Git revisions remain preserved. A reviewed protected synthetic performance runner is still needed.

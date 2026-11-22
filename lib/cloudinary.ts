@@ -1,12 +1,40 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinaryProvider } from 'cloudinary';
+import {
+  assertProviderAllowed,
+  isStagingDeployment,
+} from './deployment-policy';
 
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+if (!isStagingDeployment())
+  cloudinaryProvider.config({
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
 
-export { cloudinary };
+// Some upload routes use the SDK directly. Guard every exported SDK namespace,
+// including upload streams, deletion, admin reads and signing helpers, so a
+// wrapper bypass cannot send data when preview credentials were added by mistake.
+const guardedObjects = new WeakMap<object, object>();
+function guardedCloudinary<T extends object>(value: T): T {
+  const existing = guardedObjects.get(value);
+  if (existing) return existing as T;
+  const guarded = new Proxy(value, {
+    get(target, property) {
+      const member = Reflect.get(target, property, target);
+      if (typeof member === 'function')
+        return (...args: unknown[]) => {
+          assertProviderAllowed('uploads');
+          return Reflect.apply(member, target, args);
+        };
+      if (member && typeof member === 'object')
+        return guardedCloudinary(member);
+      return member;
+    },
+  });
+  guardedObjects.set(value, guarded);
+  return guarded;
+}
+export const cloudinary = guardedCloudinary(cloudinaryProvider);
 
 export const UPLOAD_FOLDER = 'kiarakraft';
 
@@ -55,6 +83,7 @@ export async function uploadImageToCloudinary(
     crop?: string;
   } = {}
 ): Promise<UploadResult> {
+  assertProviderAllowed('uploads');
   return new Promise((resolve, reject) => {
     const uploadOptions = {
       folder: options.folder || UPLOAD_FOLDER,
@@ -118,6 +147,7 @@ export async function deleteImageFromCloudinary(
   publicIdOrUrl: string
 ): Promise<boolean> {
   try {
+    assertProviderAllowed('uploads');
     const publicId = publicIdOrUrl.includes('/upload/')
       ? (extractPublicIdFromUrl(publicIdOrUrl) ?? '')
       : publicIdOrUrl;
@@ -155,6 +185,7 @@ export async function listAssetsInFolder(
   }[]
 > {
   try {
+    assertProviderAllowed('uploads');
     const prefix = folder.endsWith('/') ? folder : `${folder}/`;
     const [images, raws] = await Promise.all([
       // Images

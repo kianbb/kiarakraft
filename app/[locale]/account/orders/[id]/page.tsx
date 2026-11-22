@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { formatPrice, formatDate } from '@/lib/utils';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 import {
   Package,
@@ -12,7 +12,6 @@ import {
   Phone,
   User,
   ArrowLeft,
-  Copy,
   CreditCard,
   Box,
   RotateCcw,
@@ -20,13 +19,21 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { CopyOrderIdButton } from '@/components/order/CopyOrderIdButton';
+import { returnIneligibility } from '@/lib/return-eligibility';
+import {
+  buyerShippingSelect,
+  buyerShippingTimeline,
+  toBuyerShipping,
+  type BuyerShipping,
+} from '@/lib/order-read';
 
 interface OrderDetailPageProps {
   params: Promise<{ locale: string; id: string }>;
 }
 
 async function getOrderById(orderId: string, userId: string) {
-  return await prisma.order.findFirst({
+  const order = await prisma.order.findFirst({
     where: {
       id: orderId,
       userId,
@@ -48,28 +55,32 @@ async function getOrderById(orderId: string, userId: string) {
               },
             },
           },
-          returnRequest: true,
+          returnRequest: { select: { status: true } },
         },
       },
       payment: true,
-      shipping: true,
+      shipping: { select: buyerShippingSelect },
       address: true,
     },
   });
+  if (!order) return null;
+  const { shipping, ...details } = order;
+  return {
+    ...details,
+    shipping: toBuyerShipping(shipping),
+    returnIneligibility: returnIneligibility(order),
+  };
 }
 
 interface OrderWithDetails {
   createdAt: Date;
+  updatedAt: Date;
+  status: string;
   payment?: {
     status: string;
     updatedAt: Date;
   } | null;
-  shipping?: {
-    status: string;
-    trackingNo?: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null;
+  shipping: BuyerShipping | null;
 }
 
 function getOrderTimeline(order: OrderWithDetails, t: (key: string) => string) {
@@ -104,40 +115,29 @@ function getOrderTimeline(order: OrderWithDetails, t: (key: string) => string) {
 
   // Shipping updates
   if (order.shipping) {
-    if (
-      order.shipping.status === 'PROCESSING' ||
-      order.shipping.status === 'SHIPPED' ||
-      order.shipping.status === 'DELIVERED'
-    ) {
+    const events = buyerShippingTimeline(order.shipping, {
+      status: order.status,
+      updatedAt: order.updatedAt.toISOString(),
+    });
+    const phases = [
+      { status: 'PROCESSING', label: 'preparingShipment', icon: Box },
+      { status: 'SHIPPED', label: 'shipped', icon: Truck },
+      { status: 'DELIVERED', label: 'delivered', icon: CheckCircle },
+      { status: 'RETURNED', label: 'returned', icon: RotateCcw },
+    ];
+    for (const phase of phases) {
+      const event = events.find(event => event.status === phase.status);
+      if (!event) continue;
+      const trackingNo =
+        phase.status === 'SHIPPED'
+          ? (order.shipping.trackingNo ?? event.trackingNo)
+          : undefined;
       timeline.push({
-        date: order.shipping.createdAt,
-        title: t('preparingShipment'),
+        date: new Date(event.timestamp),
+        title: t(phase.label),
+        subtitle: trackingNo ? `${t('tracking')}: ${trackingNo}` : undefined,
         status: 'completed',
-        icon: Box,
-      });
-    }
-
-    if (
-      order.shipping.status === 'SHIPPED' ||
-      order.shipping.status === 'DELIVERED'
-    ) {
-      timeline.push({
-        date: order.shipping.updatedAt,
-        title: t('shipped'),
-        subtitle: order.shipping.trackingNo
-          ? `${t('tracking')}: ${order.shipping.trackingNo}`
-          : undefined,
-        status: 'completed',
-        icon: Truck,
-      });
-    }
-
-    if (order.shipping.status === 'DELIVERED') {
-      timeline.push({
-        date: order.shipping.updatedAt,
-        title: t('delivered'),
-        status: 'completed',
-        icon: CheckCircle,
+        icon: phase.icon,
       });
     }
   }
@@ -151,13 +151,17 @@ export default async function OrderDetailPage({
   params,
 }: OrderDetailPageProps) {
   const { locale, id } = await params;
+  setRequestLocale(locale);
   const session = await auth();
 
   if (!session) {
     redirect('/auth/login');
   }
 
-  const t = await getTranslations('orders');
+  const [t, tReturns] = await Promise.all([
+    getTranslations({ locale, namespace: 'orders' }),
+    getTranslations({ locale, namespace: 'returns' }),
+  ]);
   const order = await getOrderById(id, session.user.id);
   const isRTL = locale === 'fa';
 
@@ -165,6 +169,9 @@ export default async function OrderDetailPage({
     notFound();
   }
 
+  const canRequestReturn =
+    order.returnIneligibility === null &&
+    order.items.some(item => !item.returnRequest);
   const timeline = getOrderTimeline(order, t);
   const subtotal = order.items.reduce(
     (sum, item) => sum + item.unitPriceToman * item.quantity,
@@ -192,14 +199,7 @@ export default async function OrderDetailPage({
                 {t('orderNumber')}:{' '}
                 <span className="font-mono">#{order.id.slice(-8)}</span>
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigator.clipboard.writeText(order.id)}
-              >
-                <Copy className="h-3 w-3 mr-1" />
-                {t('copyId')}
-              </Button>
+              <CopyOrderIdButton orderId={order.id} label={t('copyId')} />
             </div>
           </div>
           <div>
@@ -451,13 +451,26 @@ export default async function OrderDetailPage({
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            {order.payment?.status === 'PAID' && (
+            {canRequestReturn && (
               <Link href={`/${locale}/account/orders/${order.id}/return`}>
                 <Button variant="outline" className="w-full">
                   <RotateCcw className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                   {t('requestReturn')}
                 </Button>
               </Link>
+            )}
+            {order.returnIneligibility === 'delivery_unconfirmed' && (
+              <div className="rounded-lg border p-4 text-sm">
+                <p className="mb-2 text-muted-foreground">
+                  {tReturns('deliveryUnconfirmed')}
+                </p>
+                <Link
+                  href={`/${locale}/contact`}
+                  className="text-primary underline"
+                >
+                  {tReturns('contactSupport')}
+                </Link>
+              </div>
             )}
             {order.status === 'DELIVERED' && (
               <Link href={`/${locale}/account/orders/${order.id}/review`}>

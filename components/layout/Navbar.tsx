@@ -19,26 +19,19 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useHydrated } from '@/lib/use-hydrated';
 
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  // Hydration state needs to be declared before calling next-intl hooks
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useHydrated();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [searchText, setSearchText] = useState('');
-  // Keep hook order stable by calling hooks unconditionally
-  const _locale = useLocale();
-  const _t = useTranslations('navigation');
-  const locale = isHydrated ? _locale : 'en';
-
-  // Prevent SSR/hydration mismatch by only rendering after client-side hydration
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+  const locale = useLocale();
+  const t = useTranslations('navigation');
 
   // Fetch cart count when session/path changes and on custom events
   useEffect(() => {
@@ -95,7 +88,6 @@ export default function Navbar() {
     );
   }
 
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
   const isRTL = locale === 'fa';
 
   const navigation = [

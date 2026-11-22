@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { searchProducts } from '@/lib/search-cached';
 import type { SearchFilters } from '@/lib/search';
 import { prisma } from '@/lib/prisma';
+import { getApprovedProductRatings } from '@/lib/product-ratings';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ExploreFilters } from '@/components/explore/ExploreFilters';
 import { ExplorePagination } from '@/components/explore/ExplorePagination';
@@ -58,10 +59,15 @@ async function getSearchResults(locale: string, searchParams: SearchParams) {
     };
 
     const results = await searchProducts({ ...filters, locale });
+    const ratings = await getApprovedProductRatings(
+      prisma.review,
+      results.products.map(product => product.id)
+    );
 
     // Transform results to include seller verification status
     const transformedProducts = results.products.map(product => ({
       ...product,
+      rating: ratings.get(product.id),
       seller: {
         ...product.seller,
         verified: product.seller.verified,

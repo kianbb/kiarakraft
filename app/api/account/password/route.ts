@@ -4,7 +4,11 @@ import { prisma } from '@/lib/prisma';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
 import { validatePasswordComplexity } from '@/lib/auth-security';
-import { invalidateUserSessions } from '@/lib/session-manager';
+import {
+  changePasswordWithSnapshot,
+  readResetBody,
+  ResetInputError,
+} from '@/lib/password-reset';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 
@@ -13,8 +17,12 @@ const changePasswordSchema = z
     currentPassword: z.string().min(1, 'Current password is required'),
     newPassword: z
       .string()
-      .min(8, 'New password must be at least 8 characters long'),
-    confirmPassword: z.string().min(1, 'Password confirmation is required'),
+      .min(8, 'New password must be at least 8 characters long')
+      .max(72),
+    confirmPassword: z
+      .string()
+      .min(1, 'Password confirmation is required')
+      .max(72),
   })
   .refine(data => data.newPassword === data.confirmPassword, {
     message: "Passwords don't match",
@@ -42,7 +50,7 @@ export const POST = withRateLimit(
         );
       }
 
-      const body = await request.json();
+      const body = await readResetBody(request);
       const { currentPassword, newPassword } = changePasswordSchema.parse(body);
 
       // Validate new password complexity
@@ -65,6 +73,7 @@ export const POST = withRateLimit(
           password: true,
           email: true,
           name: true,
+          passwordChangedAt: true,
         },
       });
 
@@ -91,36 +100,31 @@ export const POST = withRateLimit(
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // Update password and invalidate all sessions in a transaction
-      await prisma.$transaction(async tx => {
-        // Update password
-        await tx.user.update({
-          where: { id: user.id },
-          data: {
-            password: hashedPassword,
-            passwordChangedAt: new Date(), // This invalidates all existing sessions
+      const changed = await changePasswordWithSnapshot(
+        prisma,
+        user,
+        hashedPassword,
+        {
+          timestamp: new Date().toISOString(),
+          ip: (request.headers.get('x-forwarded-for') || 'unknown').slice(
+            0,
+            128
+          ),
+          userAgent: (request.headers.get('user-agent') || 'unknown').slice(
+            0,
+            512
+          ),
+        }
+      );
+      if (!changed) {
+        return NextResponse.json(
+          {
+            error: 'Credentials changed. Please log in again before retrying.',
+            requiresReauth: true,
           },
-        });
-
-        // Log the security event
-        await tx.auditLog.create({
-          data: {
-            action: 'password_changed',
-            userId: user.id,
-            targetId: user.id,
-            targetType: 'user',
-            metadata: {
-              timestamp: new Date().toISOString(),
-              ip: request.headers.get('x-forwarded-for') || 'unknown',
-              userAgent: request.headers.get('user-agent') || 'unknown',
-            },
-            success: true,
-          },
-        });
-      });
-
-      // Invalidate all user sessions (additional cleanup)
-      await invalidateUserSessions(user.id);
+          { status: 409 }
+        );
+      }
 
       console.log(`Password changed successfully for user ${user.id}`);
 
@@ -131,17 +135,22 @@ export const POST = withRateLimit(
         requiresReauth: true, // Client should redirect to login
       });
     } catch (error) {
+      if (error instanceof ResetInputError) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: error.status }
+        );
+      }
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           {
             error: 'Invalid request data',
-            details: error.issues,
           },
           { status: 400 }
         );
       }
 
-      console.error('Error in change password API:', error);
+      console.error('Password change failed');
       return NextResponse.json(
         { error: 'An error occurred while changing your password' },
         { status: 500 }
@@ -167,6 +176,7 @@ export const GET = async function (_request: NextRequest) {
   return NextResponse.json({
     requirements: {
       minLength: 8,
+      maxUtf8Bytes: 72,
       requireUppercase: true,
       requireLowercase: true,
       requireNumbers: true,

@@ -1,15 +1,2 @@
-import { PrismaClient } from '@prisma/client';
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query'] : [],
-  });
-
-export const prisma = db;
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Both historical import paths must share the same guarded client.
+export { prisma, prisma as db } from './prisma';

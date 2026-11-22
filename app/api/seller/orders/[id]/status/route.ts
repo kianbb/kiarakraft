@@ -9,6 +9,8 @@ import {
   type SellerAction,
 } from '@/lib/orderStatus';
 import * as Sentry from '@sentry/nextjs';
+import { sendFulfillmentNotification } from '@/lib/notifications';
+import { FulfillmentConflict, updateOrderFulfillment } from '@/lib/fulfillment';
 
 // Allowed transitions for sellers (whole-order level only when the order is single-seller)
 // - PAID -> SHIPPED
@@ -17,8 +19,9 @@ export const PATCH = withRateLimit(
   sellerRateLimit,
   withCSRF(async function (
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params: routeParams }: { params: Promise<{ id: string }> }
   ) {
+    const params = await routeParams;
     try {
       const session = await auth();
 
@@ -29,14 +32,22 @@ export const PATCH = withRateLimit(
 
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },
+        select: { sellerProfile: { select: { id: true } } },
       });
       if (!user) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
+      if (!user.sellerProfile) {
+        return NextResponse.json(
+          { error: 'Seller profile required' },
+          { status: 403 }
+        );
+      }
 
       const { id } = params;
       const body = await request.json().catch(() => ({}));
-      const action = (body?.action as string | undefined)?.toLowerCase();
+      const action =
+        typeof body?.action === 'string' ? body.action.toLowerCase() : null;
 
       if (!action || !['mark_shipped', 'mark_delivered'].includes(action)) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -59,7 +70,7 @@ export const PATCH = withRateLimit(
       // Determine if this is a single-seller order and that seller is the current user
       const sellerIds = new Set(order.items.map(it => it.product.sellerId));
 
-      if (sellerIds.size !== 1 || !sellerIds.has(user.id)) {
+      if (sellerIds.size !== 1 || !sellerIds.has(user.sellerProfile.id)) {
         return NextResponse.json(
           {
             error:
@@ -81,13 +92,48 @@ export const PATCH = withRateLimit(
         );
       }
 
-      const updated = await prisma.order.update({
-        where: { id },
-        data: { status: nextStatus },
+      const updated = await updateOrderFulfillment(
+        prisma,
+        order,
+        nextStatus,
+        'SELLER'
+      );
+      if (updated.notification) {
+        sendFulfillmentNotification(
+          updated.order,
+          updated.notification,
+          updated.shipment?.trackingNo
+        );
+      }
+      const {
+        id: orderId,
+        status,
+        totalToman,
+        createdAt,
+        updatedAt,
+      } = updated.order;
+      return NextResponse.json({
+        id: orderId,
+        status,
+        totalToman,
+        createdAt,
+        updatedAt,
       });
-
-      return NextResponse.json(updated);
     } catch (error) {
+      if (error instanceof FulfillmentConflict) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error.code === 'P2025' || error.code === 'P2034')
+      ) {
+        return NextResponse.json(
+          { error: 'Order status changed; refresh and retry' },
+          { status: 409 }
+        );
+      }
       console.error('Error updating order status (seller):', error);
       Sentry.captureException(error);
       return NextResponse.json(

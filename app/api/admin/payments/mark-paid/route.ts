@@ -6,6 +6,11 @@ import { withRateLimit, adminRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
 import { parseOrderId } from '@/lib/validation';
 import { sendNotification } from '@/lib/notifications';
+import { decrementOrderableStock } from '@/lib/orderStock';
+import {
+  claimOfflinePaymentOrder,
+  OfflinePaymentOrderConflict,
+} from '@/lib/offline-payment-order';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +28,6 @@ export const POST = withRateLimit(
 
       const payment = await prisma.payment.findUnique({
         where: { orderId },
-        include: { order: true },
       });
       if (!payment) {
         return NextResponse.json(
@@ -43,24 +47,30 @@ export const POST = withRateLimit(
         return NextResponse.json({ ok: true, already: true });
       }
 
-      await prisma.$transaction(
+      const captured = await prisma.$transaction(
         async tx => {
           // Lock to prevent races
           await tx.$queryRaw`SELECT id, status FROM "Payment" WHERE id = ${payment.id} FOR UPDATE`;
           const fresh = await tx.payment.findUnique({
             where: { id: payment.id },
           });
-          if (!fresh) throw new Error('Payment missing');
-          if (fresh.status === 'PAID') return; // idempotent
+          if (
+            !fresh ||
+            fresh.gateway !== 'OFFLINE' ||
+            fresh.orderId !== orderId
+          ) {
+            throw new OfflinePaymentOrderConflict();
+          }
+          if (fresh.status === 'PAID') return false;
           if (
             fresh.status !== 'INITIATED' &&
             fresh.status !== 'PENDING' &&
             fresh.status !== 'FAILED'
           ) {
-            throw new Error('Invalid state for manual capture');
+            throw new OfflinePaymentOrderConflict();
           }
 
-          // Mark payment and order as PAID
+          await claimOfflinePaymentOrder(tx, fresh);
           await tx.payment.update({
             where: { id: payment.id },
             data: {
@@ -74,25 +84,17 @@ export const POST = withRateLimit(
             },
           });
 
-          await tx.order.update({
-            where: { id: payment.orderId },
-            data: { status: 'PAID' },
-          });
-
           // Decrement stock atomically per item
           const items = await tx.orderItem.findMany({
-            where: { orderId: payment.orderId },
+            where: { orderId: fresh.orderId },
           });
-          for (const item of items) {
-            const updated: unknown =
-              await tx.$executeRaw`UPDATE "Product" SET stock = stock - ${item.quantity} WHERE id = ${item.productId} AND stock >= ${item.quantity}`;
-            if (Number(updated) === 0) {
-              throw new Error('Insufficient stock while finalizing order');
-            }
-          }
+          await decrementOrderableStock(tx, items);
+          return true;
         },
         { isolationLevel: 'Serializable' }
       );
+
+      if (!captured) return NextResponse.json({ ok: true, already: true });
 
       // Send notification (best-effort)
       setImmediate(async () => {
@@ -125,6 +127,20 @@ export const POST = withRateLimit(
 
       return NextResponse.json({ ok: true });
     } catch (error) {
+      if (
+        error instanceof OfflinePaymentOrderConflict ||
+        (error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          error.code === 'P2034')
+      ) {
+        return NextResponse.json(
+          {
+            error: 'Order or payment changed. Refresh and verify the payment.',
+          },
+          { status: 409 }
+        );
+      }
       console.error('Admin mark-paid error:', error);
       Sentry.captureException(error);
       return NextResponse.json(

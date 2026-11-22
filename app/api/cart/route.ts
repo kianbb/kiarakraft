@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { publicProductSelect } from '@/lib/public-product';
 import { withCSRF } from '@/lib/csrf';
 import { withRateLimit, cartRateLimit } from '@/lib/rateLimit';
 import * as Sentry from '@sentry/nextjs';
@@ -38,10 +39,7 @@ export const GET = withRateLimit(cartRateLimit, async function GET() {
       where: { cart: { userId: user.id } },
       include: {
         product: {
-          include: {
-            seller: true,
-            images: true,
-          },
+          select: publicProductSelect,
         },
       },
     });
@@ -186,10 +184,7 @@ export const POST = withRateLimit(
               data: { quantity: newQuantity },
               include: {
                 product: {
-                  include: {
-                    seller: true,
-                    images: true,
-                  },
+                  select: publicProductSelect,
                 },
               },
             });
@@ -203,10 +198,7 @@ export const POST = withRateLimit(
               },
               include: {
                 product: {
-                  include: {
-                    seller: true,
-                    images: true,
-                  },
+                  select: publicProductSelect,
                 },
               },
             });

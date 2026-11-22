@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Upload, X, GripVertical, Loader2 } from 'lucide-react';
 
 export interface UploadedImage {
@@ -25,6 +26,7 @@ export function ImageUpload({
   maxImages = 10,
   disabled = false,
 }: ImageUploadProps) {
+  const t = useTranslations('seller');
   const [uploading, setUploading] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,8 +42,10 @@ export function ImageUpload({
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
+        if (response.status === 413) throw new Error(t('uploadImageTooLarge'));
+        if (response.status === 400 || response.status === 415)
+          throw new Error(t('uploadImageInvalid'));
+        throw new Error(t('uploadFailed'));
       }
 
       const result = await response.json();
@@ -53,7 +57,7 @@ export function ImageUpload({
         sortOrder: images.length,
       };
     },
-    [images.length]
+    [images.length, t]
   );
 
   const handleFileSelect = useCallback(
@@ -64,7 +68,7 @@ export function ImageUpload({
       const remainingSlots = maxImages - images.length;
 
       if (filesArray.length > remainingSlots) {
-        alert(`You can only upload ${remainingSlots} more image(s).`);
+        alert(t('maximumImagesAllowed', { count: maxImages }));
         return;
       }
 
@@ -75,12 +79,12 @@ export function ImageUpload({
         onImagesChange([...images, ...newImages]);
       } catch (error) {
         console.error('Upload error:', error);
-        alert(error instanceof Error ? error.message : 'Upload failed');
+        alert(error instanceof Error ? error.message : t('uploadFailed'));
       } finally {
         setUploading(false);
       }
     },
-    [images, onImagesChange, maxImages, disabled, uploading, uploadImage]
+    [images, onImagesChange, maxImages, disabled, uploading, uploadImage, t]
   );
 
   const handleDrop = useCallback(
@@ -157,8 +161,7 @@ export function ImageUpload({
               </button>
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              PNG, JPG, WebP up to 5MB each. {images.length}/{maxImages}{' '}
-              uploaded.
+              {t('uploadImageFormats')} {images.length}/{maxImages}
             </p>
           </div>
 

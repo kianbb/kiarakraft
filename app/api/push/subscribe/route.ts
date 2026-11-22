@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { withRateLimit, authRateLimit } from '@/lib/rateLimit';
 import { z } from 'zod';
 import { withCSRF } from '@/lib/csrf';
+import { isStagingDeployment } from '@/lib/deployment-policy';
 
 const subscriptionSchema = z.object({
   endpoint: z.string().url(),
@@ -13,7 +14,7 @@ const subscriptionSchema = z.object({
   }),
 });
 
-export const POST = withRateLimit(
+const subscribe = withRateLimit(
   authRateLimit,
   withCSRF(async function (request: NextRequest) {
     try {
@@ -62,8 +63,23 @@ export const POST = withRateLimit(
   })
 );
 
+export async function POST(request: NextRequest) {
+  // Deny before rate-limit/session reads or any subscription collection.
+  if (isStagingDeployment())
+    return NextResponse.json(
+      { error: 'Push subscriptions are disabled in staging' },
+      { status: 503 }
+    );
+  return subscribe(request);
+}
+
 // Get VAPID public key for client-side subscription
 export const GET = async function () {
+  if (isStagingDeployment())
+    return NextResponse.json(
+      { error: 'Push subscriptions are disabled in staging' },
+      { status: 503 }
+    );
   const publicKey = process.env.VAPID_PUBLIC_KEY;
 
   if (!publicKey) {

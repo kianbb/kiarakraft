@@ -1,3 +1,5 @@
+import { AIBudgetError, reserveAICall } from '@/lib/ai-budget';
+
 export type ProductCategory =
   | 'ceramics'
   | 'textiles'
@@ -43,6 +45,9 @@ export async function generateProductImageBuffer(params: {
   size?: '1024x1024' | '1536x1024' | '1024x1536' | 'auto';
   quality?: 'auto' | 'high' | 'medium' | 'low';
   model?: string;
+  // Operator scripts must explicitly provide service:image-generation. Human
+  // callers must provide their authenticated user ID; missing actors are denied.
+  userId?: string;
 }): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_BETA;
   if (!apiKey) {
@@ -51,6 +56,11 @@ export async function generateProductImageBuffer(params: {
   const prompt = buildPrompt(params.title, params.description, params.category);
   const endpoint = 'https://api.openai.com/v1/images/generations';
   const tryModel = async (model: string) => {
+    await reserveAICall({
+      userId: params.userId,
+      purpose: 'product-image-generation',
+      kind: 'image',
+    });
     const isGptImage = model.startsWith('gpt-image');
     const resp = await fetch(endpoint, {
       method: 'POST',
@@ -118,7 +128,8 @@ export async function generateProductImageBuffer(params: {
       for (const fallback of fallbackModels) {
         try {
           return await tryModel(fallback);
-        } catch {
+        } catch (error) {
+          if (error instanceof AIBudgetError) throw error;
           continue;
         }
       }
