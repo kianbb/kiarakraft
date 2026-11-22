@@ -36,20 +36,40 @@ export default function ReturnRequestPage() {
   const { locale, id: orderId } = useParams<{ locale: string; id: string }>();
   const { data: session, status } = useSession();
   const buyerId = session?.user?.id;
+
+  return (
+    <ReturnRequest
+      key={JSON.stringify([locale, orderId, buyerId, status])}
+      locale={locale}
+      orderId={orderId}
+      buyerId={buyerId}
+      sessionLoading={status === 'loading'}
+    />
+  );
+}
+
+function ReturnRequest({
+  locale,
+  orderId,
+  buyerId,
+  sessionLoading,
+}: {
+  locale: string;
+  orderId: string;
+  buyerId?: string;
+  sessionLoading: boolean;
+}) {
   const router = useRouter();
   const t = useTranslations('returns');
   const isRTL = locale === 'fa';
 
-  const [loaded, setLoaded] = useState<{
-    buyerId: string;
-    order: Order;
-  } | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (sessionLoading) return;
 
     if (!buyerId) {
       router.push(`/${locale}/auth/login`);
@@ -57,8 +77,6 @@ export default function ReturnRequestPage() {
     }
 
     const controller = new AbortController();
-    setSelectedItem('');
-    setReason('');
     const fetchOrder = async () => {
       try {
         const response = await fetch(`/api/orders/${orderId}`, {
@@ -67,7 +85,7 @@ export default function ReturnRequestPage() {
         if (!response.ok) throw new Error('Failed to fetch order');
 
         const order: Order = await response.json();
-        if (!controller.signal.aborted) setLoaded({ buyerId, order });
+        if (!controller.signal.aborted && order.id === orderId) setOrder(order);
       } catch {
         if (!controller.signal.aborted) {
           router.push(`/${locale}/account/orders`);
@@ -77,14 +95,8 @@ export default function ReturnRequestPage() {
 
     fetchOrder();
     return () => controller.abort();
-  }, [buyerId, status, orderId, locale, router]);
+  }, [buyerId, sessionLoading, orderId, locale, router]);
 
-  const order =
-    status === 'authenticated' &&
-    loaded?.buyerId === buyerId &&
-    loaded?.order.id === orderId
-      ? loaded.order
-      : null;
   const returnableItems =
     order?.items.filter(item => item.returnEligible) ?? [];
 

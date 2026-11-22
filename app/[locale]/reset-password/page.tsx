@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -57,7 +57,14 @@ interface TokenValidationResult {
 }
 
 function ResetPasswordContent() {
-  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  const token = useSearchParams().get('token');
+  return <ResetPasswordFormContent key={token} token={token} />;
+}
+
+function ResetPasswordFormContent({ token }: { token: string | null }) {
+  const [tokenValid, setTokenValid] = useState<boolean | null>(
+    token ? null : false
+  );
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -67,35 +74,29 @@ function ResetPasswordContent() {
   const t = useTranslations('auth');
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const locale = params.locale as string;
-  const token = searchParams.get('token');
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    control,
   } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
   });
 
-  const password = watch('password', '');
+  const password = useWatch({ control, name: 'password', defaultValue: '' });
 
-  // Validate token on component mount
   useEffect(() => {
-    if (!token) {
-      setTokenValid(false);
-      return;
-    }
-
-    const validateToken = async () => {
-      try {
-        const response = await fetch(
-          `/api/auth/reset-password?token=${encodeURIComponent(token)}`
-        );
+    if (!token) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    void fetch(`/api/auth/reset-password?token=${encodeURIComponent(token)}`, {
+      signal,
+    })
+      .then(async response => {
         const result: TokenValidationResult = await response.json();
-
+        if (signal.aborted) return;
         if (result.valid) {
           setTokenValid(true);
           setUserEmail(result.email || '');
@@ -103,14 +104,15 @@ function ResetPasswordContent() {
           setTokenValid(false);
           toast.error(result.error || 'Invalid or expired reset token');
         }
-      } catch (error) {
+      })
+      .catch(error => {
+        if (signal.aborted) return;
         console.error('Token validation error:', error);
         setTokenValid(false);
         toast.error('Error validating reset token');
-      }
-    };
+      });
 
-    validateToken();
+    return () => controller.abort();
   }, [token]);
 
   const onSubmit = async (data: ResetPasswordForm) => {

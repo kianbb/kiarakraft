@@ -45,10 +45,7 @@ type PaymentsResponse = {
 export default function AdminPaymentsPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('admin');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('admin');
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +59,8 @@ export default function AdminPaymentsPage() {
   });
   const [updating, setUpdating] = useState<string | null>(null);
 
-  const fetchPayments = useCallback(async () => {
-    try {
+  const fetchPayments = useCallback(
+    (signal?: AbortSignal) => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
@@ -73,18 +70,26 @@ export default function AdminPaymentsPage() {
         params.append('status', statusFilter);
       }
 
-      const response = await fetch(`/api/admin/payments?${params}`);
-      if (response.ok) {
-        const data: PaymentsResponse = await response.json();
-        setPayments(data.payments);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, page]);
+      return fetch(`/api/admin/payments?${params}`, { signal })
+        .then(async response => {
+          if (signal?.aborted) return;
+          if (response.ok) {
+            const data: PaymentsResponse = await response.json();
+            if (signal?.aborted) return;
+            setPayments(data.payments);
+            setPagination(data.pagination);
+          }
+        })
+        .catch(error => {
+          if (signal?.aborted) return;
+          console.error('Error fetching payments:', error);
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
+        });
+    },
+    [statusFilter, page]
+  );
 
   useEffect(() => {
     if (!session) return;
@@ -94,7 +99,9 @@ export default function AdminPaymentsPage() {
       return;
     }
 
-    fetchPayments();
+    const controller = new AbortController();
+    void fetchPayments(controller.signal);
+    return () => controller.abort();
   }, [session, statusFilter, page, router, fetchPayments]);
 
   const markAsPaid = async (paymentId: string) => {

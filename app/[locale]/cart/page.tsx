@@ -13,40 +13,44 @@ import { Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { CartItemWithProduct } from '@/types/database';
 
 export default function CartPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('cart');
-  const _locale = useLocale();
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
-  const locale = isHydrated ? _locale : 'en';
+  const t = useTranslations('cart');
+  const locale = useLocale();
 
   const [cartItems, setCartItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
-  const fetchCart = useCallback(async () => {
-    try {
-      const response = await fetch('/api/cart');
-      if (response.ok) {
-        const data = await response.json();
-        setCartItems(data);
-      }
-    } catch (error) {
-      console.error('Error fetching cart:', error);
-    } finally {
-      setLoading(false);
-    }
+  const fetchCart = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/cart', { signal })
+      .then(async response => {
+        if (signal?.aborted) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (signal?.aborted) return;
+          setCartItems(data);
+        }
+      })
+      .catch(error => {
+        if (signal?.aborted) return;
+        console.error('Error fetching cart:', error);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
+    if (status === 'loading') return;
     if (!session) {
       router.push(`/${locale}/auth/login`);
       return;
     }
-    fetchCart();
-  }, [session, locale, router, fetchCart]);
+    const controller = new AbortController();
+    void fetchCart(controller.signal);
+    return () => controller.abort();
+  }, [session, status, locale, router, fetchCart]);
 
   const updateQuantity = async (itemId: string, newQuantity: number) => {
     setUpdating(itemId);

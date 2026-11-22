@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -31,10 +31,7 @@ export default function SellerDashboard({
   const { data: session, status } = useSession();
   const router = useRouter();
   const locale = useLocale();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<SellerOrder[]>([]);
   const [recentProducts, setRecentProducts] = useState<ProductWithRelations[]>(
@@ -42,65 +39,6 @@ export default function SellerDashboard({
   );
   const [loading, setLoading] = useState(true);
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
-
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      const fetchOptions = {
-        credentials: 'include' as RequestCredentials,
-        cache: 'no-store' as RequestCache,
-      };
-      const [statsRes, ordersRes, productsRes] = await Promise.all([
-        fetch('/api/seller/stats', fetchOptions),
-        fetch('/api/seller/orders?limit=5', fetchOptions),
-        // Use /list endpoint to avoid 500 error from heavy imports in main route
-        fetch('/api/seller/products/list?limit=5', fetchOptions),
-      ]);
-
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
-
-      if (ordersRes.ok) {
-        const ordersData = await ordersRes.json();
-        setRecentOrders(ordersData);
-      }
-
-      if (productsRes.ok) {
-        const productsData = await productsRes.json();
-        console.log('[Dashboard] Products API response:', {
-          count: Array.isArray(productsData)
-            ? productsData.length
-            : 'not array',
-          data: productsData,
-        });
-        setRecentProducts(productsData);
-      } else {
-        console.error('[Dashboard] Products API failed:', {
-          status: productsRes.status,
-          statusText: productsRes.statusText,
-        });
-        try {
-          const errorData = await productsRes.json();
-          console.error('[Dashboard] Products API error body:', errorData);
-        } catch {
-          console.error('[Dashboard] Could not parse error response');
-        }
-      }
-
-      // Fetch seller profile for verification state
-      const profileRes = await fetch('/api/seller/profile');
-      if (profileRes.ok) {
-        const profileData: { sellerProfile?: { verified?: boolean } } =
-          await profileRes.json();
-        setIsVerified(Boolean(profileData?.sellerProfile?.verified));
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -115,8 +53,74 @@ export default function SellerDashboard({
       return;
     }
 
-    fetchDashboardData();
-  }, [session, status, router, locale, fetchDashboardData]);
+    const controller = new AbortController();
+    const { signal } = controller;
+    const fetchOptions: RequestInit = {
+      credentials: 'include',
+      cache: 'no-store',
+      signal,
+    };
+    void Promise.all([
+      fetch('/api/seller/stats', fetchOptions),
+      fetch('/api/seller/orders?limit=5', fetchOptions),
+      fetch('/api/seller/products/list?limit=5', fetchOptions),
+    ])
+      .then(async ([statsRes, ordersRes, productsRes]) => {
+        if (signal.aborted) return;
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (signal.aborted) return;
+          setStats(statsData);
+        }
+
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          if (signal.aborted) return;
+          setRecentOrders(ordersData);
+        }
+
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          if (signal.aborted) return;
+          console.log('[Dashboard] Products API response:', {
+            count: Array.isArray(productsData)
+              ? productsData.length
+              : 'not array',
+            data: productsData,
+          });
+          setRecentProducts(productsData);
+        } else {
+          console.error('[Dashboard] Products API failed:', {
+            status: productsRes.status,
+            statusText: productsRes.statusText,
+          });
+          try {
+            const errorData = await productsRes.json();
+            console.error('[Dashboard] Products API error body:', errorData);
+          } catch {
+            console.error('[Dashboard] Could not parse error response');
+          }
+        }
+
+        // Fetch seller profile for verification state
+        const profileRes = await fetch('/api/seller/profile', { signal });
+        if (profileRes.ok) {
+          const profileData: { sellerProfile?: { verified?: boolean } } =
+            await profileRes.json();
+          if (signal.aborted) return;
+          setIsVerified(Boolean(profileData?.sellerProfile?.verified));
+        }
+      })
+      .catch(error => {
+        if (!signal.aborted)
+          console.error('Error fetching dashboard data:', error);
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [session, status, router, locale]);
 
   if (status === 'loading' || loading) {
     return (

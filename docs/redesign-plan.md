@@ -125,7 +125,7 @@ Phases run in this order. Phases 1, 2 and 3 can overlap once Phase 0 is done.
 
 **1A. Framework currency**
 
-- Move `middleware.ts` to `proxy.ts` (Next.js 16 convention) with the official codemod, then confirm the file and function were both renamed and auth and locale routing still work.
+- Adopt the Next.js 16 `proxy.ts` convention with the official middleware-to-proxy codemod, then confirm the file and function were both renamed and auth and locale routing still work.
 - Turn on the React Compiler and fix the 48 current lint warnings, most of which are effects that set state synchronously.
 - Build with Turbopack if the build and tests pass with it. Keep webpack only if a concrete incompatibility is recorded.
 - Adopt Cache Components and `use cache` for public catalog pages, with cache tags invalidated when a product, shop or category changes. Private pages and API responses stay uncached.

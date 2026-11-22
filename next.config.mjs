@@ -63,16 +63,11 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   poweredByHeader: false,
-  compress: true,
-  trailingSlash: false,
-  generateEtags: true,
-  reactStrictMode: true,
+  reactCompiler: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '127.0.0.1:3000'],
       bodySizeLimit: '2mb', // Limit server action body size
     },
-    optimizePackageImports: ['lucide-react', '@/components/ui'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -188,18 +183,6 @@ const nextConfig = {
       ],
     },
   ],
-  typescript: {
-    // Enforce TypeScript checks during builds to prevent runtime errors
-    ignoreBuildErrors: false,
-  },
-  webpack: config => {
-    config.ignoreWarnings = [
-      // Silence known benign OTel/Sentry dynamic require warnings
-      /Critical dependency: the request of a dependency is an expression/,
-      /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
-    ];
-    return config;
-  },
 };
 
 export default withNextIntl(nextConfig);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -9,10 +9,7 @@ import { CheckCircle, Package, ArrowRight } from 'lucide-react';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('order');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('order');
 
   const orderId = searchParams.get('orderId');
 

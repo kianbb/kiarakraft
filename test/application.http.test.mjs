@@ -366,6 +366,16 @@ async function run() {
     );
 
     for (const locale of ['fa', 'en']) {
+      for (const [request, section] of [
+        [buyer, 'seller'],
+        [buyer, 'admin'],
+        [seller, 'admin'],
+      ]) {
+        const denied = await request(`/${locale}/${section}`);
+        assert.equal(denied.status, 403);
+        assert.match(denied.headers.get('content-type'), /application\/json/);
+        assert.deepEqual(denied.json(), { error: 'Unauthorized' });
+      }
       const page = await seller(`/${locale}/seller/onboarding`);
       assert.equal(page.status, 200);
       const messages = JSON.parse(

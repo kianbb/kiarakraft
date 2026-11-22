@@ -98,7 +98,7 @@ function verifyConfigFiles() {
 
   const requiredFiles = [
     { path: 'i18n/request.ts', name: 'i18n request configuration' },
-    { path: 'middleware.ts', name: 'middleware configuration' },
+    { path: 'proxy.ts', name: 'locale proxy configuration' },
     { path: 'components/providers/Providers.tsx', name: 'client providers' },
     { path: 'next.config.mjs', name: 'Next.js config with next-intl plugin' },
   ];
@@ -125,11 +125,11 @@ function verifyConfigFiles() {
         }
       }
 
-      if (file.path === 'middleware.ts') {
+      if (file.path === 'proxy.ts') {
         if (content.includes('createMiddleware')) {
-          console.log(`      ✅ next-intl middleware configured`);
+          console.log(`      ✅ next-intl configured in proxy`);
         } else {
-          console.log(`      ⚠️  next-intl middleware not configured`);
+          console.log(`      ⚠️  next-intl missing from proxy`);
         }
       }
     } else {

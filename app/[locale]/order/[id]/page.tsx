@@ -43,39 +43,47 @@ interface ConfirmationOrder {
 
 export default function OrderConfirmationPage() {
   const params = useParams();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('order');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('order');
   const [order, setOrder] = useState<ConfirmationOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchOrder = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/orders/${params.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setOrder(data);
-      } else {
-        router.push('/');
-      }
-    } catch (error) {
-      console.error('Error fetching order:', error);
-      router.push('/');
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id, router]);
+  const fetchOrder = useCallback(
+    (signal?: AbortSignal) => {
+      return fetch(`/api/orders/${params.id}`, { signal })
+        .then(async response => {
+          if (signal?.aborted) return;
+          if (response.ok) {
+            const data = await response.json();
+            if (signal?.aborted) return;
+            setOrder(data);
+          } else {
+            router.push('/');
+          }
+        })
+        .catch(error => {
+          if (signal?.aborted) return;
+          console.error('Error fetching order:', error);
+          router.push('/');
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false);
+        });
+    },
+    [params.id, router]
+  );
 
   useEffect(() => {
+    if (status === 'loading') return;
     if (!session) {
       router.push('/auth/login');
       return;
     }
-    fetchOrder();
-  }, [session, router, fetchOrder]);
+    const controller = new AbortController();
+    void fetchOrder(controller.signal);
+    return () => controller.abort();
+  }, [session, status, router, fetchOrder]);
 
   if (!session || loading) {
     return (

@@ -45,14 +45,8 @@ export default function NewProductPage() {
   const locale = useLocale();
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
-  useEffect(() => setIsHydrated(true), []);
-  const _t = useTranslations('seller');
-  const _tCategories = useTranslations('categories');
-  const t = isHydrated ? _t : (((k: string) => k) as (k: string) => string);
-  const tCategories = isHydrated
-    ? _tCategories
-    : (((k: string) => k) as (k: string) => string);
+  const t = useTranslations('seller');
+  const tCategories = useTranslations('categories');
   const [creating, setCreating] = useState(false);
   const [images, setImages] = useState<UploadedImage[]>([]);
 
