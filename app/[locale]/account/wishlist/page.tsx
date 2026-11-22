@@ -1,6 +1,9 @@
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { getUserWishlist } from '@/lib/actions/wishlist';
+import { prisma } from '@/lib/db';
+import { getApprovedProductRatings } from '@/lib/product-ratings';
+import { isPublicProduct } from '@/lib/public-product';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Heart, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
@@ -28,6 +31,12 @@ export default async function WishlistPage({ params }: WishlistPageProps) {
   const { locale } = await params;
   const t = await getTranslations('wishlist');
   const wishlistItems = await getUserWishlist();
+  const ratings = await getApprovedProductRatings(
+    prisma.review,
+    wishlistItems
+      .filter(item => isPublicProduct(item.product))
+      .map(item => item.product.id)
+  );
 
   const isRTL = locale === 'fa';
 
@@ -109,6 +118,7 @@ export default async function WishlistPage({ params }: WishlistPageProps) {
               // Transform wishlist item to match ProductCard interface
               const product = {
                 ...item.product,
+                rating: ratings.get(item.product.id),
                 images: item.product.images.map(img => ({
                   url: img.url,
                   alt: img.alt || undefined,

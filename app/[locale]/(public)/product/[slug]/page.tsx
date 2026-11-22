@@ -4,10 +4,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { publicProductWhere, publicProductSelect } from '@/lib/public-product';
+import { getApprovedProductRatings } from '@/lib/product-ratings';
 import { translateProductFields } from '@/lib/translator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RatingStars } from '@/components/products/RatingStars';
+import { ProductRating } from '@/components/products/ProductRating';
 import { AddToCartButton } from '@/components/products/AddToCartButton';
 import { PriceWithFx } from '@/components/ui/price-with-fx';
 import { ProductJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
@@ -133,11 +134,13 @@ export default async function Page({ params }: { params: Params }) {
     notFound();
   }
 
-  const [t, tCategories, tHome] = await Promise.all([
+  const [t, tCategories, tHome, ratings] = await Promise.all([
     getTranslations({ locale: locale, namespace: 'product' }),
     getTranslations({ locale: locale, namespace: 'categories' }),
     getTranslations({ locale: locale, namespace: 'home' }),
+    getApprovedProductRatings(db.review, [product.id]),
   ]);
+  const rating = ratings.get(product.id);
 
   // Localized fields for demo products (DB currently Persian).
   // Try to load persisted EN translation if available (works after migration)
@@ -264,8 +267,8 @@ export default async function Page({ params }: { params: Params }) {
             displayName: product.seller.displayName,
             handle: product.seller.handle!,
           },
-          ratingAvg: product.ratingAvg,
-          ratingCount: product.ratingCount,
+          ratingAvg: rating?.average ?? 0,
+          ratingCount: rating?.count ?? 0,
           slug: product.slug,
         }}
         locale={locale}
@@ -352,12 +355,7 @@ export default async function Page({ params }: { params: Params }) {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 mb-4">
-                    <RatingStars rating={4.5} />
-                    <span className="text-sm text-muted-foreground">
-                      (4.5) • 23 {t('reviews')}
-                    </span>
-                  </div>
+                  {rating && <ProductRating rating={rating} className="mb-4" />}
                 </div>
 
                 {/* Seller Info */}

@@ -1,3 +1,4 @@
+import './require-opt-in';
 import { config as loadEnv } from 'dotenv';
 // Prefer .env.local if present, then fallback to .env
 loadEnv({ path: '.env.local' });

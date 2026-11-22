@@ -1,3 +1,4 @@
+import './require-opt-in';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';

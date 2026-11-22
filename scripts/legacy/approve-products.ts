@@ -1,3 +1,4 @@
+import './require-opt-in';
 import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
 loadEnv();
@@ -28,7 +29,7 @@ async function main() {
 
   if (!all && !id && !slug) {
     console.log(
-      'Usage: tsx scripts/approve-products.ts [--all] [--id=<id>] [--slug=<slug>] [--status=APPROVED|REVIEW|REJECTED|PENDING] [--reason="..."] [--confidence=0..100] [--dry-run]'
+      'Usage: tsx scripts/legacy/approve-products.ts [--all] [--id=<id>] [--slug=<slug>] [--status=APPROVED|REVIEW|REJECTED|PENDING] [--reason="..."] [--confidence=0..100] [--dry-run]'
     );
     process.exit(1);
   }

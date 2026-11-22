@@ -359,7 +359,7 @@
     "adding": "Adding...",
     "addedToCart": "Added to cart",
     "addToWishlist": "Add to Wishlist",
-    "reviews": "reviews",
+    "ratingSummary": "{average} out of 5 · {count, plural, one {# review} other {# reviews}}",
     "demoProductNotice": "This is a demo product. Please visit our explore page to see real products!"
   },
   "auth": {

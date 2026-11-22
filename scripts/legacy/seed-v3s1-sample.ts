@@ -1,7 +1,7 @@
+import './require-opt-in';
 /* V3-S1 sample seed: creates a seller with handle and 3 products for verification.
-   Usage: npx ts-node --compiler-options '{"module":"commonjs"}' scripts/seed-v3s1-sample.ts
-*/
-import { prisma } from '../lib/prisma';
+ */
+import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 
 async function main() {

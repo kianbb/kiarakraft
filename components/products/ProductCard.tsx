@@ -8,11 +8,12 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RatingStars } from '@/components/products/RatingStars';
+import { ProductRating } from '@/components/products/ProductRating';
 import { Price } from '@/components/ui/price';
 import { VerifiedBadge } from '@/components/ui/verified-badge';
 import { WishlistButton } from '@/components/wishlist/WishlistButton';
 import { cn } from '@/lib/utils';
+import type { ProductRatingSummary } from '@/lib/product-ratings';
 
 interface ProductCardProps {
   product: {
@@ -22,6 +23,7 @@ interface ProductCardProps {
     description: string;
     priceToman: number;
     stock: number;
+    rating?: ProductRatingSummary;
     images: { url: string; alt?: string }[];
     seller: {
       handle: string | null;
@@ -262,10 +264,9 @@ export const ProductCard = React.memo(function ProductCard({
             </p>
           )}
 
-          {/* Rating - Placeholder for now */}
-          <div className="mt-2">
-            <RatingStars rating={4.5} size="sm" />
-          </div>
+          {product.rating && (
+            <ProductRating rating={product.rating} size="sm" className="mt-2" />
+          )}
 
           {/* Price and Actions */}
           <div className="flex items-center justify-between mt-4">

@@ -359,7 +359,7 @@
     "adding": "در حال افزودن...",
     "addedToCart": "به سبد خرید اضافه شد",
     "addToWishlist": "افزودن به علاقه‌مندی‌ها",
-    "reviews": "نظرات",
+    "ratingSummary": "{average} از ۵ · {count, number} نظر",
     "demoProductNotice": "این محصول نمونه است. لطفاً برای دیدن محصولات واقعی به صفحه کاوش بروید!"
   },
   "auth": {
